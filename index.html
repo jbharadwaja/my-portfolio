@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Julian Bharadwaja | Data Science Portfolio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --text-color: #333;
+            --section-bg: #fff;
+            --highlight: #007BFF;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1e1e1e;
+            --text-color: #f4f4f4;
+            --section-bg: #2c2c2c;
+            --highlight: #00e6e6;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        header {
+            background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        nav {
+            margin-top: 1rem;
+        }
+
+        nav a {
+            color: #00e6e6;
+            margin: 0 1rem;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 12px;
+            background: var(--section-bg);
+            color: var(--text-color);
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            z-index: 999;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            padding: 2rem 1.5rem;
+        }
+
+        section {
+            margin-bottom: 2.5rem;
+            background: var(--section-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s;
+        }
+
+        section:hover {
+            transform: translateY(-5px);
+        }
+
+        h2 {
+            color: var(--text-color);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        ul {
+            padding-left: 1.2rem;
+        }
+
+        li {
+            margin-bottom: 0.7rem;
+        }
+
+        a {
+            color: var(--highlight);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .hero {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .hero h2 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero p {
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .resume-btn {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 10px 16px;
+            background: var(--highlight);
+            color: #fff;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .project-thumb {
+            background: var(--section-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+
+        .project-thumb:hover {
+            transform: scale(1.02);
+        }
+
+        .project-thumb img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .caption {
+            padding: 1rem;
+        }
+
+        .caption strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+
+        .caption p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-color);
+        }
+
+        @media (max-width: 600px) {
+            nav a {
+                display: block;
+                margin: 0.5rem 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+    <header>
+        <h1>Julian Bharadwaja</h1>
+        <nav>
+            <a href="#about">About</a>
+            <a href="#projects">Projects</a>
+            <a href="#experience">Experience</a>
+            <a href="#education">Education</a>
+            <a href="#skills">Skills</a>
+            <a href="#contact">Contact</a>
+        </nav>
+    </header>
+
+    <div class="hero">
+        <h2>Turning Data into Impactful Decisions</h2>
+        <p>Data Scientist | Developer | Storyteller</p>
+    </div>
+
+    <div class="container">
+        <section id="about">
+            <h2>About Me</h2>
+            <p>Aspiring Data Scientist transitioning from software and multimedia roles, currently enrolled in
+                TripleTen’s Data Science
+                Bootcamp (completion: Dec 2025). Passionate about solving real-world problems through data, statistics,
+                and machine
+                learning. Strong in Python, SQL, and data storytelling.</p>
+        </section>
+
+        <div class="container">
+            <section id="projects">
+                <h2>Featured Projects</h2>
+                <div class="grid">
+                    <div class="project-thumb">
+                        <a href="https://github.com/jbharadwaja/Phone-Plan-Revenue-Statistic-Data-Analysis"
+                            target="_blank">
+                            <img src="image/Phone Plan.png" alt="Phone Plan Revenue Analysis" />
+                            <div class="caption">
+                                <strong>Phone Plan Revenue Analysis</strong>
+                                <p>Compared two telecom plans using usage data from 500+ clients. Applied Pandas,
+                                    Seaborn, and statistical testing
+                                    to identify the most profitable plan.</p>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="project-thumb">
+                        <a href="https://github.com/jbharadwaja/Instacart-Market-Basket-Analysis" target="_blank">
+                            <img src="image/Instacart.png" alt="Instacart Market Basket Analysis" />
+                            <div class="caption">
+                                <strong>Instacart Market Basket Analysis</strong>
+                                <p>Explored over 3 million grocery orders to reveal purchasing patterns and reorder
+                                    behavior. Created visualizations
+                                    and insights to support product placement decisions.</p>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="project-thumb">
+                        <a href="https://github.com/jbharadwaja/WHO_statistical_data_analysis" target="_blank">
+                            <img src="image/WHO.png" alt="WHO Global Health Analysis" />
+                            <div class="caption">
+                                <strong>WHO Global Health Analysis</strong>
+                                <p>Analyzed global health data including vaccination, mortality, and spending metrics to
+                                    identify disparities
+                                    between developing and developed nations.</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <!-- <section id="projects">
+            <h2>Featured Projects</h2>
+
+            <div class="project-card">
+                <img src="image/phone_plan.png"
+                    alt="Phone Plan Revenue Analysis">
+                <div class="project-card-content">
+                    <h3><a href="https://github.com/jbharadwaja/Phone-Plan-Revenue-Statistic-Data-Analysis"
+                            target="_blank">Phone Plan Revenue Analysis</a></h3>
+                    <p>Compared telecom plans using usage data from 500+ clients. Used Pandas, Seaborn, and hypothesis
+                        testing to reveal the most profitable plan based on customer behavior.</p>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <img src="image/instamart.png"
+                    alt="Instacart Analysis">
+                <div class="project-card-content">
+                    <h3><a href="https://github.com/jbharadwaja/Instacart-Market-Basket-Analysis"
+                            target="_blank">Instacart Market Basket Analysis</a></h3>
+                    <p>Analyzed over 3 million Instacart grocery orders to understand purchase behavior and product
+                        patterns using bar plots, heatmaps, and feature engineering.</p>
+                </div>
+            </div>
+
+            <div class="project-card">
+                <img src="image/WHO sda.png"
+                    alt="WHO Health Stats">
+                <div class="project-card-content">
+                    <h3><a href="https://github.com/jbharadwaja/WHO_statistical_data_analysis" target="_blank">WHO
+                            Global Health Analysis</a></h3>
+                    <p>Explored international health indicators (life expectancy, spending, mortality) to identify
+                        disparities and patterns across regions using visualization and statistical analysis.</p>
+                </div>
+            </div>
+        </section> -->
+
+        <section id="experience">
+            <h2>Work Experience</h2>
+            <ul>
+                <li>
+                    <strong>Resident Advisor</strong> — The Scion Group (Jul 2023 – Present)
+                    <ul>
+                        <li>Led educational and wellness programs on diversity, mental health, and academic success.
+                        </li>
+                        <li>Mentored new RAs and conducted one-on-one check-ins with residents.</li>
+                        <li>Handled emergency responses and conflict resolution within residence halls.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>UPS Store Manager</strong> — UPS (Feb 2023 – Present)
+                    <ul>
+                        <li>Managed daily store operations, customer service, and shipping logistics.</li>
+                        <li>Trained new staff and implemented upselling strategies to boost revenue.</li>
+                        <li>Utilized UPS systems for tracking, packaging, and shipping optimization.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Content Creator & Video Editor</strong> — TikTok & Freelance (Jan 2022 – Present)
+                    <ul>
+                        <li>Produced and edited content for social platforms with over 510K followers.</li>
+                        <li>Used Adobe Premiere, After Effects, and Photoshop for storytelling and engagement.</li>
+                        <li>Monitored analytics to improve content strategy and viewership.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Senior Web Developer</strong> — DSS Inc. (Jan 2020 – Dec 2022)
+                    <ul>
+                        <li>Built scalable full-stack web apps using JavaScript, React, and RESTful APIs.</li>
+                        <li>Mentored junior developers and collaborated with product/design teams.</li>
+                        <li>Improved UX/UI for web applications with responsive front-end design.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>DevOps Engineer</strong> — Fujitsu (Apr 2018 – Dec 2019)
+                    <ul>
+                        <li>Managed cloud infrastructure and automated deployment pipelines using CI/CD tools.</li>
+                        <li>Implemented Infrastructure-as-Code (Terraform) and containerization (Docker).</li>
+                        <li>Optimized systems for healthcare compliance and disaster recovery.</li>
+                    </ul>
+                </li>
+            </ul>
+        </section>
+
+        <section id="education">
+            <h2>Education</h2>
+            <p><strong>TripleTen Data Science Bootcamp</strong> – Expected Dec 2025</p>
+            <p><strong>Orange Coast College</strong> – Associate in Computer Science</p>
+            <p><strong>AIT Rangsit</strong> – Bachelor of Mechanical Engineering Technology</p>
+        </section>
+
+        <section id="skills">
+            <h2>Skills</h2>
+            <ul>
+                <li>Python, SQL, Git, Pandas, NumPy, Matplotlib, Seaborn, Scikit-learn</li>
+                <li>Tableau, React, Vue.js, HTML/CSS, Bash</li>
+                <li>AWS, Azure, Terraform, Docker, CI/CD</li>
+                <li>Adobe Premiere, Photoshop, After Effects</li>
+            </ul>
+        </section>
+
+        <section id="contact">
+            <h2>Contact</h2>
+            <p>Email: <a href="mailto:bharadwajajulian@gmail.com">bharadwajajulian@gmail.com</a></p>
+            <p>GitHub: <a href="https://github.com/jbharadwaja" target="_blank">github.com/jbharadwaja</a></p>
+        </section>
+    </div>
+    <script>
+        function toggleTheme() {
+            const currentTheme = document.body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', newTheme);
+        }
+    </script>
+</body>
+
+</html>
