@@ -75,6 +75,11 @@ function createBoundaryTriggers(ScrollTrigger) {
   });
 }
 
+// Native scroll, links, burger and HUD before anything is awaited: on a CDN slow past the 8 s cap (or hung), the
+// page the cap reveals must still navigate. The libraries upgrade ctx.scroll in place when (if) they arrive.
+ctx.scroll = createScroll({ reduced: ctx.reduced });
+initNav(ctx);
+
 if (simulate === 'cdnfail') {
   const url = 'https://cdn.jsdelivr.net/npm/three@0.0.0-nope/x.js';
   try {
@@ -91,17 +96,14 @@ if (libs) {
   document.documentElement.classList.add('js-scroll');
   ctx.gsap = gsap;
   ctx.ScrollTrigger = ScrollTrigger;
-  ctx.scroll = createScroll({ Lenis, gsap, ScrollTrigger, reduced: ctx.reduced });
+  ctx.scroll.attach({ Lenis, gsap, ScrollTrigger });
   gsap.ticker.add((time, deltaTime) => {
     for (const fn of tickers) fn(time, deltaTime);
   });
   createBoundaryTriggers(ScrollTrigger);
   for (const section of SECTIONS) await section.init(ctx);
   document.fonts.ready.then(() => ScrollTrigger.refresh());
-} else {
-  ctx.scroll = createScroll({ Lenis: null, gsap: null, ScrollTrigger: null, reduced: ctx.reduced });
 }
-initNav(ctx);
 
 await document.fonts.ready;
 if (simulate === 'hang') await new Promise(() => {});

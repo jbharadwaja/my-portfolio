@@ -1,12 +1,14 @@
 // Fixed chrome behaviour (spec §2.1): in-page links jump through ctx.scroll, the burger sheet below 1024 px,
 // and the section HUD. The HUD's hiding while the veil is up and below 768 px is CSS (css/main.css).
+// main.js calls this before the CDN libraries settle. ctx.scroll is one object for the page's lifetime (native
+// scroll at first, upgraded in place by scroll.attach), so nothing here needs gsap, ScrollTrigger or Lenis.
 
 const WIDE = '(min-width: 1024px)';
 
-export function initNav({ scroll, ScrollTrigger }) {
+export function initNav({ scroll }) {
   const closeSheet = initSheet(scroll);
   initLinks(scroll, closeSheet);
-  initHud(scroll, ScrollTrigger);
+  initHud(scroll);
 }
 
 // Every in-page link (header, wordmark, hero CTA, sheet, skip link) jumps instead of following the hash.
@@ -82,7 +84,7 @@ function initSheet(scroll) {
 }
 
 // The label of the current section (its top has crossed the viewport centre) and the whole-page progress bar.
-function initHud(scroll, ScrollTrigger) {
+function initHud(scroll) {
   const label = document.querySelector('.hud-label');
   const bar = document.querySelector('.hud-bar');
   if (!label || !bar) return;
@@ -101,6 +103,7 @@ function initHud(scroll, ScrollTrigger) {
 
   window.addEventListener('scroll', update, { passive: true });
   window.addEventListener('resize', update);
-  ScrollTrigger?.addEventListener('refresh', update);
+  // Section lengths also change with no scroll or resize event: .js-scroll arriving with the libraries, ScrollTrigger refreshes.
+  new ResizeObserver(update).observe(document.body);
   update();
 }

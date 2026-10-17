@@ -27,19 +27,27 @@ export function currentSection(tops, y) {
 }
 
 /**
- * Lenis is created only without reduced motion, and only when main.js passes it (gsap's ticker drives it).
- * Without Lenis, scrolling is native and every scrollTo is instant.
+ * Scrolling starts native: main.js creates this before the CDN imports settle, so nav works even when a slow CDN
+ * lets the 8 s cap lift the veil first, and calls attach() once they resolve. That upgrades the same object in
+ * place, so the handlers holding it and any lock already taken carry over. Passing the libraries here attaches at
+ * once. Lenis is created only without reduced motion (gsap's ticker drives it); without Lenis every scrollTo is instant.
  */
-export function createScroll({ Lenis, gsap, ScrollTrigger, reduced }) {
+export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, reduced = false } = {}) {
   const root = document.documentElement;
   const sections = [...document.querySelectorAll('main > section')];
   let lenis = null;
+  let trigger = null;            // ScrollTrigger, once attached
+  let locks = 0;                 // counted, so two overlays (burger sheet, console) can hold the lock at once
 
-  if (Lenis && !reduced) {
-    lenis = new Lenis({ autoRaf: false, anchors: false });
-    lenis.on('scroll', ScrollTrigger.update);
-    gsap.ticker.add((t) => lenis.raf(t * 1000), false, true);
-    gsap.ticker.lagSmoothing(0);
+  function attach(libs) {
+    if (trigger || !libs.ScrollTrigger) return;
+    trigger = libs.ScrollTrigger;
+    if (!libs.Lenis || reduced) return;
+    lenis = new libs.Lenis({ autoRaf: false, anchors: false });
+    lenis.on('scroll', trigger.update);
+    libs.gsap.ticker.add((t) => lenis.raf(t * 1000), false, true);
+    libs.gsap.ticker.lagSmoothing(0);
+    if (locks > 0) lenis.stop();
   }
 
   // Sections are never sticky themselves (their stages are), so a rect gives each one's trigger-equivalent top.
@@ -63,16 +71,24 @@ export function createScroll({ Lenis, gsap, ScrollTrigger, reduced }) {
   async function cut(y) {
     const ms = reduced ? CUT_MS_REDUCED : CUT_MS;
     const layers = [document.querySelector('main'), document.getElementById('scene')].filter(Boolean);
+    let out = [];
+    let back = [];
     document.body.style.backgroundColor = root.dataset.ground === 'night' ? 'var(--bg-dark)' : 'var(--bg)';
-    const out = layers.map((el) => el.animate([{ opacity: 0 }], { duration: ms.out, easing: 'ease-in', fill: 'forwards' }));
-    await Promise.all(out.map((a) => a.finished));
-    scrollTo(y, { immediate: true });
-    ScrollTrigger?.update();
-    await new Promise(requestAnimationFrame);
-    const back = layers.map((el) => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms.in, easing: 'ease-out' }));
-    out.forEach((a) => a.cancel());
-    await Promise.all(back.map((a) => a.finished));
-    document.body.style.backgroundColor = '';
+    try {
+      out = layers.map((el) => el.animate([{ opacity: 0 }], { duration: ms.out, easing: 'ease-in', fill: 'forwards' }));
+      await Promise.all(out.map((a) => a.finished));
+      // Both run every ScrollTrigger callback synchronously (Lenis through its scroll emit), so a section module can throw here.
+      scrollTo(y, { immediate: true });
+      trigger?.update();
+      await new Promise(requestAnimationFrame);
+      back = layers.map((el) => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms.in, easing: 'ease-out' }));
+      out.forEach((a) => a.cancel());
+      await Promise.all(back.map((a) => a.finished));
+    } finally {
+      // Never leave the page faded out or the ground pinned; an error still reaches the jump queue's logger.
+      for (const a of [...out, ...back]) a.cancel();
+      document.body.style.backgroundColor = '';
+    }
   }
 
   // Jumps run one after another, so a second click never interleaves with a cut in progress.
@@ -89,8 +105,6 @@ export function createScroll({ Lenis, gsap, ScrollTrigger, reduced }) {
     return queue;
   }
 
-  // Counted, so two overlays (burger sheet, console) can hold the lock at once.
-  let locks = 0;
   function lock() {
     if (locks++ > 0) return;
     lenis?.stop();
@@ -102,8 +116,12 @@ export function createScroll({ Lenis, gsap, ScrollTrigger, reduced }) {
     root.style.overflow = '';
   }
 
+  if (ScrollTrigger) attach({ Lenis, gsap, ScrollTrigger });
+
   return {
-    lenis,
+    /** The Lenis instance, or null on native scroll (before attach, under reduced motion, or without the libraries). */
+    get lenis() { return lenis; },
+    attach,
     scrollTo,
     jumpTo,
     lock,
