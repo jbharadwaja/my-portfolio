@@ -7,6 +7,7 @@ import { veil } from './ui/veil.js';
 import { createScroll } from './ui/scroll.js';
 import { initNav } from './ui/nav.js';
 import { initHeroFit, initReveals } from './ui/split.js';
+import { pickTier, readEnv } from './engine/tier.js';
 
 /** Morph boundaries 0..1: B0 the entrance, B1–B6 the section boundaries (spec §4.3). */
 export const boundaries = new Float32Array(7);
@@ -18,7 +19,7 @@ export const ctx = {
   gsap: null,
   ScrollTrigger: null,
   scroll: null,
-  tier: null,
+  tier: pickTier(readEnv(window)),   // once at load (spec §4.1)
   reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
   engine: null,
   /** fn(time, deltaTime) runs every GSAP tick, after Lenis and before the render. */
@@ -68,6 +69,21 @@ async function loadScrollLibs() {
   }
 }
 
+/** three, then the engine on #scene; null without WebGL (the no-WebGL fallback is Task 17). */
+async function loadEngine() {
+  try {
+    await load('three');
+    veil.report('three');
+    const { createEngine } = await import('./engine/scene.js');
+    const engine = await createEngine({ canvas: document.getElementById('scene'), tier: ctx.tier, reduced: ctx.reduced });
+    engine.state.boundaries = boundaries;
+    return engine;
+  } catch (err) {
+    console.warn('WebGL engine unavailable.', err);
+    return null;
+  }
+}
+
 function createBoundaryTriggers(ScrollTrigger) {
   BOUNDARIES.forEach(({ trigger, start = 'top bottom', end = 'top top', snapEnd = 1 }, k) => {
     const i = k + 1;
@@ -81,6 +97,9 @@ function createBoundaryTriggers(ScrollTrigger) {
 ctx.scroll = createScroll({ reduced: ctx.reduced });
 initNav(ctx);
 initHeroFit();                // the hero name's fit needs no library
+
+// The engine loads alongside the scroll libraries and never holds them up; the ticker renders once it exists.
+loadEngine().then((engine) => { ctx.engine = engine; });
 
 if (simulate === 'cdnfail') {
   const url = 'https://cdn.jsdelivr.net/npm/three@0.0.0-nope/x.js';
@@ -101,6 +120,7 @@ if (libs) {
   ctx.scroll.attach({ Lenis, gsap, ScrollTrigger });
   gsap.ticker.add((time, deltaTime) => {
     for (const fn of tickers) fn(time, deltaTime);
+    ctx.engine?.tick(time * 1000);   // render last (spec §4.7: lenis.raf → section state → render)
   });
   createBoundaryTriggers(ScrollTrigger);
   for (const section of SECTIONS) await section.init(ctx);
