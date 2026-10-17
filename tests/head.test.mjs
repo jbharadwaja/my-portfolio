@@ -1,0 +1,37 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const CDN = 'https://cdn.jsdelivr.net/npm/';
+test('import map pins exact versions', () => {
+  const m = html.match(/<script type="importmap">([\s\S]*?)<\/script>/);
+  assert.ok(m);
+  assert.deepEqual(JSON.parse(m[1]).imports, {
+    three: CDN + 'three@0.186.1/build/three.module.js',
+    'three/addons/': CDN + 'three@0.186.1/examples/jsm/',
+    lenis: CDN + 'lenis@1.3.26/dist/lenis.mjs',
+    gsap: CDN + 'gsap@3.15.0/index.js',
+    'gsap/ScrollTrigger': CDN + 'gsap@3.15.0/ScrollTrigger.js',
+  });
+});
+test('import map precedes every module script', () => {
+  const im = html.indexOf('type="importmap"');
+  const mod = html.indexOf('type="module"');
+  assert.ok(im > 0 && (mod === -1 || im < mod));
+});
+test('fonts: both CSS2 links and preconnects', () => {
+  assert.ok(html.includes('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Geist+Mono:wght@100..900&display=swap'));
+  assert.ok(html.includes('&text=%E2%86%92%E2%86%97%E2%86%90%E2%89%A4&display=swap'));
+  assert.ok(html.includes('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'));
+});
+test('modulepreload for the seven CDN files', () => {
+  for (const f of ['three@0.186.1/build/three.module.js', 'three@0.186.1/build/three.core.js', 'gsap@3.15.0/index.js',
+    'gsap@3.15.0/gsap-core.js', 'gsap@3.15.0/CSSPlugin.js', 'gsap@3.15.0/ScrollTrigger.js', 'lenis@1.3.26/dist/lenis.mjs'])
+    assert.ok(html.includes(`<link rel="modulepreload" href="${CDN}${f}">`), f);
+});
+test('no-js root and skeleton', () => {
+  assert.match(html, /<html lang="en" class="no-js">/);
+  assert.match(html, /<canvas id="scene" aria-hidden="true">/);
+  assert.match(html, /<main id="main">/);
+  assert.match(html, /<a class="skip" href="#main">/);
+});

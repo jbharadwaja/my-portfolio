@@ -1,0 +1,25 @@
+:root {
+  /* tier 1 — raw */
+  --c-paper:   #F6F6F3;  /* light ground */
+  --c-ink:     #0A0A0A;  /* type, particles on paper */
+  --c-ink-60:  rgb(10 10 10 / .6);   /* 5.12:1 on paper — muted TEXT */
+  --c-ink-35:  rgb(10 10 10 / .35);  /* 2.3:1 — decoration only, never text */
+  --c-line:    #E3E3DE;  /* hairlines */
+  --c-night:   #0E0F12;  /* night ground */
+  --c-night-2: #1A1C21;  /* panels on night */
+  --c-mist:    #E9E9E4;  /* type + particles on night */
+  --c-mist-60: rgb(233 233 228 / .6);
+  --c-signal:  #FF4D00;  /* the one accent */
+  --c-signal-25: rgb(255 77 0 / .25);
+
+  /* tier 2 — roles */
+  --bg: var(--c-paper);  --fg: var(--c-ink);  --fg-muted: var(--c-ink-60);  --fg-faint: var(--c-ink-35);
+  --bg-dark: var(--c-night);  --fg-on-dark: var(--c-mist);  --fg-on-dark-muted: var(--c-mist-60);
+  --accent: var(--c-signal);  --accent-muted: var(--c-signal-25);  --hairline: var(--c-line);
+  --chrome-fg: var(--fg);  --chrome-muted: var(--fg-muted);   /* swapped under [data-ground="night"] */
+}
+
+/* reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+html, body, main { overflow-x: clip; }
+body { background: var(--bg); color: var(--fg); }
