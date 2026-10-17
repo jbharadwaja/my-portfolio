@@ -6,6 +6,7 @@
 import { veil } from './ui/veil.js';
 import { createScroll } from './ui/scroll.js';
 import { initNav } from './ui/nav.js';
+import { initHeroFit, initReveals } from './ui/split.js';
 
 /** Morph boundaries 0..1: B0 the entrance, B1–B6 the section boundaries (spec §4.3). */
 export const boundaries = new Float32Array(7);
@@ -79,6 +80,7 @@ function createBoundaryTriggers(ScrollTrigger) {
 // page the cap reveals must still navigate. The libraries upgrade ctx.scroll in place when (if) they arrive.
 ctx.scroll = createScroll({ reduced: ctx.reduced });
 initNav(ctx);
+initHeroFit();                // the hero name's fit needs no library
 
 if (simulate === 'cdnfail') {
   const url = 'https://cdn.jsdelivr.net/npm/three@0.0.0-nope/x.js';
@@ -102,7 +104,13 @@ if (libs) {
   });
   createBoundaryTriggers(ScrollTrigger);
   for (const section of SECTIONS) await section.init(ctx);
-  document.fonts.ready.then(() => ScrollTrigger.refresh());
+  let laidOut = document.fonts.ready;
+  try {
+    laidOut = initReveals(ctx);   // settles after the word widths are locked
+  } catch (err) {
+    console.error(err);
+  }
+  laidOut.then(() => ScrollTrigger.refresh());
 }
 
 await document.fonts.ready;
