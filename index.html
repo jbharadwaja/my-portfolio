@@ -33,6 +33,331 @@
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <canvas id="scene" aria-hidden="true"></canvas>
-<main id="main"></main>
+
+<header class="site-header">
+  <a class="wordmark mono" href="#top">JB·</a>
+  <nav class="site-nav" aria-label="Primary">
+    <ul class="nav-links">
+      <li><a href="#work">Work</a></li>
+      <li><a href="#route">Route</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+  <div class="header-end">
+    <a class="js-cv mono" href="https://www.linkedin.com/in/julian-bharadwaja/" data-cv="header" target="_blank" rel="noopener">[ CV ↗ ]</a>
+    <button class="burger" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="sheet"><span class="burger-line"></span><span class="burger-line"></span></button>
+  </div>
+</header>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Menu" hidden>
+  <button class="sheet-close" type="button" aria-label="Close menu"><span class="burger-line"></span><span class="burger-line"></span></button>
+  <ul class="sheet-links">
+    <li><a href="#work">Work</a></li>
+    <li><a href="#route">Route</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</div>
+
+<div class="hud mono" aria-hidden="true">
+  <span class="hud-label">01 / 07  HERO</span>
+  <span class="hud-track"><span class="hud-bar"></span></span>
+</div>
+<div class="banner mono" role="alert" hidden></div>
+
+<main id="main">
+
+  <section id="top" data-hud="01 / 07  HERO" aria-labelledby="hero-name">
+    <div class="hero-copy">
+      <p class="hero-eyebrow mono">JB-2026 · TUSTIN, CA · 33.74°N 117.83°W</p>
+      <h1 class="hero-name" id="hero-name"><span class="line">JULIAN</span> <span class="line">BHARADWAJA</span></h1>
+      <p class="hero-role">Data scientist · ML engineer · Data analyst</p>
+      <p class="hero-lead">I build models, forecasts and dashboards — and I report what actually happened.</p>
+      <ul class="hero-meta mono">
+        <li><svg class="meta-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2.5 14 5.5 8 8.5 2 5.5Z"/><path d="M2 8.5l6 3 6-3"/><path d="M2 11.5l6 3 6-3"/></svg><span>Python · SQL · scikit-learn · LightGBM</span></li>
+        <li><svg class="meta-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6"/><path d="M2 8h12"/><path d="M8 2c1.8 1.7 2.6 3.7 2.6 6S9.8 12.3 8 14C6.2 12.3 5.4 10.3 5.4 8S6.2 3.7 8 2Z"/></svg><span>Ex-Fujitsu DevOps, Tokyo · Full-stack, Korea</span></li>
+        <li><svg class="meta-icon meta-icon--live" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6"/><circle class="live-dot" cx="8" cy="8" r="2.5"/></svg><span>Open to data roles · 2026</span></li>
+      </ul>
+      <div class="hero-panels">
+        <div class="panel">
+          <p class="panel-title mono">Currently</p>
+          <ul class="panel-list">
+            <li><span class="panel-org">TripleTen</span> — Data Science · exp. Dec 2026</li>
+            <li><span class="panel-org">Orange Coast College</span> — A.S. Computer Science · GPA 4.0 · exp. Dec 2026</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <p class="panel-title mono">By the numbers</p>
+          <ul class="figures">
+            <li class="figure"><span class="figure-value mono">6</span> <span class="figure-label">ML projects</span></li>
+            <li class="figure"><span class="figure-value mono">4</span> <span class="figure-label">countries</span></li>
+            <li class="figure"><span class="figure-value mono">+25%</span> <span class="figure-label">revenue (UPS Store analysis)</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <a class="cta-primary" href="#work"><span class="flood" aria-hidden="true"></span><span class="cta-label">See experiments →</span></a>
+        <a class="js-cv cv-inline mono" href="https://www.linkedin.com/in/julian-bharadwaja/" data-cv="hero" target="_blank" rel="noopener">CV on LinkedIn ↗</a>
+      </div>
+      <ul class="socials mono">
+        <li><a href="https://github.com/jbharadwaja" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/julian-bharadwaja/" target="_blank" rel="noopener">LinkedIn</a></li>
+        <li><a href="mailto:bharadwajajulian@gmail.com">Email</a></li>
+      </ul>
+    </div>
+    <p class="hero-hud mono" aria-hidden="true">denoise step <span class="hero-step">01</span> / 50 · seed 0x4A42</p>
+    <p class="scroll-cue mono" aria-hidden="true">scroll ↓  to start training</p>
+  </section>
+
+  <section class="pin" id="encoder" data-hud="02 / 07  ENCODER">
+    <div class="stage">
+      <div class="section-head">
+        <h2>An encoder for a career.</h2>
+        <p class="section-body">Software engineer turned data scientist. DevOps at Fujitsu in Tokyo, full-stack for a South Korean company, now building ML models in Python and reporting results as they come out — including the times the simple model won.</p>
+      </div>
+      <div class="net-labels">
+        <span class="net-label mono" data-layer="0" data-node="0">Mechatronics · AIT</span>
+        <span class="net-label mono" data-layer="0" data-node="1">DevOps · Fujitsu</span>
+        <span class="net-label mono" data-layer="0" data-node="2">Full-stack · DSS</span>
+        <span class="net-label mono" data-layer="0" data-node="3">Analytics · UPS / OCC</span>
+        <span class="net-label mono" data-layer="1" data-node="0">Python</span>
+        <span class="net-label mono" data-layer="1" data-node="1">SQL</span>
+        <span class="net-label mono" data-layer="1" data-node="2">pandas</span>
+        <span class="net-label mono" data-layer="1" data-node="3">NumPy</span>
+        <span class="net-label mono" data-layer="1" data-node="4">Statistics</span>
+        <span class="net-label mono" data-layer="1" data-node="5">Git / CI</span>
+        <span class="net-label mono" data-layer="2" data-node="0">scikit-learn</span>
+        <span class="net-label mono" data-layer="2" data-node="1">LightGBM</span>
+        <span class="net-label mono" data-layer="2" data-node="2">CatBoost</span>
+        <span class="net-label mono" data-layer="2" data-node="3">spaCy</span>
+        <span class="net-label mono" data-layer="2" data-node="4">Prophet</span>
+        <span class="net-label mono" data-layer="2" data-node="5">SciPy</span>
+        <span class="net-label mono" data-layer="3" data-node="0">Models</span>
+        <span class="net-label mono" data-layer="3" data-node="1">Forecasts</span>
+        <span class="net-label mono" data-layer="3" data-node="2">Insights</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="pin" id="training" data-hud="03 / 07  TRAINING">
+    <div class="stage">
+      <div class="section-head">
+        <h2>How I train.</h2>
+      </div>
+      <div class="train-hud" aria-hidden="true">
+        <p class="train-readout mono">epoch 042 / 100 · train 0.512 · val 0.538 · lr 3e-3</p>
+        <svg class="loss-curve" viewBox="0 0 200 80" preserveAspectRatio="none" focusable="false">
+          <polyline class="train" points="0,6.2 4,9.4 8,12.5 12,15.5 16,18.2 20,20.9 24,23.4 28,25.7 32,28.0 36,30.1 40,32.1 44,34.1 48,35.9 52,37.6 56,39.2 60,40.8 64,42.2 68,43.6 72,44.9 76,46.2 80,47.4 84,48.5"/>
+          <polyline class="val" points="0,3.2 4,6.6 8,9.7 12,12.8 16,15.6 20,18.4 24,20.9 28,23.4 32,25.7 36,27.9 40,30.0 44,32.0 48,33.8 52,35.6 56,37.3 60,38.9 64,40.4 68,41.8 72,43.2 76,44.5 80,45.7 84,46.9"/>
+        </svg>
+      </div>
+      <div class="beats">
+        <div class="beat" data-beat="0">
+          <p class="beat-num mono">01</p>
+          <h3 class="beat-title">Baseline first.</h3>
+          <p class="beat-body">Every model starts against a dumb baseline. If it can't beat the median, I say so — gold recovery scored 9.41 sMAPE against a 9.44 baseline.</p>
+        </div>
+        <div class="beat" data-beat="1">
+          <p class="beat-num mono">02</p>
+          <h3 class="beat-title">Features over tricks.</h3>
+          <p class="beat-body">Lags, rolling means, TF-IDF, lemmatized text. Most of the lift lives in the features.</p>
+        </div>
+        <div class="beat" data-beat="2">
+          <p class="beat-num mono">03</p>
+          <h3 class="beat-title">Validate like I mean it.</h3>
+          <p class="beat-body">Cross-validation, held-out test sets, 1,000-sample bootstraps. When a reviewer found leakage, I refit on training data only.</p>
+        </div>
+        <div class="beat" data-beat="3">
+          <p class="beat-num mono">04</p>
+          <h3 class="beat-title">Report what happened.</h3>
+          <p class="beat-body">Plain linear regression beat LightGBM and CatBoost on taxi demand. The README says so.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pin" id="work" data-hud="04 / 07  EXPERIMENTS">
+    <div class="stage">
+      <div class="section-head">
+        <h2>Experiments.</h2>
+        <p class="section-sub">Six models and two field analyses. Real metrics — including the ones that barely won.</p>
+      </div>
+      <div class="rail-viewport">
+        <div class="rail">
+          <article class="card" tabindex="0" data-index="EXP_01" data-verdict="BEAT TARGET" data-metric="0.90" data-compare="0.85" data-better="higher" aria-labelledby="exp-01-title">
+            <p class="card-index mono">EXP_01</p>
+            <h3 class="card-title" id="exp-01-title">Movie review sentiment</h3>
+            <ul class="chips"><li class="chip mono">Python</li><li class="chip mono">spaCy</li><li class="chip mono">scikit-learn</li></ul>
+            <p class="card-metric mono"><span class="card-metric-label">F1</span> <span class="card-metric-value">0.90</span></p>
+            <div class="card-chart"><p class="card-compare mono">target 0.85</p></div>
+            <div class="card-foot">
+              <span class="stamp mono">BEAT TARGET</span>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+            </div>
+          </article>
+          <article class="card" tabindex="0" data-index="EXP_02" data-verdict="LEAKAGE FIXED" aria-labelledby="exp-02-title">
+            <p class="card-index mono">EXP_02</p>
+            <h3 class="card-title" id="exp-02-title">Used car price prediction</h3>
+            <ul class="chips"><li class="chip mono">scikit-learn</li><li class="chip mono">LightGBM</li></ul>
+            <p class="card-metric mono"><span class="card-metric-label">RMSE</span> <span class="card-metric-value">€1,583</span></p>
+            <div class="card-chart"><p class="card-compare mono">best of 6 model types, leakage fixed</p></div>
+            <div class="card-foot">
+              <span class="stamp mono">LEAKAGE FIXED</span>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+            </div>
+          </article>
+          <article class="card" tabindex="0" data-index="EXP_03" data-verdict="NEAR-TIE" data-metric="9.41" data-compare="9.44" data-better="lower" aria-labelledby="exp-03-title">
+            <p class="card-index mono">EXP_03</p>
+            <h3 class="card-title" id="exp-03-title">Gold recovery prediction</h3>
+            <ul class="chips"><li class="chip mono">scikit-learn</li><li class="chip mono">cross-validation</li></ul>
+            <p class="card-metric mono"><span class="card-metric-label">sMAPE</span> <span class="card-metric-value">9.41</span></p>
+            <div class="card-chart"><p class="card-compare mono">median baseline 9.44</p></div>
+            <div class="card-foot">
+              <span class="stamp mono">NEAR-TIE</span>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+            </div>
+          </article>
+          <article class="card" tabindex="0" data-index="EXP_04" data-verdict="LINEAR WON" data-metric="34.5" data-compare="48" data-better="lower" aria-labelledby="exp-04-title">
+            <p class="card-index mono">EXP_04</p>
+            <h3 class="card-title" id="exp-04-title">Taxi demand forecasting</h3>
+            <ul class="chips"><li class="chip mono">time series</li><li class="chip mono">LightGBM</li><li class="chip mono">CatBoost</li></ul>
+            <p class="card-metric mono"><span class="card-metric-label">RMSE</span> <span class="card-metric-value">34.5</span></p>
+            <div class="card-chart"><p class="card-compare mono">target ≤ 48</p></div>
+            <div class="card-foot">
+              <span class="stamp mono">LINEAR WON</span>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+            </div>
+          </article>
+          <article class="card" tabindex="0" data-index="EXP_05" data-verdict="LOW RISK" aria-labelledby="exp-05-title">
+            <p class="card-index mono">EXP_05</p>
+            <h3 class="card-title" id="exp-05-title">Oil well location under risk</h3>
+            <ul class="chips"><li class="chip mono">scikit-learn</li><li class="chip mono">bootstrapping</li></ul>
+            <p class="card-metric mono"><span class="card-metric-value">$6.64M</span> <span class="card-metric-label">avg profit</span></p>
+            <div class="card-chart"><p class="card-compare mono">0.1% risk of loss</p></div>
+            <div class="card-foot">
+              <span class="stamp mono">LOW RISK</span>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+            </div>
+          </article>
+          <article class="card" tabindex="0" data-index="EXP_06" data-verdict="SHIPPED" aria-labelledby="exp-06-title">
+            <p class="card-index mono">EXP_06</p>
+            <h3 class="card-title" id="exp-06-title">SHINYOROI</h3>
+            <ul class="chips"><li class="chip mono">Python</li><li class="chip mono">PyTrends</li><li class="chip mono">Prophet</li></ul>
+            <p class="card-metric card-metric--text mono"><span class="card-metric-label">Google Trends forecasts</span></p>
+            <div class="card-chart"><p class="card-compare mono">backend + mobile app</p></div>
+            <div class="card-foot">
+              <span class="stamp mono">SHIPPED</span>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+            </div>
+          </article>
+          <article class="card" tabindex="0" data-index="FIELD_01" data-verdict="IN PRODUCTION" aria-labelledby="field-01-title">
+            <p class="card-index mono">FIELD_01</p>
+            <h3 class="card-title" id="field-01-title">UPS Store revenue analysis</h3>
+            <ul class="chips"><li class="chip mono">transaction &amp; customer-mix data</li></ul>
+            <p class="card-metric mono"><span class="card-metric-value">+25%</span> <span class="card-metric-label">monthly revenue</span></p>
+            <div class="card-chart"><p class="card-compare mono">weekly KPI tracking replaced manual reports</p></div>
+            <div class="card-foot">
+              <span class="stamp mono">IN PRODUCTION</span>
+            </div>
+          </article>
+          <article class="card" tabindex="0" data-index="FIELD_02" data-verdict="ADOPTED" aria-labelledby="field-02-title">
+            <p class="card-index mono">FIELD_02</p>
+            <h3 class="card-title" id="field-02-title">Program insights, Orange Coast College</h3>
+            <ul class="chips"><li class="chip mono">participation data</li><li class="chip mono">20+ programs</li></ul>
+            <p class="card-metric mono"><span class="card-metric-value">+30%</span> <span class="card-metric-label">engagement</span></p>
+            <div class="card-chart"><p class="card-compare mono">program changes from findings</p></div>
+            <div class="card-foot">
+              <span class="stamp mono">ADOPTED</span>
+            </div>
+          </article>
+        </div>
+      </div>
+      <p class="rail-hint mono" aria-hidden="true">scroll ↓ to browse · 01 / 08</p>
+    </div>
+  </section>
+
+  <section class="pin" id="route" data-hud="05 / 07  ROUTE">
+    <div class="stage">
+      <div class="route-head">
+        <h2>Route.</h2>
+        <p class="section-sub">Four countries, one direction.</p>
+      </div>
+      <div class="route-cards">
+        <div class="route-card" data-stop="0" data-lat="14.08" data-lon="100.61">
+          <h3 class="route-when mono"><span class="route-years">2012–2017</span> · Pathum Thani, Thailand</h3>
+          <p class="route-body">Asian Institute of Technology — B.E. Mechatronics Engineering.</p>
+        </div>
+        <div class="route-card" data-stop="1" data-lat="35.68" data-lon="139.69">
+          <h3 class="route-when mono"><span class="route-years">2019–2020</span> · Tokyo, Japan</h3>
+          <p class="route-body">Fujitsu — Junior DevOps Engineer. Automated build, test and deploy pipelines; monitored infrastructure through logs and alerts; helped move legacy components to microservices.</p>
+        </div>
+        <div class="route-card" data-stop="2" data-lat="37.57" data-lon="126.98">
+          <h3 class="route-when mono"><span class="route-years">2021–2023</span> · South Korea (hybrid)</h3>
+          <p class="route-body">Digital Strategic Solution — Full-Stack Developer. eCommerce platform in Vue.js + Laravel (checkout, payments, search); HR SaaS app in TypeScript + React.</p>
+        </div>
+        <div class="route-card" data-stop="3" data-lat="33.75" data-lon="-117.83">
+          <h3 class="route-when mono"><span class="route-years">2023–now</span> · Tustin, California</h3>
+          <p class="route-body">The UPS Store (Store Manager; +25% monthly revenue from margin analysis; weekly KPI tracking) · Orange Coast College (Program Insights Coordinator; +30% engagement; A.S. Computer Science, GPA 4.0, exp. Dec 2026) · TripleTen (Data Science, exp. Dec 2026).</p>
+        </div>
+      </div>
+      <p class="reticle-readout mono" aria-hidden="true"></p>
+    </div>
+  </section>
+
+  <section id="about" data-hud="06 / 07  ABOUT">
+    <div class="about-inner">
+      <figure class="plate-figure">
+        <div class="plate">
+          <img class="plate-img" src="assets/img/portrait-full.webp" width="788" height="985" alt="Julian Bharadwaja at a window overlooking the Grand Canyon" loading="lazy" decoding="async">
+          <canvas class="plate-canvas" aria-hidden="true"></canvas>
+        </div>
+        <figcaption class="plate-caption mono">Grand Canyon, AZ<span class="plate-hint"> · move to reveal</span></figcaption>
+      </figure>
+      <div class="about-text">
+        <h2>Hello.</h2>
+        <p class="about-bio">I came to data the long way round: a mechatronics degree in Thailand, DevOps in Tokyo, full-stack products for a Korean company, and running a store's numbers in California. Now I build models in Python and write up what they actually did. Longer term, I'm interested in empirical AI safety research.</p>
+        <div class="skills">
+          <div class="skill-group">
+            <h3 class="skill-name mono">Python</h3>
+            <p class="skill-list">pandas, NumPy, scikit-learn, LightGBM, CatBoost, spaCy, SciPy, Prophet, Matplotlib</p>
+          </div>
+          <div class="skill-group">
+            <h3 class="skill-name mono">Methods</h3>
+            <p class="skill-list">classification &amp; regression, gradient boosting, time-series forecasting, TF-IDF text classification, class imbalance, cross-validation, bootstrapping, hypothesis testing</p>
+          </div>
+          <div class="skill-group">
+            <h3 class="skill-name mono">Engineering</h3>
+            <p class="skill-list">SQL, Git &amp; GitHub, shell, CI/CD, REST APIs, TypeScript, React, Vue.js, Laravel</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" data-hud="07 / 07  CONTACT">
+    <div class="signoff-inner">
+      <h2>Let's build something measurable.</h2>
+      <a class="signoff-email" href="mailto:bharadwajajulian@gmail.com">bharadwajajulian@gmail.com</a>
+      <ul class="signoff-links mono">
+        <li><a href="https://www.linkedin.com/in/julian-bharadwaja/" target="_blank" rel="noopener">linkedin.com/in/julian-bharadwaja</a></li>
+        <li><a href="https://github.com/jbharadwaja" target="_blank" rel="noopener">github.com/jbharadwaja</a></li>
+        <li><a class="js-cv cv-inline mono" href="https://www.linkedin.com/in/julian-bharadwaja/" data-cv="signoff" target="_blank" rel="noopener">CV on LinkedIn ↗</a></li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer mono">
+  <p>© 2026 Julian Bharadwaja</p>
+  <p>Built with three.js — no templates</p>
+  <button class="console-open" type="button"><span class="console-open-fine">press ~ for the console</span><span class="console-open-touch">open console</span></button>
+</footer>
+
+<div class="console" id="console" role="dialog" aria-modal="true" aria-label="Console" hidden>
+  <div class="console-log mono" data-lenis-prevent></div>
+  <input class="console-input mono" type="text" aria-label="Console command" autocomplete="off" autocapitalize="off" spellcheck="false">
+</div>
 </body>
 </html>
