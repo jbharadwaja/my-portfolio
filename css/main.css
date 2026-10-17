@@ -126,6 +126,7 @@ main, .site-footer { position: relative; z-index: 1; }
 .no-js .site-header { background: var(--bg); border-bottom: 1px solid var(--hairline); }
 .wordmark { justify-self: start; font-size: 1rem; font-weight: 600; letter-spacing: .02em; }
 .nav-links { display: flex; gap: clamp(14px, 2.6vw, 40px); }
+.nav-links a, .header-end .js-cv { white-space: nowrap; }
 .header-end { grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 16px; }
 .burger, .sheet-close {
   display: none; place-content: center; gap: 6px;
@@ -140,6 +141,11 @@ main, .site-footer { position: relative; z-index: 1; }
 @media (max-width: 767.98px) {
   .site-header { grid-template-columns: auto 1fr auto; }
   .site-nav { justify-self: center; }
+  /* without JS there is no burger: the links take a second row under the wordmark */
+  .no-js { --header-h: 96px; }
+  .no-js .site-header { grid-template-columns: 1fr auto; align-content: center; row-gap: 16px; }
+  .no-js .header-end { grid-row: 1; grid-column: 2; }
+  .no-js .site-nav { grid-row: 2; grid-column: 1 / -1; justify-self: start; }
 }
 
 /* burger sheet (behaviour in nav.js) */
@@ -165,7 +171,7 @@ main, .site-footer { position: relative; z-index: 1; }
   position: fixed; z-index: 40; left: var(--gutter); bottom: 24px;
   display: grid; gap: 8px;
   color: var(--chrome-fg);
-  transition: color 200ms;
+  transition: color 200ms, opacity 600ms;
   pointer-events: none;
 }
 .hud-label { white-space: pre; }
@@ -177,6 +183,7 @@ main, .site-footer { position: relative; z-index: 1; }
   transform: scaleX(0); transform-origin: 0 50%;
 }
 .no-js .hud { display: none; }
+.js:not(.veil-done) .hud { opacity: 0; }
 @media (max-width: 767.98px) { .hud { display: none; } }
 
 /* asset-failure banner */
@@ -250,6 +257,15 @@ main, .site-footer { position: relative; z-index: 1; }
 
 /* sections */
 main > section { position: relative; }
+[tabindex="-1"]:focus { outline: none; }   /* jump targets (nav.js): focus moves the keyboard's starting point, no ring */
+
+/* scroll foundation (spec §5.1–5.2): sticky stages, only once gsap and Lenis have loaded (main.js sets .js-scroll).
+   #work gets its length from the rail (experiments.js). */
+.js-scroll #encoder { height: calc(100svh + 100vh); }
+.js-scroll #training { height: calc(100svh + 200vh); }
+.js-scroll #route { height: calc(100svh + 180vh); }
+.js-scroll .stage { position: sticky; top: 0; height: 100svh; overflow: clip; }
+.js-scroll :is(#about, #contact) { min-height: 100lvh; }
 .pin > .stage, .about-inner, .signoff-inner { padding: var(--section-pad) var(--gutter); }
 .section-head { display: grid; gap: clamp(18px, 2vw, 28px); max-width: 62rem; }
 .section-body, .section-sub { max-width: 36em; font-size: var(--fs-lead); line-height: 1.45; }
