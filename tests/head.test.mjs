@@ -35,3 +35,44 @@ test('no-js root and skeleton', () => {
   assert.match(html, /<main id="main">/);
   assert.match(html, /<a class="skip" href="#main">/);
 });
+
+// Boot sequence (spec §6.1, rulings R15/R23)
+const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const bootStart = html.indexOf('<script>');
+test('head order: charset, inline boot script, then stylesheets and the import map', () => {
+  const charset = html.indexOf('<meta charset="utf-8">');
+  assert.ok(/<head>\s*<meta charset="utf-8">/.test(html), 'charset is the first element in <head>');
+  assert.ok(charset >= 0 && charset < 1024, 'charset sits in the first 1024 bytes');
+  assert.ok(bootStart > charset, 'inline boot script follows the charset');
+  assert.equal(html.indexOf('<script'), bootStart, 'the inline boot script is the first <script>');
+  assert.ok(bootStart < html.indexOf('rel="stylesheet"'), 'boot script precedes every stylesheet link');
+  assert.ok(bootStart < html.indexOf('type="importmap"'), 'boot script precedes the import map');
+});
+test('inline boot script is identical to js/boot-inline.js', () => {
+  const m = html.match(/<script>\n([\s\S]*?)\n<\/script>/);
+  assert.ok(m, 'classic inline script found');
+  assert.equal(m[1], read('../js/boot-inline.js').trimEnd());
+});
+test('veil markup is first in the body: status region, 32 cells, label', () => {
+  const body = html.slice(html.indexOf('<body>') + 6);
+  assert.match(body.trimStart(), /^<div class="veil" role="status" aria-label="Loading">/);
+  const veil = body.slice(0, body.indexOf('<a class="skip"'));
+  assert.equal((veil.match(/<i><\/i>/g) || []).length, 32);
+  assert.ok(veil.includes('LATENT SPACE') && veil.includes('JB·') && veil.includes('denoising step 00 / 50'));
+});
+test('veil.js then main.js are the module scripts, after the import map', () => {
+  const mods = [...html.matchAll(/<script type="module" src="([^"]+)"><\/script>/g)].map((m) => m[1]);
+  assert.deepEqual(mods, ['js/ui/veil.js', 'js/main.js']);
+  assert.ok(html.indexOf('type="importmap"') < html.indexOf('js/ui/veil.js'));
+});
+test('critical veil CSS: visible only under .js:not(.veil-done), backstop animation, hidden under .no-js', () => {
+  assert.match(html, /\.js:not\(\.veil-done\) \.veil \{[^}]*opacity: 1;[^}]*visibility: visible/);
+  assert.match(html, /\.js \.veil \{[^}]*animation: veil-out \.6s ease 8s forwards/);
+  assert.match(html, /\.js\.veil-done \.veil \{ animation: none; \}/, 'a lifted veil fades by transition; a running backstop animation would cut it short');
+  assert.match(html, /\.no-js \.veil \{ display: none; \}/);
+  assert.match(html, /@keyframes veil-out \{[^}]*opacity: 0;[^}]*visibility: hidden/);
+});
+test('main.css switches transitions off while the page carries .preload (the veil keeps its fade)', () => {
+  const css = read('../css/main.css');
+  assert.match(css, /\.preload \*:not\(\.veil\),\s*\.preload \*:not\(\.veil\)::before,\s*\.preload \*:not\(\.veil\)::after\s*\{\s*transition: none !important;/);
+});

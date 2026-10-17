@@ -60,6 +60,12 @@ a { color: inherit; text-decoration: none; }
   html.no-js { scroll-behavior: smooth; }
 }
 
+/* boot: no transitions while the page settles. The inline boot script sets .preload on <html> and
+   clears it one frame after window load; the veil keeps its own 600 ms fade (critical CSS in index.html). */
+.preload *:not(.veil),
+.preload *:not(.veil)::before,
+.preload *:not(.veil)::after { transition: none !important; }
+
 /* type roles */
 .mono { font-family: var(--font-mono); font-weight: 500; font-stretch: 100%; }
 h1, h2 { font-weight: 800; font-stretch: 112%; letter-spacing: -0.02em; line-height: .92; }
