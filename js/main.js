@@ -8,9 +8,13 @@ import { createScroll } from './ui/scroll.js';
 import { initNav } from './ui/nav.js';
 import { initHeroFit, initReveals } from './ui/split.js';
 import { pickTier, readEnv } from './engine/tier.js';
+import { mulberry32 } from './engine/formations/common.js';
+import { buildNoise } from './engine/formations/noise.js';
+import { buildGalaxy } from './engine/formations/galaxy.js';
 
 /** Morph boundaries 0..1: B0 the entrance, B1–B6 the section boundaries (spec §4.3). */
 export const boundaries = new Float32Array(7);
+boundaries[0] = 1;            // the entrance counts as done until the hero (Task 9) runs it
 
 const tickers = [];
 
@@ -77,11 +81,21 @@ async function loadEngine() {
     const { createEngine } = await import('./engine/scene.js');
     const engine = await createEngine({ canvas: document.getElementById('scene'), tier: ctx.tier, reduced: ctx.reduced });
     engine.state.boundaries = boundaries;
+    registerFormations(engine);
     return engine;
   } catch (err) {
     console.warn('WebGL engine unavailable.', err);
     return null;
   }
+}
+
+/** Noise (0) is built before the veil lifts; the galaxy (6) builds after it. */
+function registerFormations(engine) {
+  const { N } = ctx.tier;
+  engine.registerFormation(0, () => buildNoise(N, { rng: mulberry32(0x4a42) }));
+  engine.ensure(0);
+  // Temporary: the galaxy also stands in at 1–5 and 7 so every morph can be seen; Tasks 9–15 register the real ones.
+  for (const k of [1, 2, 3, 4, 5, 6, 7]) engine.registerFormation(k, () => buildGalaxy(N, { rng: mulberry32(600 + k) }));
 }
 
 function createBoundaryTriggers(ScrollTrigger) {
@@ -99,7 +113,7 @@ initNav(ctx);
 initHeroFit();                // the hero name's fit needs no library
 
 // The engine loads alongside the scroll libraries and never holds them up; the ticker renders once it exists.
-loadEngine().then((engine) => { ctx.engine = engine; });
+const engineReady = loadEngine().then((engine) => (ctx.engine = engine));
 
 if (simulate === 'cdnfail') {
   const url = 'https://cdn.jsdelivr.net/npm/three@0.0.0-nope/x.js';
@@ -136,3 +150,4 @@ if (libs) {
 await document.fonts.ready;
 if (simulate === 'hang') await new Promise(() => {});
 await veil.liftWhenReady();
+engineReady.then((engine) => engine?.buildDeferred());
