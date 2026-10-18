@@ -120,15 +120,17 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
   const tops = () => sections.map(pageTop);
   const centreY = () => window.scrollY + window.innerHeight / 2;
 
+  // Every scroll asked for here is forced: the lock (an open overlay) stops Lenis, and a stopped Lenis drops an
+  // unforced scrollTo, so a jump asked for while locked would be lost where native scroll still moves the page.
   function scrollTo(y, { immediate = false } = {}) {
-    if (lenis) lenis.scrollTo(y, immediate ? { immediate: true, force: true } : {});
+    if (lenis) lenis.scrollTo(y, immediate ? { immediate: true, force: true } : { force: true });
     else window.scrollTo({ top: y, behavior: 'instant' });
   }
 
   function glide(y) {
     if (!lenis) return scrollTo(y);
     const screens = Math.abs(y - window.scrollY) / window.innerHeight;
-    lenis.scrollTo(y, { duration: Math.min(ANIMATE_MAX_S, 0.6 + 0.2 * screens) });
+    lenis.scrollTo(y, { duration: Math.min(ANIMATE_MAX_S, 0.6 + 0.2 * screens), force: true });
   }
 
   // Fade <main> and the canvas to the current ground, jump, let one frame render there, fade back in.

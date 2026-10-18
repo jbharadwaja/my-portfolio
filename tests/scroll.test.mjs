@@ -333,3 +333,29 @@ test('a cut measures its target once faded out, so a layout change mid-jump stil
   await jump;
   assert.equal(page.win.scrollY, 6 * 3 * 900);
 });
+
+// Task 5 deferred minor (Task 19 triage): Lenis drops a scrollTo while it is stopped unless it is forced, and the
+// scroll lock (an open overlay) stops it. A jump asked for while locked now lands, as it does on native scroll.
+class StoppableLenis extends FakeLenis {
+  scrollTo(y, opts = {}) {
+    (this.calls ??= []).push({ y, ...opts });
+    if (this.stopped && !opts.force) return;                          // Lenis 1.3: `(isStopped || isLocked) && !force`
+    super.scrollTo(y);
+  }
+}
+test('while the page is locked, glides, scrollTo and cuts still move the page (forced past the stopped Lenis)', async (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const scroll = createScroll({ Lenis: StoppableLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} }, reduced: false });
+  scroll.lock();
+  assert.equal(scroll.lenis.stopped, true);
+  await scroll.jumpTo('encoder');                                     // adjacent: a glide
+  assert.equal(page.win.scrollY, 2 * 900);
+  scroll.scrollTo(2 * 2 * 900);                                        // a plain (smooth) scrollTo
+  assert.equal(page.win.scrollY, 2 * 2 * 900);
+  await scroll.jumpTo('contact');                                     // far: a cut (immediate)
+  assert.equal(page.win.scrollY, 6 * 2 * 900);
+  assert.ok(scroll.lenis.calls.every((c) => c.force === true), JSON.stringify(scroll.lenis.calls));
+  scroll.unlock();
+  assert.equal(scroll.lenis.stopped, false);
+});

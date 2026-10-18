@@ -77,7 +77,7 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `resolver` | which formation pair the scroll shows, the entrance, dips and the night ramp |
 | `route` | the world map and route formation, the Route timeline, the night ground, the reticle readout, the no-WebGL map |
 | `scaffold` | the section list, the section stylesheets and `init` exports, and how `main.js` loads them |
-| `scroll` | scroll maths (jumps, rail centring, current section, restoring a place) and the scroll module itself (Lenis on and off) |
+| `scroll` | scroll maths (jumps, rail centring, current section, restoring a place) and the scroll module itself (Lenis on and off, jumps while locked) |
 | `sections` | the section loader: every import at once, inits one after another in page order, failures logged |
 | `split` | metric parsing and formatting for the count-ups |
 | `tier` | device tier choice, the DPR budget, resize filtering and adaptive quality |
