@@ -219,6 +219,8 @@ main, .site-footer { position: relative; z-index: 1; }
 }
 .no-js .hud { display: none; }
 .js:not(.veil-done) .hud { opacity: 0; }
+/* It rests while the hero is current (nav.js hudResting): there it would cover the hero copy (Ruling R50). */
+.hud.is-resting { opacity: 0; }
 @media (max-width: 767.98px) { .hud { display: none; } }
 
 /* asset-failure banner */
@@ -370,7 +372,12 @@ main > section { position: relative; }
   background: var(--bg);
   box-shadow: 0 0 4px 4px var(--bg);
 }
-.hero-hud { position: absolute; top: calc(var(--header-h) + 24px); right: var(--gutter); color: var(--fg-muted); }
+/* The denoise HUD sits where the entrance's cloud swirls (the strip's top; above the copy on a short stage), so it
+   carries its own paper ground in every layout, feathered like the grounds above (spec §3.1: text ≥ 4.5:1). */
+.hero-hud {
+  position: absolute; top: calc(var(--header-h) + 24px); right: var(--gutter); color: var(--fg-muted);
+  background: var(--bg); box-shadow: 0 0 4px 4px var(--bg);
+}
 .scroll-cue {
   position: absolute; bottom: 28px; left: 50%;
   white-space: pre; color: var(--fg-muted);

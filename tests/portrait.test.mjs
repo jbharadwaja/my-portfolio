@@ -46,6 +46,12 @@ test('bottom layout: hero text that can pass over the portrait carries its own p
   for (const s of ['.hero-meta li > span', '.cv-inline', '.socials a', '.scroll-cue']) assert.ok(items.includes(s), s);
   assert.match(rule[2], /background:\s*var\(--bg\);/);
 });
+test('the denoise HUD carries its own paper ground in every layout (the entrance cloud swirls behind it)', () => {
+  const css = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');
+  const rule = css.match(/(^|\n)\.hero-hud\s*\{([^}]*)\}/);
+  assert.ok(rule, 'a .hero-hud rule');
+  assert.match(rule[2], /background:\s*var\(--bg\);/);
+});
 test('strip layout at exactly vw = 1024, bottom just below it', () => {
   assert.deepEqual(portraitLayout({ vw: 1024, vh: 768, h1Right: 500 }), { mode: 'strip', rect: { x: 532, y: 77, w: 444, h: 660 } });
   assert.equal(portraitLayout({ vw: 1023, vh: 768, h1Right: 500 }).mode, 'bottom');
@@ -64,8 +70,28 @@ test('strip layout with the strip at exactly 34% of vw, bottom one pixel narrowe
 test('bottom layout frames the portrait into the measured slot, rounded', () => {
   const slotRect = { x: 16, y: 352.4, w: 358.2, h: 438.88 };
   assert.deepEqual(portraitLayout({ vw: 390, vh: 844, h1Right: 374, slotRect }), { mode: 'bottom', rect: { x: 16, y: 352, w: 358, h: 439 } });
-  assert.deepEqual(portraitLayout({ vw: 1024, vh: 768, h1Right: 597, slotRect: { x: 34.13, y: 371.5, w: 563.2, h: 399.36 } }),
-    { mode: 'bottom', rect: { x: 34, y: 372, w: 563, h: 399 } });
+  assert.deepEqual(portraitLayout({ vw: 1024, vh: 768, h1Right: 597, slotRect: { x: 34.13, y: 351.5, w: 563.2, h: 399.36 } }),
+    { mode: 'bottom', rect: { x: 34, y: 352, w: 563, h: 399 } });
+  // A slot ending exactly at the stage's bottom edge still fits
+  assert.deepEqual(portraitLayout({ vw: 820, vh: 1180, h1Right: 793, slotRect: { x: 27, y: 620, w: 765, h: 560 }, copyTop: 112 }),
+    { mode: 'bottom', rect: { x: 27, y: 620, w: 765, h: 560 } });
+});
+test('bottom layout: a slot running past the stage is framed where it sits once scrolled fully onto it, never above the copy', () => {
+  // 1024 × 768: the slot overruns the fold by 19 px — moved up 19 px, same size, so the hood is no longer cut
+  assert.deepEqual(portraitLayout({ vw: 1024, vh: 768, h1Right: 597, slotRect: { x: 34, y: 388, w: 563, h: 399 }, copyTop: 112 }),
+    { mode: 'bottom', rect: { x: 34, y: 369, w: 563, h: 399 } });
+  // 844 × 390: the slot starts below the stage (432 > 390). Scrolled onto the stage it would reach up to 70, above the
+  // copy's top (112), so the rect starts at the copy's top and ends at the stage's bottom: at scroll 0 the face is
+  // under the copy's paper ground, and it shows through the slot as the slot scrolls in.
+  assert.deepEqual(portraitLayout({ vw: 844, vh: 390, h1Right: 816, slotRect: { x: 28, y: 432, w: 788, h: 320 }, copyTop: 112 }),
+    { mode: 'bottom', rect: { x: 28, y: 112, w: 788, h: 278 } });
+  // Every overrunning slot ends exactly at the stage's bottom edge, starts no higher than the copy, and is whole pixels
+  for (const [vh, y, h] of [[390, 432, 320], [375, 401.6, 320], [430, 452.2, 320], [600, 470.4, 320], [768, 388.3, 399.4]]) {
+    const { rect } = portraitLayout({ vw: 900, vh, h1Right: 870, slotRect: { x: 28, y, w: 844, h }, copyTop: 112 });
+    assert.ok(Object.values(rect).every(Number.isInteger), `vh ${vh}: whole pixels`);
+    assert.equal(rect.y + rect.h, vh, `vh ${vh}: ends at the stage's bottom`);
+    assert.ok(rect.y >= 112 && rect.h <= Math.round(h), `vh ${vh}: below the copy's top, no taller than the slot`);
+  }
 });
 test('the slot is ignored when the strip fits', () => {
   assert.deepEqual(portraitLayout({ vw: 1440, vh: 900, h1Right: 800, slotRect: { x: 48, y: 400, w: 744, h: 468 } }),

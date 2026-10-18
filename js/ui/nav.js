@@ -1,11 +1,21 @@
 // Fixed chrome behaviour (spec §2.1): in-page links jump through ctx.scroll, the burger sheet below 1024 px,
-// the section HUD, and the header's ground once the page leaves the top. The HUD's hiding while the veil is up
-// and below 768 px is CSS (css/main.css).
+// the section HUD (resting while the hero is current), and the header's ground once the page leaves the top.
+// The HUD's hiding while the veil is up and below 768 px is CSS (css/main.css).
 // main.js calls this before the CDN libraries settle. ctx.scroll is one object for the page's lifetime (native
 // scroll at first, upgraded in place by scroll.attach), so nothing here needs gsap, ScrollTrigger or Lenis.
 
 const WIDE = '(min-width: 1024px)';
 const SCROLLED_PX = 8;                 // the header takes its ground once the page is this far from the top
+
+/**
+ * Whether the section HUD rests (is transparent) while section `index` is current: only in the hero (Ruling R50:
+ * the fixed chrome never covers readable copy). The HUD sits bottom left, where the hero copy runs — the role line
+ * and lead at first view on a short landscape phone, the first panel on a tablet — and the hero carries its own
+ * HUD (the denoise step, top right), as it carries no section index without JS either. It shows from the encoder on.
+ */
+export function hudResting(index) {
+  return index === 0;
+}
 
 export function initNav({ scroll }) {
   const closeSheet = initSheet(scroll);
@@ -98,8 +108,9 @@ function initSheet(scroll) {
 
 // The label of the current section (its top has crossed the viewport centre) and the whole-page progress bar.
 function initHud(scroll) {
-  const label = document.querySelector('.hud-label');
-  const bar = document.querySelector('.hud-bar');
+  const hud = document.querySelector('.hud');
+  const label = hud?.querySelector('.hud-label');
+  const bar = hud?.querySelector('.hud-bar');
   if (!label || !bar) return;
   const names = [...document.querySelectorAll('main > section')].map((s) => s.dataset.hud);
   let shown = -1;
@@ -109,6 +120,7 @@ function initHud(scroll) {
     if (i !== shown && names[i]) {
       shown = i;
       label.textContent = names[i];
+      hud.classList.toggle('is-resting', hudResting(i));
     }
     const max = document.scrollingElement.scrollHeight - window.innerHeight;
     bar.style.transform = `scaleX(${max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0})`;

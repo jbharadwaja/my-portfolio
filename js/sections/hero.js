@@ -18,23 +18,42 @@ const RUSH_INPUTS = ['wheel', 'touchmove', 'keydown', 'scroll'];
 const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta']);
 const RESIZE_DEBOUNCE_MS = 150;
 const STRIP = { gap: 32, margin: 48, minShare: 0.34, minWidth: 1024, top: 0.1, bottom: 0.96 };
+const KEEP_FEATHER = 32;               // the text keep-out's feather in CSS px (spec §4.5; shaders.js keepOut)
 
 const roundRect = ({ x, y, w, h }) => ({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
 
 /**
+ * The slot's rect as the portrait is framed into it (rounded). A slot that ends on the stage at scroll 0 is used as
+ * it lies. One that runs past the stage's bottom edge (a short stage, e.g. a landscape phone, where the copy above
+ * the slot already fills the first screen) is framed where it sits once scrolled fully onto the stage: moved up to
+ * end at the stage's bottom, but never above `copyTop`, where the copy's paper ground starts. The portrait is held
+ * still while the copy scrolls, so at scroll 0 it is under that ground instead of peeking out above the copy, and
+ * it shows through the slot as the slot scrolls in. Null if no stage is left below `copyTop`.
+ */
+function slotOnStage(slot, vh, copyTop) {
+  const rect = roundRect(slot);
+  const stageBottom = Math.round(vh);
+  if (rect.y + rect.h <= stageBottom) return rect;
+  const y = Math.max(stageBottom - rect.h, Math.round(copyTop));
+  return y < stageBottom ? { x: rect.x, y, w: rect.w, h: stageBottom - y } : null;
+}
+
+/**
  * Where the portrait is framed (spec §2.2), in CSS px of a vw × vh stage: the strip [h1Right + 32, vw − 48],
  * 10%–96% of the stage height, when the viewport is ≥ 1024 px wide and the strip is ≥ 34% of it. Otherwise the
- * bottom layout: the portrait slot's rect as laid out at scroll 0 (Ruling R47: the slot after the lead), or, when
- * no slot is measured, the bottom half of the stage. Every rect field is rounded to a whole pixel.
+ * bottom layout: the portrait slot (Ruling R47: the slot after the lead), measured as laid out at scroll 0 and
+ * kept on the stage (slotOnStage; `copyTop` is the copy's top at scroll 0), or, when no slot is measured, the
+ * bottom half of the stage. Every rect field is a whole pixel.
  */
-export function portraitLayout({ vw, vh, h1Right, slotRect = null }) {
+export function portraitLayout({ vw, vh, h1Right, slotRect = null, copyTop = 0 }) {
   const x = h1Right + STRIP.gap;
   const w = vw - STRIP.margin - x;
   // The share as a quotient: 0.34 · 1250 is 425.00000000000006, but 425 / 1250 rounds to exactly 0.34.
   if (vw >= STRIP.minWidth && w / vw >= STRIP.minShare) {
     return { mode: 'strip', rect: roundRect({ x, y: STRIP.top * vh, w, h: (STRIP.bottom - STRIP.top) * vh }) };
   }
-  if (slotRect) return { mode: 'bottom', rect: roundRect(slotRect) };
+  const slot = slotRect && slotOnStage(slotRect, vh, copyTop);
+  if (slot) return { mode: 'bottom', rect: slot };
   return { mode: 'bottom', rect: roundRect({ x: 0, y: vh / 2, w: vw, h: vh / 2 }) };
 }
 
@@ -68,11 +87,11 @@ async function loadPortrait(url, width) {
 const sameRect = (a, b) => a === b || (Boolean(a && b) && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
 
 /**
- * The portrait's rect and the hero copy's keep-out rects, measured from the DOM. The pose reads `rect` every
- * frame, so it is cached here and re-measured only on resize, late fonts and the veil lift. The stage height is
- * 100svh (the sticky stages' height), which mobile toolbars showing or hiding do not change.
+ * The portrait's rect and the hero's keep-out rects, measured from the DOM. The pose reads `rect` every frame, so it
+ * is cached here and re-measured only on resize, late fonts and the veil lift. The stage height is 100svh (the
+ * sticky stages' height), which mobile toolbars showing or hiding do not change.
  */
-function createLayout({ section, h1, copy, slot }) {
+function createLayout({ section, h1, copy, slot, header }) {
   const probe = document.createElement('div');
   probe.setAttribute('aria-hidden', 'true');
   probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:100svh;visibility:hidden;pointer-events:none';
@@ -97,20 +116,29 @@ function createLayout({ section, h1, copy, slot }) {
     const top0 = section.getBoundingClientRect().top;
     const at0 = (r) => ({ x: r.left, y: r.top - top0, w: r.width, h: r.height });
     const c = at0(copy.getBoundingClientRect());
-    let nextSafe = [c.h > 0 ? c : null, null];
+    // The fixed header's band keeps particles out too: at the top of the page the header has no ground yet (Ruling
+    // R50), and the entrance's swirl and fly-through would otherwise pass behind its items.
+    const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
+    const band = headerBottom > 0 ? { x: 0, y: 0, w: vw, h: headerBottom } : null;
+    let nextSafe = [c.h > 0 ? c : null, band];
     const s = bottom && slot ? at0(slot.getBoundingClientRect()) : null;
     if (s && s.w > 0 && s.h > 0) {
-      next = portraitLayout({ vw, vh, h1Right, slotRect: s });
-      // Keep-out: the copy above the slot (down to the lead) and the copy below it (from the meta rows: the
-      // panels, actions and socials), never the slot itself. Copy that scrolls over the held portrait later sits
-      // on the opaque panels or its own paper ground (css/main.css, .portrait-bottom), which move with the text.
+      // On a short stage the slot runs past the fold, and the portrait is framed where the slot sits once it has
+      // scrolled fully onto the stage (portraitLayout), no higher than the copy's top.
+      next = portraitLayout({ vw, vh, h1Right, slotRect: s, copyTop: c.y });
+      // Keep-out, two rects: above the slot, the header band and the copy down to the lead (full width); below it,
+      // the copy from the meta rows on (the panels, actions and socials). Neither reaches into the portrait's rect,
+      // feather included: on a short stage the rect reaches up behind the copy above the slot, where the copy's own
+      // paper ground hides it until the slot scrolls in, and a keep-out there would fade the face for good (keep-outs
+      // do not scroll). Copy that scrolls over the held portrait later sits on the opaque panels or its own paper
+      // ground (css/main.css, .portrait-bottom), which move with the text.
       const aboveEnd = slot.previousElementSibling ? at0(slot.previousElementSibling.getBoundingClientRect()) : null;
       const belowStart = slot.nextElementSibling ? at0(slot.nextElementSibling.getBoundingClientRect()) : null;
-      const upperH = (aboveEnd ? aboveEnd.y + aboveEnd.h : s.y) - c.y;
+      const upperH = Math.max(band?.h ?? 0, Math.min(aboveEnd ? aboveEnd.y + aboveEnd.h : s.y, next.rect.y - KEEP_FEATHER));
       const lowerY = belowStart ? belowStart.y : s.y + s.h;
       const lowerH = c.y + c.h - lowerY;
       nextSafe = [
-        upperH > 0 ? { x: c.x, y: c.y, w: c.w, h: upperH } : null,
+        upperH > 0 ? { x: 0, y: 0, w: vw, h: upperH } : null,
         lowerH > 0 ? { x: c.x, y: lowerY, w: c.w, h: lowerH } : null,
       ];
       // The copy's paper ground stops at the slot's top (it never covers the face).
@@ -118,7 +146,7 @@ function createLayout({ section, h1, copy, slot }) {
     } else if (bottom) {
       // No slot to frame into: the bottom half of the stage, and only the copy above it keeps particles out.
       const height = Math.min(c.h, next.rect.y - c.y);
-      nextSafe = [height > 0 ? { ...c, h: height } : null, null];
+      nextSafe = [height > 0 ? { ...c, h: height } : null, band];
     }
     const changed = next.mode !== mode || !sameRect(next.rect, rect) || !nextSafe.every((r, i) => sameRect(r, safe?.[i] ?? null));
     Object.assign(rect, next.rect);
@@ -142,6 +170,7 @@ export function init(ctx) {
   const copy = section?.querySelector('.hero-copy');
   const slot = section?.querySelector('.hero-portrait-slot');
   const step = section?.querySelector('.hero-step');
+  const header = document.querySelector('.site-header');
   if (!section || !h1 || !copy) return Promise.resolve();
 
   let shownStep = Number(step?.textContent) || 1;
@@ -169,7 +198,7 @@ export function init(ctx) {
       veil.dropKey('compile');
       return;
     }
-    const layout = createLayout({ section, h1, copy, slot });
+    const layout = createLayout({ section, h1, copy, slot, header });
     // Formation 0 (the noise the portrait denoises from) is framed into the same rect, so the face resolves in place.
     const pose = { roll: 0, rect: () => layout.rect };
     relayout = () => {
