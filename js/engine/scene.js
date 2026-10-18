@@ -282,9 +282,12 @@ export async function createEngine({ canvas, tier, reduced }) {
 
   let ndcScratch = new Float32Array(0);
 
-  /** Alpha for formation k from its overlap at its section pose. Dust (meta −1) keeps its own faint alpha. */
+  /**
+   * Alpha for formation k from its overlap at its section pose. Dust (meta −1) keeps its own faint alpha. A formation
+   * the shader places per frame (the clusters) supplies those placed positions through `densityData()` (Ruling R44).
+   */
   function densityAlpha(k, formation) {
-    const { data } = formation;
+    const data = formation.densityData?.() ?? formation.data;
     solvePose(k, probePose, formation);
     probe.aspect = size.w / size.h;
     probe.updateProjectionMatrix();
