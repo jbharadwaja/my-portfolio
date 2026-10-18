@@ -285,72 +285,78 @@
             <p class="card-index mono">EXP_01</p>
             <h3 class="card-title" id="exp-01-title">Movie review sentiment</h3>
             <ul class="chips"><li class="chip mono">Python</li><li class="chip mono">spaCy</li><li class="chip mono">scikit-learn</li></ul>
+            <p class="card-summary">Lemmatized IMDB reviews with spaCy, built TF-IDF features and trained logistic regression.</p>
             <p class="card-metric mono"><span class="card-metric-label">F1</span> <span class="card-metric-value">0.90</span></p>
             <div class="card-chart"><p class="card-compare mono">target 0.85</p></div>
             <div class="card-foot">
               <span class="stamp mono">BEAT TARGET</span>
-              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
             </div>
           </article>
-          <article class="card" tabindex="0" data-index="EXP_02" data-verdict="LEAKAGE FIXED" aria-labelledby="exp-02-title">
+          <article class="card" tabindex="0" data-index="EXP_02" data-verdict="LEAKAGE FIXED" data-better="lower" data-series='[["mean baseline",4567],["linear",2839],["decision tree",1913],["random forest",1638],["CatBoost",1569],["XGBoost",1556],["LightGBM",1560,"chosen"]]' data-series-label="validation RMSE (€)" aria-labelledby="exp-02-title">
             <p class="card-index mono">EXP_02</p>
             <h3 class="card-title" id="exp-02-title">Used car price prediction</h3>
             <ul class="chips"><li class="chip mono">scikit-learn</li><li class="chip mono">LightGBM</li></ul>
+            <p class="card-summary">Predicts a used car's market value from 301,847 cleaned listings. LightGBM chosen for accuracy, training time and prediction speed.</p>
             <p class="card-metric mono"><span class="card-metric-label">RMSE</span> <span class="card-metric-value">€1,583</span></p>
-            <div class="card-chart"><p class="card-compare mono">best of 6 model types, leakage fixed</p></div>
+            <div class="card-chart"><p class="card-compare mono">mean-price baseline €4,567 (validation) · 6 model types compared</p></div>
             <div class="card-foot">
               <span class="stamp mono">LEAKAGE FIXED</span>
-              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen/tree/main/08_rusty_bargain_car_prices" target="_blank" rel="noopener">notebook →</a>
             </div>
           </article>
           <article class="card" tabindex="0" data-index="EXP_03" data-verdict="NEAR-TIE" data-metric="9.41" data-compare="9.44" data-better="lower" aria-labelledby="exp-03-title">
             <p class="card-index mono">EXP_03</p>
             <h3 class="card-title" id="exp-03-title">Gold recovery prediction</h3>
             <ul class="chips"><li class="chip mono">scikit-learn</li><li class="chip mono">cross-validation</li></ul>
+            <p class="card-summary">Predicts gold recovery at two purification stages from hourly process data. Beat the median baseline on the rougher stage, not the final.</p>
             <p class="card-metric mono"><span class="card-metric-label">sMAPE</span> <span class="card-metric-value">9.41</span></p>
             <div class="card-chart"><p class="card-compare mono">median baseline 9.44</p></div>
             <div class="card-foot">
               <span class="stamp mono">NEAR-TIE</span>
-              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen/tree/main/07_gold_recovery_prediction" target="_blank" rel="noopener">notebook →</a>
             </div>
           </article>
           <article class="card" tabindex="0" data-index="EXP_04" data-verdict="LINEAR WON" data-metric="34.5" data-compare="48" data-better="lower" aria-labelledby="exp-04-title">
             <p class="card-index mono">EXP_04</p>
             <h3 class="card-title" id="exp-04-title">Taxi demand forecasting</h3>
-            <ul class="chips"><li class="chip mono">time series</li><li class="chip mono">LightGBM</li><li class="chip mono">CatBoost</li></ul>
+            <ul class="chips"><li class="chip mono">time series</li><li class="chip mono">linear regression</li><li class="chip mono">LightGBM</li><li class="chip mono">CatBoost</li></ul>
+            <p class="card-summary">Forecasts next-hour airport taxi orders from lag and rolling-mean features. Linear regression beat the tree models.</p>
             <p class="card-metric mono"><span class="card-metric-label">RMSE</span> <span class="card-metric-value">34.5</span></p>
             <div class="card-chart"><p class="card-compare mono">target ≤ 48</p></div>
             <div class="card-foot">
               <span class="stamp mono">LINEAR WON</span>
-              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen/tree/main/09_sweet_lift_taxi_forecasting" target="_blank" rel="noopener">notebook →</a>
             </div>
           </article>
-          <article class="card" tabindex="0" data-index="EXP_05" data-verdict="LOW RISK" aria-labelledby="exp-05-title">
+          <article class="card" tabindex="0" data-index="EXP_05" data-verdict="LOW RISK" data-better="lower" data-series='[["Region 0",2.0],["Region 1",0.1,"chosen"],["Region 2",2.5]]' data-series-label="risk of loss (%)" data-limit="2.5" aria-labelledby="exp-05-title">
             <p class="card-index mono">EXP_05</p>
             <h3 class="card-title" id="exp-05-title">Oil well location under risk</h3>
             <ul class="chips"><li class="chip mono">scikit-learn</li><li class="chip mono">bootstrapping</li></ul>
+            <p class="card-summary">Picks one of three regions for 200 new wells: linear regression per region, then 1,000 bootstrap samples for profit and risk.</p>
             <p class="card-metric mono"><span class="card-metric-value">$6.64M</span> <span class="card-metric-label">avg profit</span></p>
-            <div class="card-chart"><p class="card-compare mono">0.1% risk of loss</p></div>
+            <div class="card-chart"><p class="card-compare mono">0.1% risk of loss (limit 2.5%)</p></div>
             <div class="card-foot">
               <span class="stamp mono">LOW RISK</span>
-              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen/tree/main/06_oilygiant_well_location" target="_blank" rel="noopener">notebook →</a>
             </div>
           </article>
-          <article class="card" tabindex="0" data-index="EXP_06" data-verdict="SHIPPED" aria-labelledby="exp-06-title">
+          <article class="card" tabindex="0" data-index="EXP_06" data-verdict="JUST CLEARED" data-metric="0.609" data-compare="0.59" data-better="higher" aria-labelledby="exp-06-title">
             <p class="card-index mono">EXP_06</p>
-            <h3 class="card-title" id="exp-06-title">SHINYOROI</h3>
-            <ul class="chips"><li class="chip mono">Python</li><li class="chip mono">PyTrends</li><li class="chip mono">Prophet</li></ul>
-            <p class="card-metric card-metric--text mono"><span class="card-metric-label">Google Trends forecasts</span></p>
-            <div class="card-chart"><p class="card-compare mono">backend + mobile app</p></div>
+            <h3 class="card-title" id="exp-06-title">Beta Bank customer churn</h3>
+            <ul class="chips"><li class="chip mono">Python</li><li class="chip mono">scikit-learn</li><li class="chip mono">random forest</li><li class="chip mono">class imbalance</li></ul>
+            <p class="card-summary">Predicts which customers will leave. Random forest with class weighting; the README notes a small Tenure imputation leak.</p>
+            <p class="card-metric mono"><span class="card-metric-label">F1</span> <span class="card-metric-value">0.609</span></p>
+            <div class="card-chart"><p class="card-compare mono">target 0.59 · AUC-ROC 0.859</p></div>
             <div class="card-foot">
-              <span class="stamp mono">SHIPPED</span>
-              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">notebook →</a>
+              <span class="stamp mono">JUST CLEARED</span>
+              <a class="card-link mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen/tree/main/05_beta_bank_churn" target="_blank" rel="noopener">notebook →</a>
             </div>
           </article>
           <article class="card" tabindex="0" data-index="FIELD_01" data-verdict="IN PRODUCTION" aria-labelledby="field-01-title">
             <p class="card-index mono">FIELD_01</p>
             <h3 class="card-title" id="field-01-title">UPS Store revenue analysis</h3>
             <ul class="chips"><li class="chip mono">transaction &amp; customer-mix data</li></ul>
+            <p class="card-summary">Margin analysis of transaction and customer-mix data; weekly KPI tracking replaced manual reports.</p>
             <p class="card-metric mono"><span class="card-metric-value">+25%</span> <span class="card-metric-label">monthly revenue</span></p>
             <div class="card-chart"><p class="card-compare mono">weekly KPI tracking replaced manual reports</p></div>
             <div class="card-foot">
@@ -361,6 +367,7 @@
             <p class="card-index mono">FIELD_02</p>
             <h3 class="card-title" id="field-02-title">Program insights, Orange Coast College</h3>
             <ul class="chips"><li class="chip mono">participation data</li><li class="chip mono">20+ programs</li></ul>
+            <p class="card-summary">Analyzed participation data across 20+ programs; the findings shaped program changes.</p>
             <p class="card-metric mono"><span class="card-metric-value">+30%</span> <span class="card-metric-label">engagement</span></p>
             <div class="card-chart"><p class="card-compare mono">program changes from findings</p></div>
             <div class="card-foot">
@@ -369,6 +376,7 @@
           </article>
         </div>
       </div>
+      <a class="rail-more mono" href="https://github.com/jbharadwaja/Data_projects_TripleTen" target="_blank" rel="noopener">More notebooks on GitHub →</a>
       <p class="rail-hint mono" aria-hidden="true">scroll ↓ to browse · 01 / 08</p>
     </div>
   </section>
@@ -412,21 +420,25 @@
       </figure>
       <div class="about-text">
         <h2>Hello.</h2>
-        <p class="about-bio">I came to data the long way round: a mechatronics degree in Thailand, DevOps in Tokyo, full-stack products for a Korean company, and running a store's numbers in California. Now I build models in Python and write up what they actually did. Longer term, I'm interested in empirical AI safety research.</p>
+        <p class="about-bio">I came to data the long way round: a mechatronics degree in Thailand, DevOps in Tokyo, full-stack products for a Korean company, and running a store's numbers in California. Now I build models in Python and write up what they actually did. I speak English, Japanese and Burmese. Longer term, I'm interested in empirical AI safety research.</p>
         <div class="skills">
           <div class="skill-group">
             <h3 class="skill-name mono">Python</h3>
-            <p class="skill-list">pandas, NumPy, scikit-learn, LightGBM, CatBoost, spaCy, SciPy, Prophet, Matplotlib</p>
+            <p class="skill-list">pandas, NumPy, scikit-learn, LightGBM, CatBoost, XGBoost, spaCy, SciPy, statsmodels, Prophet, Matplotlib, Seaborn</p>
           </div>
           <div class="skill-group">
             <h3 class="skill-name mono">Methods</h3>
-            <p class="skill-list">classification &amp; regression, gradient boosting, time-series forecasting, TF-IDF text classification, class imbalance, cross-validation, bootstrapping, hypothesis testing</p>
+            <p class="skill-list">classification &amp; regression, gradient boosting, time-series forecasting, TF-IDF text classification, class imbalance, cross-validation, bootstrapping, hypothesis testing, A/B testing</p>
           </div>
           <div class="skill-group">
             <h3 class="skill-name mono">Engineering</h3>
-            <p class="skill-list">SQL, Git &amp; GitHub, shell, CI/CD, REST APIs, TypeScript, React, Vue.js, Laravel</p>
+            <p class="skill-list">SQL, Tableau, Git &amp; GitHub, shell, CI/CD, Docker, REST APIs, FastAPI, TypeScript, React, Vue.js, Laravel</p>
           </div>
         </div>
+        <ul class="certs">
+          <li>TripleTen — Python Master · Data Visualization Master · SQL Data Specialist</li>
+          <li>LinkedIn Learning — Statistics Foundations</li>
+        </ul>
       </div>
     </div>
   </section>

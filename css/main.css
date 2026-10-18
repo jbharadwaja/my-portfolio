@@ -104,7 +104,7 @@ a:not(.cta-primary) {
   text-underline-offset: .3em;
   transition: text-decoration-color 150ms;
 }
-.socials a, .signoff-links a, a.cv-inline, a.card-link { text-decoration-color: var(--fg-faint); }
+.socials a, .signoff-links a, a.cv-inline, a.card-link, a.rail-more { text-decoration-color: var(--fg-faint); }
 @media (hover: hover) {
   a:not(.cta-primary):hover { text-decoration-color: var(--accent); text-decoration-thickness: 2px; }
 }
@@ -398,11 +398,12 @@ main > section { position: relative; }
 .card-metric { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: auto; padding-top: 16px; }
 .card-metric-value { font-size: clamp(2rem, 1.7rem + 1vw, 2.75rem); font-weight: 500; letter-spacing: -0.04em; line-height: 1; }
 .card-metric-label { font-size: var(--fs-label); color: var(--fg-muted); }
-.card-metric--text .card-metric-label { font-size: 1.125rem; line-height: 1.25; color: var(--fg); }
 .card-chart { min-height: 64px; padding-top: 12px; border-top: 1px solid var(--hairline); }
 .card-compare { font-size: var(--fs-label); line-height: 1.4; color: var(--fg-muted); }
 .card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .card-link { font-size: var(--fs-label); }
+.card-summary { font-size: .8125rem; line-height: 1.45; color: var(--fg-muted); }   /* 13 px: all eight fit two lines in a 32 vw card at 1440; never clamped, so no copy is cut */
+.rail-more { display: block; width: fit-content; margin-top: clamp(16px, 2vw, 24px); font-size: var(--fs-label); }
 
 /* route — text on night panels */
 .no-js #route { background: var(--bg-dark); color: var(--fg-on-dark); border-top-color: var(--c-night-2); }
@@ -432,6 +433,7 @@ main > section { position: relative; }
 .skills { display: grid; gap: 24px clamp(20px, 2.4vw, 32px); margin-top: clamp(8px, 1.5vw, 16px); }
 .skill-group { padding-top: 14px; border-top: 1px solid var(--fg); }
 .skill-list { margin-top: 10px; font-size: var(--fs-label); line-height: 1.6; color: var(--fg-muted); }
+.certs { display: grid; gap: 6px; padding-top: 14px; border-top: 1px solid var(--hairline); font: 500 var(--fs-mono-small)/1.5 var(--font-mono); letter-spacing: .04em; color: var(--fg-muted); }
 
 /* sign-off */
 .signoff-inner { container-type: inline-size; display: grid; justify-items: start; padding-bottom: clamp(56px, 6vw, 96px); }
