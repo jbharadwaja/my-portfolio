@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runCommand, complete, levenshtein, projectLine, lossCurve, createConsole } from '../js/ui/console.js';
+import { WHOAMI } from '../js/content.js';
 import { ringFactor, isDrag, magnetPull, watchesReticle } from '../js/ui/cursor.js';
 const card = { index: 'EXP_01', title: 'Movie review sentiment', metric: 'F1 0.90', verdict: 'BEAT TARGET' };
 const ctx = { cards: Array(8).fill(card), skills: [], journey: [], contact: [] };
@@ -34,6 +35,8 @@ test('every other spec command answers', () => {
   assert.deepEqual(runCommand('skills', full).lines, ['Python       pandas, NumPy']);
   assert.deepEqual(runCommand('journey', full).lines, ['2012–2017 · Pathum Thani, Thailand — Asian Institute of Technology — B.E. Mechatronics Engineering.']);
   assert.deepEqual(runCommand('contact', full).lines, ['bharadwajajulian@gmail.com', 'github.com/jbharadwaja']);
+  assert.deepEqual(runCommand('contact', full).links, ['mailto:bharadwajajulian@gmail.com', 'https://github.com/jbharadwaja']);
+  for (const name of ['help', 'whoami', 'skills', 'journey', 'resume']) assert.equal(runCommand(name, full).links, undefined, name);
   assert.deepEqual(runCommand('resume', full), { lines: ['resume: opening https://www.linkedin.com/in/julian-bharadwaja/ in a new tab'], action: { type: 'cv' } });
   assert.deepEqual(runCommand('resume', { ...full, cv: { href: 'assets/cv/Julian_Bharadwaja_Resume.pdf', download: '' } }).lines, ['resume: downloading Julian_Bharadwaja_Resume.pdf']);
   assert.deepEqual(runCommand('train', full).action, { type: 'train' });
@@ -136,7 +139,7 @@ class FakeElement {
  * A page with the console dialog (#console: .console-log, .console-input) closed, and focus on <body>. `cards` are
  * the rail's cards (#work .card); `scroll.jumpTo` records its targets in `jumps`.
  */
-function consolePage({ cards = [] } = {}) {
+function consolePage({ cards = [], contact = [] } = {}) {
   globalThis.matchMedia ??= () => ({ matches: false });
   const doc = {
     listeners: {},
@@ -160,7 +163,7 @@ function consolePage({ cards = [] } = {}) {
   doc.body.append(root);
   const jumps = [];
   const scroll = { lock() {}, unlock() {}, jumpTo: (target) => { jumps.push(target); return Promise.resolve(); } };
-  const ctx = { cards: cards.map(() => card), skills: [], journey: [], contact: [] };
+  const ctx = { cards: cards.map(() => card), skills: [], journey: [], contact };
   const api = createConsole({ root, scroll, ctx });
   /** A keydown on `target` (the focused element by default), bubbling up to the document: whether it was prevented. */
   const press = (key, { target = doc.activeElement, ...mods } = {}) => {
@@ -286,4 +289,24 @@ test('open <n> imports the rail geometry lazily, jumps to the card\'s rail place
   for (let i = 0; i < 5 && !focused; i++) await new Promise((r) => setTimeout(r, 0));
   assert.deepEqual(page.jumps, [500 + 120 - 64]);
   assert.equal(focused?.i, 1, 'the card has focus once the page is there');
+});
+
+// Wave-2 deferred minor (Task 19 triage): only contact's lines are links. A line of another command that happens to
+// read like a contact link (here whoami's, set as one) prints as text, not as that link.
+test('only the contact command prints links; the same text from another command stays text', () => {
+  const contact = [{ text: WHOAMI, href: 'mailto:someone@example.com' }];
+  const { log, input, api, press } = consolePage({ contact });
+  api.open();
+  const submit = (line) => {
+    input.value = line;
+    press('Enter', { target: input });
+    return log.children.at(-1);
+  };
+  const plain = submit('whoami');
+  assert.equal(plain.textContent, WHOAMI);
+  assert.equal(plain.children.length, 0, 'no link');
+  const linked = submit('contact');
+  assert.equal(linked.children[0]?.tagName, 'A');
+  assert.equal(linked.children[0].href, 'mailto:someone@example.com');
+  assert.equal(linked.children[0].textContent, WHOAMI);
 });

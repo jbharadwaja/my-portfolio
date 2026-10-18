@@ -80,7 +80,7 @@ const COMMANDS = new Map([
   ['projects', ({ cards }) => ({ lines: cards.map((card, i) => projectLine(i + 1, card)) })],
   ['skills', ({ skills }) => ({ lines: skills.map(({ name, list }) => `${name.padEnd(SKILL_W)} ${list}`) })],
   ['journey', ({ journey }) => ({ lines: journey.map(({ when, body }) => `${when} — ${body}`) })],
-  ['contact', ({ contact }) => ({ lines: contact.map(({ text }) => text) })],
+  ['contact', ({ contact }) => ({ lines: contact.map(({ text }) => text), links: contact.map(({ href }) => href) })],
   ['resume', ({ cv }) => resume(cv)],
   ['train', () => ({ lines: [], action: { type: 'train' } })],
   ['clear', () => ({ lines: [], action: { type: 'clear' } })],
@@ -108,8 +108,9 @@ function guess(line) {
 }
 
 /**
- * Runs one console line against `ctx` (readConsoleContext's shape): the lines to print and, for the commands that
- * do something, the action the console takes. Case and extra spaces do not matter.
+ * Runs one console line against `ctx` (readConsoleContext's shape): the lines to print, for contact the href of each
+ * line (`links`: those lines print as links), and for the commands that do something, the action the console takes.
+ * Case and extra spaces do not matter.
  */
 export function runCommand(input, ctx) {
   const typed = input.trim().replace(/\s+/g, ' ');
@@ -223,21 +224,22 @@ export function createConsole({ root, scroll, ctx }) {
     return row;
   }
 
-  // Contact output prints each link's text; it is shown as that link.
-  function print(lines) {
-    for (const text of lines) {
+  // A line with an href (contact's, runCommand `links`) is shown as that link; every other line is plain text, even
+  // one that reads like a link.
+  function print(lines, links = []) {
+    lines.forEach((text, i) => {
       const row = line();
-      const link = ctx.contact.find((c) => c.text === text);
-      if (!link) {
+      const href = links[i];
+      if (!href) {
         row.textContent = text;
-        continue;
+        return;
       }
       const a = doc.createElement('a');
-      a.href = link.href;
+      a.href = href;
       a.textContent = text;
-      if (/^https?:/.test(link.href)) Object.assign(a, { target: '_blank', rel: 'noopener' });
+      if (/^https?:/.test(href)) Object.assign(a, { target: '_blank', rel: 'noopener' });
       row.append(a);
-    }
+    });
     toEnd();
   }
 
@@ -341,8 +343,8 @@ export function createConsole({ root, scroll, ctx }) {
     if (entry && entry !== history[history.length - 1]) history.push(entry);
     at = history.length;
     draft = '';
-    const { lines, action } = runCommand(value, ctx);
-    print(lines);
+    const { lines, links, action } = runCommand(value, ctx);
+    print(lines, links);
     if (action) perform(action);
   }
 
