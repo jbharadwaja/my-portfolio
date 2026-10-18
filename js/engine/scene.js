@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { computeDpr, shouldIgnoreResize, overFrameBudget } from './tier.js';
 import { frameDistance, rectShift, lerpPose } from './framing.js';
 import { resolve, applyEntrance, limitRate } from './resolver.js';
-import { createMorphState, stepMorph } from './morph.js';
+import { createMorphState, stepMorph, snapMorph } from './morph.js';
 import { alphaForPoints } from './density.js';
 import { createParticles } from './particles.js';
 import { sizeFactor, DUST_VERTEX, DUST_FRAGMENT } from './shaders.js';
@@ -656,6 +656,13 @@ export async function createEngine({ canvas, tier, reduced }) {
       }
     },
     tick,
+    /**
+     * A far jump (scroll.js cut) has landed with the canvas faded out: the next tick binds the new pair at once,
+     * with no dip of its own (morph.js snapMorph), so the canvas fades back in on the destination's formation.
+     */
+    cutTo() {
+      snapMorph(morph);
+    },
     /** cb(timeMs, dt) on every rendered frame, after the camera update and before the render. */
     onFrame(cb) {
       frameCallbacks.push(cb);

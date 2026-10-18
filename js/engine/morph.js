@@ -10,10 +10,19 @@ export const DIP_IN_S = 0.24;          // … rebind on the empty frame, → 1
  * `pair` is what the particles show (scene.js passes engine.state.pair). `bound` is false until the first step,
  * which binds without a dip. `held`: the pair stands in for one whose formation is not built yet. `dip`: 'none',
  * 'out' (the old pair fades, then rebinds on an empty frame) or 'in' (fading back). `opacity` multiplies the
- * particles and the dust.
+ * particles and the dust. `snap`: the next step binds at once (snapMorph).
  */
 export function createMorphState(pair = { from: 0, to: 0, mix: 0 }) {
-  return { pair, bound: false, held: false, dip: 'none', opacity: 1 };
+  return { pair, bound: false, held: false, dip: 'none', opacity: 1, snap: false };
+}
+
+/**
+ * The next step binds whatever pair it resolves at once, at full opacity and with no dip (a dip under way ends):
+ * a far jump (scroll.js cut) has the whole canvas faded out already and fades it back in itself, so the engine's
+ * own dip would only hold the old formation into the fade-in, a ghost of where the page was.
+ */
+export function snapMorph(state) {
+  state.snap = true;
 }
 
 const target = { from: 0, to: 0, mix: 0 };   // scratch: the pair to show this frame (no per-frame allocation)
@@ -50,16 +59,13 @@ export function stepMorph(state, next, dt, has) {
     target.mix = 0;
   }
   const { pair } = state;
-  const smooth = continuous(state, target);
-  if (state.bound && state.dip !== 'out' && !smooth) state.dip = 'out';
-  else if (state.dip === 'out' && smooth) state.dip = 'in';   // back before the screen emptied: fade in from here
-  if (state.dip === 'out') {
-    state.opacity = Math.max(0, state.opacity - dt / DIP_OUT_S);
-    if (state.opacity > 0) return false;
-    state.dip = 'in';                  // rebinds below on the empty frame; the fade-in starts on the next one
-  } else if (state.dip === 'in') {
-    state.opacity = Math.min(1, state.opacity + dt / DIP_IN_S);
-    if (state.opacity === 1) state.dip = 'none';
+  if (state.snap) {
+    state.snap = false;
+    state.dip = 'none';
+    state.opacity = 1;
+  } else {
+    stepDip(state, continuous(state, target), dt);
+    if (state.dip === 'out') return false;
   }
   pair.from = target.from;
   pair.to = target.to;
@@ -67,4 +73,18 @@ export function stepMorph(state, next, dt, has) {
   state.held = held;
   state.bound = true;
   return true;
+}
+
+/** The dip's part of a step: starts, turns round, fades. Leaves state.dip 'out' while the old pair must hold. */
+function stepDip(state, smooth, dt) {
+  if (state.bound && state.dip !== 'out' && !smooth) state.dip = 'out';
+  else if (state.dip === 'out' && smooth) state.dip = 'in';   // back before the screen emptied: fade in from here
+  if (state.dip === 'out') {
+    state.opacity = Math.max(0, state.opacity - dt / DIP_OUT_S);
+    if (state.opacity > 0) return;
+    state.dip = 'in';                  // rebinds on the empty frame; the fade-in starts on the next one
+  } else if (state.dip === 'in') {
+    state.opacity = Math.min(1, state.opacity + dt / DIP_IN_S);
+    if (state.opacity === 1) state.dip = 'none';
+  }
 }

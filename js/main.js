@@ -380,6 +380,10 @@ function heroGate() {
   };
 }
 const releaseHeroGate = heroGate();
+// A cut jump lands with the canvas faded out: the engine rebinds there at once instead of dipping (no ghost).
+ctx.scroll.on('jump', ({ mode }) => {
+  if (mode === 'cut') ctx.engine?.cutTo();
+});
 let engineSettled = false;
 loadEngine().then((engine) => {
   engineSettled = true;
