@@ -90,8 +90,9 @@ test('every card has a summary after its chips', () => {
   assert.equal(summary('EXP_03'), 'Predicts gold recovery at two purification stages from hourly process data. Beat the median baseline on the rougher stage, not the final.');
   assert.equal(summary('EXP_04'), 'Forecasts next-hour airport taxi orders from lag and rolling-mean features. Linear regression beat the tree models.');
   assert.equal(summary('EXP_05'), 'Picks one of three regions for 200 new wells: linear regression per region, then 1,000 bootstrap samples for profit and risk.');
-  assert.equal(summary('FIELD_01'), 'Margin analysis of transaction and customer-mix data; weekly KPI tracking replaced manual reports.');
-  assert.equal(summary('FIELD_02'), 'Analyzed participation data across 20+ programs; the findings shaped program changes.');
+  // Ruling R79: the field summaries no longer repeat their chart-slot text
+  assert.equal(summary('FIELD_01'), 'Found the highest-margin services from transaction and customer-mix data.');
+  assert.equal(summary('FIELD_02'), 'Analyzed participation data across 20+ programs.');
 });
 test('EXP_06 summary is short and comes from the churn README', () => {
   const text = summary('EXP_06');
@@ -134,4 +135,14 @@ test('#sheet and #console are hidden modal dialogs', () => {
 test('the CV links read [ CV ↗ ] in the header and CV on LinkedIn ↗ in the hero and the sign-off', () => {
   const cv = [...html.matchAll(/<a class="js-cv[^"]*"[^>]*data-cv="([a-z]+)"[^>]*>([^<]*)<\/a>/g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(cv, [['header', '[ CV ↗ ]'], ['hero', 'CV on LinkedIn ↗'], ['signoff', 'CV on LinkedIn ↗']]);
+});
+
+// Ruling R78: the eyebrow's coordinates are Tustin's, rounded as the reticle prints them over its dot (33.7458, −117.8262)
+test('the hero eyebrow reads Tustin at 33.75°N 117.83°W, as the Route stop does', () => {
+  assert.match(html, /<p class="hero-eyebrow mono">JB-2026 · TUSTIN, CA · 33\.75°N 117\.83°W<\/p>/);
+  assert.match(html, /data-stop="3" data-lat="33\.75" data-lon="-117\.83"/);
+});
+// Ruling R86: without JS nothing denoises, so the hero HUD prints the finished step (hero.js counts 01 → 50 itself)
+test('the no-JS hero HUD reads denoise step 50 / 50', () => {
+  assert.match(html, /<p class="hero-hud mono" aria-hidden="true">denoise step <span class="hero-step">50<\/span> \/ 50 · seed 0x4A42<\/p>/);
 });

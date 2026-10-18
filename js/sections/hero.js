@@ -236,7 +236,8 @@ export function init(ctx) {
   const header = document.querySelector('.site-header');
   if (!section || !h1 || !copy) return Promise.resolve();
 
-  let shownStep = Number(step?.textContent) || 1;
+  // The markup reads 50 / 50, the no-JS page's finished portrait (Ruling R86); the entrance counts from 01 itself.
+  let shownStep = Number(step?.textContent) || STEPS;
   const showStep = (n) => {
     if (n === shownStep || !step) return;
     shownStep = n;
@@ -333,6 +334,7 @@ function skipEntrance({ boundaries }, showStep) {
 function playEntrance({ gsap, boundaries, reduced }, showStep) {
   const proxy = { mix: 0 };
   boundaries[0] = 0;
+  showStep(1);                         // from the lift's frame: the noise is step 01
   const rush = (e) => {
     if (!rushInput(e)) return;
     tween.timeScale(RUSH);
