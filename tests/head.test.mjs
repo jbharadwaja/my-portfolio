@@ -72,6 +72,11 @@ test('critical veil CSS: visible only under .js:not(.veil-done), backstop animat
   assert.match(html, /\.no-js \.veil \{ display: none; \}/);
   assert.match(html, /@keyframes veil-out \{[^}]*opacity: 0;[^}]*visibility: hidden/);
 });
+test('the veil text, once shown, inherits the veil\'s visibility: it leaves with the veil (and the accessibility tree)', () => {
+  const rule = html.match(/\.veil-text \.veil-head, \.veil-text \.veil-label \{([^}]*)\}/);
+  assert.ok(rule, 'a .veil-text rule for the head and label');
+  assert.match(rule[1], /visibility: inherit;/, 'visibility: visible would keep LATENT SPACE readable to screen readers under a hidden veil');
+});
 test('main.css switches transitions off while the page carries .preload (the veil keeps its fade)', () => {
   const css = read('../css/main.css');
   assert.match(css, /\.preload \*:not\(\.veil\),\s*\.preload \*:not\(\.veil\)::before,\s*\.preload \*:not\(\.veil\)::after\s*\{\s*transition: none !important;/);
