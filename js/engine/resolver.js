@@ -1,4 +1,4 @@
-// Morph resolver (spec §4.3, §4.5). Pure and Node-testable. Boundaries b[0..6] are progress values 0..1:
+// Morph resolver. Pure and Node-testable. Boundaries b[0..6] are progress values 0..1:
 // b[0] is the entrance (noise → hero), b[1..6] the section boundaries; boundary i morphs formation i → i + 1.
 
 const LAST = 6;
@@ -34,8 +34,8 @@ export function applyEntrance(b, entrance) {
 /**
  * A pair change dips instead of teleporting (fast flick, scrollbar drag, End/Home) unless it is a continuous
  * hand-off: forward, the old pair had (nearly) finished on the formation the new one starts from; backward, the
- * old pair had (nearly) not left the formation the new one ends on. Ruling R40 widens spec §4.3's literal
- * "previous uMix between 0.02 and 0.98" to this, its stated intent: a jump from rest to a far pair dips too.
+ * old pair had (nearly) not left the formation the new one ends on. A narrower test ("previous uMix between
+ * 0.02 and 0.98") would let a jump from rest to a far pair teleport the particles; this dips on any such change too.
  */
 export function needsDip(prev, next) {
   if (prev.from === next.from && prev.to === next.to) return false;

@@ -1,9 +1,9 @@
 // Off-page strings: what scripts print that the static page does not carry (the page's own copy lives only in
-// index.html). The ~ console's text (spec §6.4), the cursor's rail label (spec §6.3) and the CV link in both of its
-// states (spec §6.2; index.html ships the fallback). Pure, Node-testable: applyCvState only touches the document
+// index.html). The ~ console's text, the cursor's rail label and the CV link in both of its
+// states (index.html ships the fallback). Pure, Node-testable: applyCvState only touches the document
 // it is given.
 
-/** Whether the CV PDF is published (spec §6.2): false keeps the LinkedIn fallback. */
+/** Whether the CV PDF is published: false keeps the LinkedIn fallback. */
 export const CV_PUBLISHED = false;
 
 const CV_FILE = 'Julian_Bharadwaja_Resume.pdf';
@@ -18,7 +18,7 @@ const CV_TEXT = {
 };
 
 /**
- * The CV link for `slot` ('header' | 'hero' | 'signoff'), published or in the LinkedIn fallback (spec §6.2):
+ * The CV link for `slot` ('header' | 'hero' | 'signoff'), published or in the LinkedIn fallback:
  * { href, target, rel, download, text }, null for an attribute the link must not carry.
  */
 export function cvLinkAttrs(published, slot) {
@@ -70,5 +70,5 @@ export const CONSOLE = {
   resumeMissing: 'resume: no CV link on this page',
 };
 
-/** The ring's label over the rail (spec §6.3). */
+/** The ring's label over the rail. */
 export const CURSOR_DRAG = 'drag';

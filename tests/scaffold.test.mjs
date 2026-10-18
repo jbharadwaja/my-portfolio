@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { SECTIONS } from '../js/sections/index.js';
 
-// Parallel-build scaffolding (Task 22): one stylesheet and one module per section, loaded by a fixed list in main.js.
+// Section scaffolding: one stylesheet and one module per section, loaded by a fixed list in main.js.
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const html = read('../index.html');
 const main = read('../js/main.js');

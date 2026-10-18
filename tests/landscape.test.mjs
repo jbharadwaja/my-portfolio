@@ -13,7 +13,7 @@ test('loss rescaling', () => {
 test('hud format', () => assert.match(formatHud(42.7), /^epoch 042 \/ 100 · train \d\.\d{3} · val \d\.\d{3} · lr 3e-3$/));
 test('beats', () => assert.deepEqual([0, 24.9, 25, 50, 99, 100].map(beatIndex), [0, 0, 1, 2, 3, 3]));
 
-// Beyond the brief's five: the formation builder, the path's mapping into the formation, the loss curve and the plot rect.
+// More checks: the formation builder, the path's mapping into the formation, the loss curve and the plot rect.
 import { readFileSync } from 'node:fs';
 import { buildLandscape, landscapeToLocal, surfaceSamples, pathAt, START, STEP, TAU, DENSE_STEPS } from '../js/engine/formations/landscape.js';
 import { mulberry32 } from '../js/engine/formations/common.js';
@@ -30,7 +30,7 @@ test('the descent starts at START, stays on the surface inside ±3, and z is the
   for (let k = 1; k <= 100; k++) assert.ok(P[k][2] < P[k - 1][2], `the loss falls every epoch (epoch ${k})`);
 });
 
-// Spec §2.4 (revised, Ruling R62): a dense fixed-step descent, resampled into 101 epochs on an exponential-progress
+// A dense fixed-step descent, resampled into 101 epochs on an exponential-progress
 // schedule, so the loss decays like a real run's and the ball keeps moving, slowing, to the end.
 test('P is the dense fixed-step descent from START, resampled at index(e) ∝ (1 − e^(−e/τ)) / (1 − e^(−100/τ))', () => {
   assert.ok(DENSE_STEPS >= 2000, `${DENSE_STEPS} dense steps`);
@@ -81,7 +81,7 @@ test('the no-JS loss curve in index.html is the run to epoch 42, one point every
   assert.equal(shown('val'), drawn((e) => epochValues(e).val));
 });
 
-test('the no-JS HUD sample line is the run at epoch 42 (Ruling R67)', () => {
+test('the no-JS HUD sample line is the run at epoch 42', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.equal(html.match(/<p class="train-readout mono">([^<]*)<\/p>/)[1], formatHud(42));
 });
@@ -238,10 +238,10 @@ const SIDE_STAGES = [
   [{ vw: 768, vh: 360, stageH: 360, headerBottom: 64, head: { x: 26, y: 88, w: 295, h: 45 }, hud: { x: 382, y: 88, w: 360, h: 139 }, beatsTop: 100 },
     { hud: { x: 396, y: 88, w: 346, h: 115 }, beats: { x: 26, y: 145, w: 346, h: 122 } }],
 ];
-// From 768 px the fixed section HUD owns the bottom-left 210 × 70 px of the viewport (Ruling R54).
+// From 768 px the fixed section HUD owns the bottom-left 210 × 70 px of the viewport.
 const HUD_ZONE = { w: 210, h: 70 };
 
-test('side layout from 768 px: the beat ends 70 px or more above the stage bottom, clear of the HUD zone (R54)', () => {
+test('side layout from 768 px: the beat ends 70 px or more above the stage bottom, clear of the HUD zone', () => {
   for (const [regular, laidOut] of SIDE_STAGES) {
     const m = { ...regular, ...laidOut, side: true };
     const { beats, stageH, vw } = m;
@@ -260,7 +260,7 @@ test('plot never collapses on a stage too short for everything', () => {
   assert.ok(b.y1 - b.y0 >= 0.2 * 390 / 1.08 - 1 && b.y0 >= 64);
 });
 
-// A classic training curve (Rulings R59, R62): a fast early drop, then a long, slowing tail into the deeper well.
+// A classic training curve: a fast early drop, then a long, slowing tail into the deeper well.
 test('the loss drops fast, then slows: ≤ 0.60 by epoch 25, ≤ 0.30 by epoch 60', () => {
   assert.ok(epochValues(25).train <= 0.6, `epoch 25: ${epochValues(25).train.toFixed(3)}`);
   assert.ok(epochValues(60).train <= 0.3, `epoch 60: ${epochValues(60).train.toFixed(3)}`);

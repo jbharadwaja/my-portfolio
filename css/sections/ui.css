@@ -1,4 +1,4 @@
-/* UI chrome shared across sections (HUD, console, rail controls): styles filled in by its own task. */
+/* UI chrome shared across sections (HUD, console, rail controls). */
 
 /* ---- custom cursor: mouse only, from the first move (html.cursor-on); hidden while the console is open */
 :root.cursor-on:not(.console-shown),
@@ -6,7 +6,7 @@
 :root.cursor-on:not(.console-shown) :is(input[type="text"], textarea) { cursor: text !important; }
 
 .cursor {
-  --cursor-fg: var(--chrome-fg);       /* ink on paper, mist on night (spec §2.1) */
+  --cursor-fg: var(--chrome-fg);       /* ink on paper, mist on night */
   --cursor-bg: var(--bg);
   display: none;
   position: fixed; inset: 0 auto auto 0; z-index: 150;
@@ -82,7 +82,7 @@
 }
 .console-log a { text-decoration-color: var(--fg-on-dark-muted); }
 .console :focus-visible { outline-color: var(--c-mist); }
-.console-input:focus-visible { outline-offset: -4px; }   /* the 2 px mist ring (spec §8.2), inside the orange rule */
+.console-input:focus-visible { outline-offset: -4px; }   /* the 2 px mist ring, inside the orange rule */
 .console-curve { margin-block: 4px; white-space: pre; }
 
 @media (prefers-reduced-motion: no-preference) {

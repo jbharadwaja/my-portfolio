@@ -1,4 +1,4 @@
-// Device tier, DPR budget, the adaptive frame budget and the resize filter (spec §4.1, §4.8). Pure and
+// Device tier, DPR budget, the adaptive frame budget and the resize filter. Pure and
 // Node-testable: the browser is read only through the window handed to readEnv().
 
 const TIERS = {
@@ -25,7 +25,7 @@ export function readEnv(win) {
   };
 }
 
-/** The tier table of spec §4.1, top to bottom, first match wins. Laptop/tablet repulsion needs a fine pointer. */
+/** The tier table, top to bottom, first match wins. Laptop/tablet repulsion needs a fine pointer. */
 export function pickTier({ saveData, deviceMemory, innerWidth, coarse, fine }) {
   if (saveData || (Number.isFinite(deviceMemory) && deviceMemory <= 2)) return { ...TIERS.saver };
   if (innerWidth < 768 || (coarse && innerWidth < 1024)) return { ...TIERS.mobile };
@@ -44,7 +44,7 @@ export function shouldIgnoreResize(prev, next, coarse) {
 }
 
 /**
- * Adaptive quality (spec §4.1, ruling R42): whether a window of frame intervals (ms, sorted ascending) is over
+ * Adaptive quality: whether a window of frame intervals (ms, sorted ascending) is over
  * budget — its p75 above both 20 ms and 1.25 × its median. A steady 30 Hz rAF (iOS Low Power Mode, 33 ms every
  * frame) is the display's pace, not a struggling GPU, so it never steps quality down.
  */

@@ -1,4 +1,4 @@
-// Loading veil: the denoising meter (spec 6.1).
+// Loading veil: the denoising meter.
 // Imports nothing from the CDN, so the meter runs while the libraries download. The maths is pure and
 // Node-testable; the DOM driver starts only when a document exists. The inline boot script (index.html,
 // js/boot-inline.js) owns window.__veil — lift(), banner(url), slow(url), clear(url), failed(url), lifted — and the
@@ -63,7 +63,7 @@ const FONT_SHEETS = 'link[rel="stylesheet"][href^="https://fonts.googleapis.com/
 let declared = null;
 
 // A font sheet has not applied yet while it has no `sheet`, and also while it is still media="print": its `sheet`
-// exists once parsed, a task or more before the load event runs the onload that flips it to all (Ruling R26).
+// exists once parsed, a task or more before the load event runs the onload that flips it to all.
 const sheetPending = (link) => !link.sheet || link.media === 'print';
 
 /**
@@ -97,7 +97,7 @@ export function fontSheetsApplied(doc, whenLifted, hasFailed = () => false) {
 }
 
 /**
- * Resolves once the Google Fonts stylesheets apply: they load without blocking the page (Ruling R26: media="print"
+ * Resolves once the Google Fonts stylesheets apply: they load without blocking the page (media="print"
  * until their onload flips them to all), so until then their @font-face rules do not exist and document.fonts.load()
  * resolves at once with nothing loaded. Also resolves when they fail, or when the veil lifts (a stalled stylesheet
  * leaves the page on its fallback faces; late fonts still fire `loadingdone`). Never rejects.
@@ -189,7 +189,7 @@ function trackFonts() {
   const tick = () => veil.report('fonts', ++done / FONTS.length);
   fontFacesDeclared().then(() => {
     if (fontSheetsFailed(document, sheetFailed)) {
-      veil.dropKey('fonts');           // nothing will arrive: the meter re-weights the other stages (spec §6.1)
+      veil.dropKey('fonts');           // nothing will arrive: the meter re-weights the other stages
       showText();
       return;
     }

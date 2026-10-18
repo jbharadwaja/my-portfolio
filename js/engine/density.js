@@ -1,4 +1,4 @@
-// Density control (spec §4.5). Pure and Node-testable. Multiply blending compounds: six overlapping ink points at
+// Density control. Pure and Node-testable. Multiply blending compounds: six overlapping ink points at
 // a = 0.5 leave ~2% of the paper, so each formation's alpha is set from how much it overlaps at its own pose.
 
 const K = 1.9;                         // alpha · overlap at the 99th percentile → that spot keeps ~16% of the paper

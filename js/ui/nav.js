@@ -1,4 +1,4 @@
-// Fixed chrome behaviour (spec §2.1): in-page links jump through ctx.scroll, the burger sheet below 1024 px,
+// Fixed chrome behaviour: in-page links jump through ctx.scroll, the burger sheet below 1024 px,
 // the section HUD (resting while the hero is current), and the header's ground once the page leaves the top.
 // The HUD's hiding while the veil is up, below 768 px wide and under 560 px tall is CSS (css/main.css).
 // main.js calls this before the CDN libraries settle. ctx.scroll is one object for the page's lifetime (native
@@ -8,8 +8,8 @@ const WIDE = '(min-width: 1024px)';
 const SCROLLED_PX = 8;                 // the header takes its ground once the page is this far from the top
 
 /**
- * Whether the section HUD rests (is transparent) while section `index` is current: only in the hero (Ruling R50:
- * the fixed chrome never covers readable copy). The HUD sits bottom left, where the hero copy runs — the role line
+ * Whether the section HUD rests (is transparent) while section `index` is current: only in the hero (the
+ * fixed chrome never covers readable copy). The HUD sits bottom left, where the hero copy runs — the role line
  * and lead at first view on a short landscape phone, the first panel on a tablet — and the hero carries its own
  * HUD (the denoise step, top right), as it carries no section index without JS either. It shows from the encoder on.
  */
@@ -25,7 +25,7 @@ export function initNav({ scroll }) {
 }
 
 // Past the top the header gets its paper (or night) ground, so its items never sit on copy or particles
-// (Ruling R50; the ground itself is CSS, .site-header.is-scrolled).
+// (the ground itself is CSS, .site-header.is-scrolled).
 function initHeaderGround() {
   const header = document.querySelector('.site-header');
   if (!header) return;

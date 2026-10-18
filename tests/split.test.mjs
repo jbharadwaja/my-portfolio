@@ -18,7 +18,7 @@ test('text without a single number is not a metric', () => {
   assert.equal(parseMetric('lr 3e-3'), null);
 });
 
-// Task 19: a split element holds its text twice (the aria-hidden units and the .sr-only copy), so select-all + copy
+// A split element holds its text twice (the aria-hidden units and the .sr-only copy), so select-all + copy
 // gave every heading and the bio twice. The screen-reader copy is left out of selections.
 test('the screen-reader copy of split text cannot be selected (copying gives the text once)', () => {
   const css = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');
@@ -27,7 +27,7 @@ test('the screen-reader copy of split text cannot be selected (copying gives the
   assert.match(rule[1], /user-select: none;/);
 });
 
-// Task 6 deferred minor (Task 19 triage): words split into inline-blocks lose the kerning across their edges (with
+// Words split into inline-blocks lose the kerning across their edges (with
 // the spaces), so a split paragraph ran up to ~3.4 px wider than its plain text and wrapped a word earlier at
 // some widths (the About bio took a seventh line at 1024 px). Each word gets back the advance it has in the plain
 // text as a margin-right: the plain text's word-to-word distance less the split one's (unwrapped probes).

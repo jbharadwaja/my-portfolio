@@ -1,4 +1,4 @@
-/* Latent Space boot (spec 6.1). Reference copy: index.html carries these exact bytes inline, first in <head>. */
+/* Latent Space boot. Reference copy: index.html carries these exact bytes inline, first in <head>. */
 (function (w, d) {
   var h = d.documentElement, named = [], failed = {}, closed = false, waiting = false;
   h.classList.remove('no-js');

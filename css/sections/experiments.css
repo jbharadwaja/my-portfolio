@@ -1,6 +1,6 @@
 /* Experiments section (#work): the horizontal rail (experiments.js adds .rail-on), the cards' bar charts and the touch hint. */
 
-/* The rail (spec §2.5). Card width by breakpoint, matching experiments.js railGeometry. */
+/* The rail. Card width by breakpoint, matching experiments.js railGeometry. */
 #work.rail-on {
   --card-w: 84vw;
   --rail-gap: max(2vw, 16px);
@@ -13,7 +13,7 @@
   --tall: clamp(0px, 100vh - 640px, 160px);   /* a var() of an unknown unit would void every size that uses it */
 }
 @supports (height: 1svh) { #work.rail-on { --tall: clamp(0px, 100svh - 640px, 160px); } }
-@media (min-width: 768px) { #work.rail-on { --card-w: 56vw; --rail-clear: 24px; } }   /* 24 keeps the stamps above the HUD (R54) */
+@media (min-width: 768px) { #work.rail-on { --card-w: 56vw; --rail-clear: 24px; } }   /* 24 keeps the stamps above the HUD */
 @media (min-width: 1024px) { #work.rail-on { --card-w: 40vw; } }
 @media (min-width: 1280px) { #work.rail-on { --card-w: 32vw; } }
 
@@ -38,8 +38,8 @@
 #work.rail-on h2 { font-size: min(var(--fs-h2), calc(42px + var(--tall) * .1875)); }                   /* short: 42 */
 #work.rail-on .section-sub { max-width: 26em; font-size: min(var(--fs-lead), calc(14px + var(--tall) * .05)); } /* short: 14 */
 /* The cluster blobs ride the rail behind the fixed head, and a blob's core still darkens the paper under the muted
-   subtitle (ink-60: 5.12:1 on bare paper) below 4.5:1 at the keep-out's 12% (3.77:1 per pixel at 1440 x 900, Task 19
-   review). So the subtitle carries its own paper ground, as the About copy does; the small feather lets the haze
+   subtitle (ink-60: 5.12:1 on bare paper) below 4.5:1 at the keep-out's 12% (3.77:1 per pixel at 1440 x 900, found in a page
+   check). So the subtitle carries its own paper ground, as the About copy does; the small feather lets the haze
    the keep-out leaves fade out at its edges. Backgrounds paint before inline content, so it never covers the h2. */
 #work .section-sub { background: var(--bg); box-shadow: 0 0 16px 4px var(--bg); }
 
@@ -71,7 +71,7 @@
 @media (pointer: coarse) {
   #work.rail-on .rail-hint { display: block; }
 }
-/* From 768 up the fixed HUD holds the bottom-left corner (210 × 70 px): nothing readable goes there (Ruling R54).
+/* From 768 up the fixed HUD holds the bottom-left corner (210 × 70 px): nothing readable goes there.
    The link moves to the right and the hint centres under the centred card, both on the row under the rail. */
 @media (min-width: 768px) {
   #work.rail-on .stage { grid-template-rows: minmax(auto, 42%) auto auto minmax(var(--rail-clear), 1fr); }
@@ -80,13 +80,13 @@
   #work.rail-on .rail-hint { justify-self: center; margin-top: calc(8px + var(--tall) * .025); }   /* short: 8 */
 }
 
-/* Two summary lines hold only at 1440 px; below it three are reserved, never clamped (Ruling R49). */
+/* Two summary lines hold only at 1440 px; below it three are reserved, never clamped. */
 #work.rail-on .card-summary { min-height: calc(2em * 1.45); }
 @media (max-width: 1439.98px) {
   #work.rail-on .card-summary { min-height: calc(3em * 1.45); }
 }
 
-/* A phone on its side (a stage under 560 px tall, Ruling R57's query): in one column the card is taller than the stage
+/* A phone on its side (a stage under 560 px tall, where the HUD hides too): in one column the card is taller than the stage
    leaves it under the fixed header (at 844 × 390 its index, title and chips sat under the header for the whole rail).
    The card is wide there, so its text runs in two columns, nothing hidden: index, title, chips and summary on the
    left; on the right the metric, the chart (with its compared-with line) and, at the foot, the verdict stamp and the

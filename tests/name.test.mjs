@@ -98,7 +98,7 @@ test('drawName still draws when the font face fails to load (the fallback stack 
   }
 });
 
-// Final review (correctness M7): once the morph has begun, every tick places the word and its keep-out. That must not
+// Once the morph has begun, every tick places the word and its keep-out. That must not
 // read the layout (a rect per frame, and a forced layout after the last frame's writes): the section's page offset is
 // measured at each ScrollTrigger refresh and the tick subtracts the scroll from it, as About does.
 test('the sign-off places the word on each tick from the scroll alone; it reads the layout only on a refresh', async () => {

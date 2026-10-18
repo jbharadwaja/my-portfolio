@@ -1,8 +1,8 @@
-// About (spec §2.7; formation 6, the galaxy, spec §4.2): the halftone reveal of the full photo, and the galaxy's
-// pose behind the plate. The photo's <img> stays lazy and is never awaited at boot (Ruling R18): the reveal starts
+// About (formation 6, the galaxy): the halftone reveal of the full photo, and the galaxy's
+// pose behind the plate. The photo's <img> stays lazy and is never awaited at boot: the reveal starts
 // (the image loads, is sampled and its halftone pre-rendered) once About is within 2 screens. A fine pointer wipes
 // the dots; on touch (hover: none) one slow automatic sweep plays as the plate comes into view (none under reduced
-// motion, spec §3.3: ctx.reduced is read when the sweep would start and while it plays, so a live preference change
+// motion: ctx.reduced is read when the sweep would start and while it plays, so a live preference change
 // is followed) and taps wipe them too. The caption's hint shows once the reveal is live
 // (css/sections/about.css).
 import { createHalftoneReveal } from '../ui/halftone-reveal.js';
@@ -52,7 +52,7 @@ export async function init(ctx) {
  * Formation 6 is framed into the plate's rect grown by HALO about its centre, as the plate sits once About's top
  * meets the viewport's top (where 6 is held): the spiral's dense core sits behind the opaque photo and its arms
  * reach out around it. About is not a sticky stage, so its copy scrolls through the held galaxy: the text keep-out
- * (spec §4.5) follows the copy and the caption. Their page offsets are measured at every ScrollTrigger refresh;
+ * follows the copy and the caption. Their page offsets are measured at every ScrollTrigger refresh;
  * each frame only subtracts the scroll position (no layout reads, no allocations).
  */
 function placeGalaxy(engine, ScrollTrigger, { section, plate, keepOut }) {

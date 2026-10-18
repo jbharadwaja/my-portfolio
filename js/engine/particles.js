@@ -1,4 +1,4 @@
-// The formation particles (spec §4.3, §4.5): one THREE.Points of N particles whose geometry has two attribute
+// The formation particles: one THREE.Points of N particles whose geometry has two attribute
 // slots, aFrom and aTo. Each formation is one static vec4 BufferAttribute (xyz + meta); changing the pair swaps
 // which prebuilt attributes sit in the slots, so a formation uploads once and a swap only rebinds the vertex array.
 import { PARTICLE_VERTEX, PARTICLE_FRAGMENT } from './shaders.js';
@@ -47,7 +47,7 @@ export function createParticles({ THREE, tier, N = tier.N, reduced, spacing = 30
     // Two keep-out rects for each side of the pair: [from a, from b, to a, to b] (scene.js syncUniforms)
     uSafe: { value: Array.from({ length: 4 }, () => new THREE.Vector4(9, 9, 9, 9)) },
     uPulse: { value: 0 },
-    uEpoch: { value: 0 },              // Training (Task 11) drives it; the shader does not read it yet
+    uEpoch: { value: 0 },              // the Training section drives it; the shader does not read it yet
     uHoverCluster: { value: -1 },
     uClusterX: { value: new Float32Array(SLOTS) },
     uClusterY: { value: 0 },

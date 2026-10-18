@@ -3,7 +3,7 @@
 export const SECTIONS = ['encoder', 'training', 'experiments', 'route', 'about', 'signoff'];
 
 /**
- * Loads and initialises sections (Ruling R55). Every `importer(name)` starts at once, so the module fetches overlap;
+ * Loads and initialises sections. Every `importer(name)` starts at once, so the module fetches overlap;
  * the inits then run one after another in the order given, each awaited before the next. A section whose import or
  * init fails is passed to `log` by name and the rest carry on. Resolves once the last init has settled; never rejects.
  * @param {string[]} names

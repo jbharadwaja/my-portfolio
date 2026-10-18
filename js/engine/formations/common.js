@@ -1,4 +1,4 @@
-// Shared helpers for formation builders (spec §4.2). Pure and Node-testable: no three.js, no DOM.
+// Shared helpers for formation builders. Pure and Node-testable: no three.js, no DOM.
 // A formation is { data: Float32Array(N·4) of x, y, z, meta in its own centred local frame, box: { w, h }, minN }.
 
 /** Seeded PRNG: a function returning floats in [0, 1). */

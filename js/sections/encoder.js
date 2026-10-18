@@ -1,27 +1,27 @@
-// The encoder (spec §2.3, §5.2, §8.4): the network formation (2) framed into the stage below the section's text,
+// The encoder: the network formation (2) framed into the stage below the section's text,
 // the activation pulse (uPulse) scrubbed over the sticky stage, and the 19 DOM labels pinned to the projected nodes
 // every rendered frame (a label that would cover the text block or the HUD's corner fades out until it clears).
 // activeLayer is pure and Node-testable; init(ctx) touches the DOM and receives gsap, ScrollTrigger and the engine
 // through ctx (this module imports no CDN library). Without the engine — or once its context is lost for good — the
-// labels keep their static layer grid (css/main.css, spec §8.3).
+// labels keep their static layer grid (css/main.css).
 import { veil } from '../ui/veil.js';
 import { frameDistance } from '../engine/framing.js';
 import { mulberry32 } from '../engine/formations/common.js';
 import { NETWORK_LAYERS, networkNodes, networkBox, buildNetwork } from '../engine/formations/network.js';
 
-const K = 2;                           // the network's formation index (spec §4.2)
+const K = 2;                           // the network's formation index
 const OUTPUT = NETWORK_LAYERS.length - 1;
 const SEED = 0x4e4554;
-const VERTICAL_BELOW = 0.8;            // stage aspect under which the network runs top to bottom (spec §2.3)
-const WIDE = 768;                      // narrower, only the input and output labels show (spec §2.3)
-const LABEL_GAP = 8;                   // px from a node's edge to its label (spec §2.3)
+const VERTICAL_BELOW = 0.8;            // stage aspect under which the network runs top to bottom
+const WIDE = 768;                      // narrower, only the input and output labels show
+const LABEL_GAP = 8;                   // px from a node's edge to its label
 const HALO = 3;                        // px of paper around each label (css/sections/encoder.css)
 // px from the text block (h2 + body) down to the network's nodes: past the keep-out's 32 px feather. Labels may come
 // closer, down to LABEL_HEAD_GAP.
 const HEAD_GAP = 40;
 const LABEL_HEAD_GAP = 24;
 const BOTTOM = 32;                     // px kept free at the stage's bottom
-const HUD = { w: 210, h: 70 };         // from 768 px up the section HUD holds the bottom-left corner (Ruling R54)
+const HUD = { w: 210, h: 70 };         // from 768 px up the section HUD holds the bottom-left corner
 const MIN_REGION = 0.25;               // a region below the text shorter than this share of the stage: bottom half
 const FORMED = { from: 0.8, to: 1 };   // the labels fade in over the last fifth of the morph onto the network
 const RESIZE_DEBOUNCE_MS = 150;
@@ -32,7 +32,7 @@ const ANCHOR = {
   above: ' translate(-50%, -100%)',    // hidden layers: centred above
 };
 
-/** The active layer: the highest k with pulse ≥ k/3, so the inputs are active at 0 (spec §2.3). */
+/** The active layer: the highest k with pulse ≥ k/3, so the inputs are active at 0. */
 export function activeLayer(pulse) {
   for (let k = OUTPUT; k > 0; k--) if (pulse >= k / OUTPUT) return k;
   return 0;
@@ -126,7 +126,7 @@ function measureLayout({ section, stage, head, labels, nodeOf }) {
   const wide = vw >= WIDE;
   const nodes = networkNodes({ vertical });
   const box = networkBox(nodes);
-  // The text block keeps particles out (spec §4.5); the network goes below it.
+  // The text block keeps particles out; the network goes below it.
   const safe = roundRect({ x: hd.left - st.left, y: hd.top - st.top, w: hd.width, h: hd.height });
   const bottom = vh - BOTTOM;
   const top = safe.y + safe.h + LABEL_HEAD_GAP;
@@ -160,7 +160,7 @@ function stageTop({ top, h, stageH }) {
 const hits = (x0, y0, x1, y1, r) => x0 < r.x1 && x1 > r.x0 && y0 < r.y1 && y1 > r.y0;
 
 /**
- * uPulse runs 0 → 1 over the sticky stage (spec §5.1: measured, scrub: true; 0.3 when Lenis is off — scroll.js
+ * uPulse runs 0 → 1 over the sticky stage (measured, scrub: true; 0.3 when Lenis is off — scroll.js
  * followScrub keeps that right through a live reduced-motion switch), and sets which layer's labels show.
  */
 function createPulse({ gsap, scroll }, section, setPulse) {
@@ -174,7 +174,7 @@ function createPulse({ gsap, scroll }, section, setPulse) {
   scroll?.followScrub(tween.scrollTrigger);
 }
 
-/** The labels back in their static layer grid (no engine, or a context lost for good: spec §8.3). */
+/** The labels back in their static layer grid (no engine, or a context lost for good). */
 function goStatic({ section, container, labels }) {
   section.classList.remove('net-live');
   container.style.removeProperty('opacity');
@@ -187,7 +187,7 @@ function goStatic({ section, container, labels }) {
 /**
  * Registers the network (it builds after the veil, in an idle task), frames it below the text, keeps particles off
  * the text and pins the labels to the projected nodes on every rendered frame. Re-measured on resize, late fonts and
- * ScrollTrigger refreshes; an aspect-class change rebuilds the formation (spec §4.8). If the engine's context is
+ * ScrollTrigger refreshes; an aspect-class change rebuilds the formation. If the engine's context is
  * lost for good (`contextfail`), the labels go back to the static grid.
  */
 function goLive({ ctx, engine, section, stage, head, container, labels, nodeOf }) {
@@ -215,7 +215,7 @@ function goLive({ ctx, engine, section, stage, head, container, labels, nodeOf }
     }
     if (rebuild) {
       engine.registerFormation(K, () => buildNetwork(ctx.tier.N, { vertical: next.vertical, rng: mulberry32(SEED) }));
-      // After the veil the network on screen follows at once; before it, it builds with the others (spec §4.2).
+      // After the veil the network on screen follows at once; before it, it builds with the others.
       if (lifted) engine.ensure(K).catch(() => {});   // a failed build is logged by the engine
       forget();
     }
@@ -255,8 +255,8 @@ function goLive({ ctx, engine, section, stage, head, container, labels, nodeOf }
     }
     if (opacity === 0) return;
     const z = -K * engine.D;
-    // The guard: the layout keeps every label off the text block and the HUD's corner, but pointer parallax (±2.5°,
-    // spec §4.4) on a short stage, or a stage too short for the network below its text (a landscape phone), can still
+    // The guard: the layout keeps every label off the text block and the HUD's corner, but pointer parallax (±2.5°)
+    // on a short stage, or a stage too short for the network below its text (a landscape phone), can still
     // put one there. A label that would cover either fades out until it clears. The text block scrolls with the stage.
     const dy = stageTop(layout.section);
     const { text, hud } = layout;

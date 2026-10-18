@@ -19,7 +19,7 @@ test('the pointer window is 1.2 s', () => {
   assert.equal(shouldRun({ inView: true, msSincePointer: 1199, maskEmpty: true }), true);
   assert.equal(shouldRun({ inView: true, msSincePointer: 1200, maskEmpty: true }), false);
 });
-test('the plate caption names the gesture for both pointer kinds (spec §2.7)', () => {
+test('the plate caption names the gesture for both pointer kinds', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /<figcaption class="plate-caption mono">Grand Canyon, AZ<span class="plate-hint plate-hint-fine"> · move to reveal<\/span><span class="plate-hint plate-hint-touch"> · tap to reveal<\/span><\/figcaption>/);
 });
@@ -44,7 +44,7 @@ test('luminance: transparent pixels read as paper (no dots), so a cut-out halfto
   assert.equal(lum[1], 0);
 });
 
-// prepare() never rejects (Ruling R59): a sampling failure (a tainted canvas, no 2D context) resolves start() to false.
+// prepare() never rejects: a sampling failure (a tainted canvas, no 2D context) resolves start() to false.
 import { createHalftoneReveal } from '../js/ui/halftone-reveal.js';
 test('start() resolves false, never rejects, when sampling the image throws, and leaves the image showing', async (t) => {
   const warned = t.mock.method(console, 'warn', () => {});
@@ -66,7 +66,7 @@ test('start() resolves false, never rejects, when sampling the image throws, and
   assert.equal(warned.mock.callCount(), 1);
 });
 
-// The touch auto-sweep under a live prefers-reduced-motion change (spec §3.3: no halftone auto-sweep under reduce,
+// The touch auto-sweep under a live prefers-reduced-motion change (no halftone auto-sweep under reduce,
 // set up so it re-runs when the preference changes). A minimal DOM: 2D contexts that count the brush stamps (the
 // sweep's only drawing), an IntersectionObserver the test drives, and a requestAnimationFrame queue it steps.
 function fakeDom(t) {
@@ -180,7 +180,7 @@ test('a sweep in progress stops on the frame autoSweep() turns false; a boolean 
   }
 });
 
-test('About on touch: Reduce motion switched on after init means no auto-sweep; switched off, it plays (spec §3.3)', async (t) => {
+test('About on touch: Reduce motion switched on after init means no auto-sweep; switched off, it plays', async (t) => {
   const dom = fakeDom(t);
   const canvas = dom.canvas({ clientWidth: 400, clientHeight: 500 });
   const img = dom.img();

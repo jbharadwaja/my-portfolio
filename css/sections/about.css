@@ -1,6 +1,6 @@
 /* About section (#about): the halftone plate (js/ui/halftone-reveal.js) and its caption. */
 
-/* The hint names the gesture of the pointer in hand (spec §2.7), and shows only once the reveal is live
+/* The hint names the gesture of the pointer in hand, and shows only once the reveal is live
    (about.js sets .is-live), so a page without the reveal never asks the reader to move or tap. */
 .plate-hint-touch { display: none; }
 @media (hover: none) {
@@ -9,13 +9,13 @@
 }
 .js .plate-figure:not(.is-live) .plate-hint { visibility: hidden; }
 
-/* Ruling R54: from 768 px the fixed HUD covers the bottom-left 210 × 70 px. The plate is capped so that, with
+/* From 768 px the fixed HUD covers the bottom-left 210 × 70 px. The plate is capped so that, with
    About's top at the viewport's top (where a nav jump lands), the caption ends above that zone: plate height
    <= 100svh - section padding - 108 px (caption 26 px, HUD zone 70 px, 12 px air), width = height × 4/5. */
 @media (min-width: 768px) {
   .plate-figure { width: min(100%, max(240px, (100svh - var(--section-pad) - 108px) * 0.8)); }
 }
-/* 768–1023 px, one column: the plate comes first and holds the landing screen (Rulings R54, R61). As tall as the cap
+/* 768–1023 px, one column: the plate comes first and holds the landing screen. As tall as the cap
    allows, it ends above the HUD zone, and the copy starts a grid gap below the fold (100lvh: below it with the
    toolbar gone too), so nothing readable sits in the HUD's corner where a nav jump lands. */
 @media (min-width: 768px) and (max-width: 1023.98px) {
@@ -24,7 +24,7 @@
 
 /* The copy scrolls through the held galaxy (about.js), whose arms reach under the muted skills and certifications
    (ink-60: 5.12:1 on bare paper) even at the keep-out's 12%. So the copy block carries its own paper, as the hero's
-   panels do, and its text stays >= 4.5:1 against what is behind it (spec §3.1). A soft paper shadow lets the arms
+   panels do, and its text stays >= 4.5:1 against what is behind it. A soft paper shadow lets the arms
    fade out at its edges (with the keep-out's 32 px feather) instead of stopping at a hard line; it stays inside the
    column gap, and paints under every text (backgrounds paint before inline content). */
 .about-text { background: var(--bg); box-shadow: 0 0 24px 8px var(--bg); }

@@ -1,4 +1,4 @@
-// The WebGL engine core (spec §4.3–§4.8): renderer, camera framing, the dust tunnel, the formation particles and
+// The WebGL engine core: renderer, camera framing, the dust tunnel, the formation particles and
 // their morph resolver, density control, keep-out, cursor repulsion, the render loop, resize and context loss.
 // main.js reaches this module only through await import(); its tick() runs at the end of the one GSAP ticker
 // callback.
@@ -12,7 +12,7 @@ import { createParticles } from './particles.js';
 import { sizeFactor, DUST_VERTEX, DUST_FRAGMENT } from './shaders.js';
 import { veil } from '../ui/veil.js';
 
-const D = 30;                          // formation spacing along −z (spec §4.2)
+const D = 30;                          // formation spacing along −z
 const VFOV = 35;
 const DEG = Math.PI / 180;
 const MAX_ROLL_DEG = 3;
@@ -25,9 +25,9 @@ const ADAPT_FRAMES = 120;
 const ADAPT_DPR_STEP = 0.25;
 const HITCH_MS = 250;                  // longer gaps are stalls (tab switch, GC), not frame cost
 const DEBUG_EVERY_MS = 250;
-const DENSITY_GRID = 64;               // spec §4.5 screen histogram
+const DENSITY_GRID = 64;               // screen histogram resolution
 
-// Cursor repulsion (spec §4.6): a CPU spring (damping ratio 0.6) kicked by pointer speed; the shader pushes
+// Cursor repulsion: a CPU spring (damping ratio 0.6) kicked by pointer speed; the shader pushes
 // particles away from a lagged mouse by max(spring, 0). Sections 4 (Experiments) and 5 (Route) ease it out.
 const PUSH = { omega: 2 * Math.PI * 1.5, zeta: 0.6, fullSpeed: 700, max: 0.28, lag: 9, fadeS: 0.3 };
 const REPULSION_IN = [true, true, true, true, false, false, true, true];
@@ -37,12 +37,12 @@ const OFF_NDC = 9;                     // a keep-out rect parked far off screen
 const ENGINE_UNIFORMS = new Set(['uMix', 'uFrom', 'uTo', 'uTime', 'uAlpha', 'uBox', 'uSizeScale', 'uDpr', 'uBufferHeight',
   'uMaxPoint', 'uViewport', 'uNight', 'uOpacity', 'uPush', 'uMouse', 'uSafe']);
 
-// The dust tunnel: z ∈ [+10, −(7·D + 20)] around the camera path (spec §4.4).
+// The dust tunnel: z ∈ [+10, −(7·D + 20)] around the camera path.
 const DUST = { zNear: 10, zFar: -(7 * D + 20), radius: 9, size: 0.03, alpha: 0.5 };
-/** Under reduced motion the dust is static at 50% of its alpha (spec §3.3). */
+/** Under reduced motion the dust is static at 50% of its alpha. */
 const dustAlphaFor = (reduced) => (reduced ? DUST.alpha * 0.5 : DUST.alpha);
 
-/** Raw sRGB components of a #RRGGBB token (spec §4.5: colours are raw sRGB, no colour-space chunk). */
+/** Raw sRGB components of a #RRGGBB token (colours are raw sRGB, no colour-space chunk). */
 const srgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 const PAPER = srgb('#F6F6F3');
 const NIGHT = srgb('#0E0F12');
@@ -152,7 +152,7 @@ export async function createEngine({ canvas, tier, reduced }) {
   };
   const DEFAULT_POSE = { lookAt: [0, 0, 0], roll: 0, rect: fullRect, box: null };
   const poses = [];
-  /** Per formation k: { builder, formation, ready, pending, failed, version } (spec §4.2). */
+  /** Per formation k: { builder, formation, ready, pending, failed, version }. */
   const formations = [];
   const poseA = { x: 0, y: 0, z: 0, roll: 0 };
   const poseB = { x: 0, y: 0, z: 0, roll: 0 };
@@ -162,7 +162,7 @@ export async function createEngine({ canvas, tier, reduced }) {
   let pitch = 0;
 
   const state = {
-    /** Morph boundaries 0..1: b[0] is the entrance (noise → hero), b[1..6] the section boundaries (spec §4.3). */
+    /** Morph boundaries 0..1: b[0] is the entrance (noise → hero), b[1..6] the section boundaries. */
     boundaries: new Float32Array(7),
     /** The pair on screen (bound to the particles, framed by the camera); written every tick. */
     pair: { from: 0, to: 0, mix: 0 },
@@ -170,7 +170,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     pointer: { x: 0, y: 0, speed: 0, inside: false },
     /** Section-driven particle uniforms by name (uPulse, uClusterX, uRoute, …), copied into the material each frame. */
     uniforms: {},
-    /** Pointer parallax on; a section turns it off and it eases to 0 (the Route's reticle, spec §2.6). */
+    /** Pointer parallax on; a section turns it off and it eases to 0 (the Route's reticle). */
     parallax: true,
   };
 
@@ -230,7 +230,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     pu.uDpr.value = dpr;
     pu.uBufferHeight.value = bufferSize.y;
     pu.uViewport.value.set(size.w, size.h);
-    refreshAlphas();                   // the density histogram depends on the viewport (spec §4.8)
+    refreshAlphas();                   // the density histogram depends on the viewport
   }
 
   function ground(n) {
@@ -245,8 +245,8 @@ export async function createEngine({ canvas, tier, reduced }) {
     particles.setBlending(night >= 0.5);
   }
 
-  // Formations (spec §4.2): registered as builders, built on demand (ensure) or in idle tasks after the veil
-  // (buildDeferred). Installing one projects it at its own pose for its density alpha (spec §4.5).
+  // Formations: registered as builders, built on demand (ensure) or in idle tasks after the veil
+  // (buildDeferred). Installing one projects it at its own pose for its density alpha.
   const probe = new THREE.PerspectiveCamera(VFOV, 1, 0.1, 400);
   const probePose = { x: 0, y: 0, z: 0, roll: 0 };
 
@@ -254,7 +254,7 @@ export async function createEngine({ canvas, tier, reduced }) {
 
   /**
    * Alpha for formation k from its overlap at its section pose. Dust (meta −1) keeps its own faint alpha. A formation
-   * the shader places per frame (the clusters) supplies those placed positions through `densityData()` (Ruling R44).
+   * the shader places per frame (the clusters) supplies those placed positions through `densityData()`.
    */
   function densityAlpha(k, formation) {
     const data = formation.densityData?.() ?? formation.data;
@@ -379,7 +379,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     });
   }
 
-  // Morph (spec §4.3): the pair is resolved from scratch every tick; stepMorph (morph.js) stands in for formations
+  // Morph: the pair is resolved from scratch every tick; stepMorph (morph.js) stands in for formations
   // still building and dips the particles out, rebinds and fades them back in on a discontinuous pair change.
   const working = new Float32Array(7);
   const next = { from: 0, to: 1, mix: 0 };
@@ -412,7 +412,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     particles.setMix(pair.mix);
   }
 
-  // Cursor repulsion (spec §4.6), on tiers with repulsion, eased out over 300 ms in Experiments and Route.
+  // Cursor repulsion, on tiers with repulsion, eased out over 300 ms in Experiments and Route.
   const push = { x: 0, v: 0, strength: 0 };
   const mouse = { x: 0, y: 0, seen: false };
   function updateRepulsion(dt) {
@@ -437,9 +437,9 @@ export async function createEngine({ canvas, tier, reduced }) {
     pu.uMouse.value.set(mouse.x, mouse.y);
   }
 
-  // Text keep-out (spec §4.5): per formation k, the CSS rects (up to two) of its section's main text as laid out
+  // Text keep-out: per formation k, the CSS rects (up to two) of its section's main text as laid out
   // while k is held. The current section's go to uSafe[0..1], the next one's to uSafe[2..3]. Two, because the
-  // hero's bottom layout keeps particles off the copy above and below the portrait slot (Ruling R47).
+  // hero's bottom layout keeps particles off the copy above and below the portrait slot.
   const safeRects = [];
   function rectToNdc(rect, out) {
     if (!rect || !(rect.w > 0 && rect.h > 0)) return out.set(OFF_NDC, OFF_NDC, OFF_NDC, OFF_NDC);
@@ -484,7 +484,7 @@ export async function createEngine({ canvas, tier, reduced }) {
   let failed = false;
   let restoreTimer = 0;
 
-  // Adaptive quality (spec §4.1): from the veil lift, frame intervals are judged in windows of 120; each window
+  // Adaptive quality: from the veil lift, frame intervals are judged in windows of 120; each window
   // over budget (overFrameBudget: p75 > max(20 ms, 1.25 × median), so a steady 30 Hz rAF is not a struggling GPU)
   // lowers DPR by 0.25 down to 1.0, then hides the dust. It never steps back up. The first window after the lift
   // is not judged: it carries the idle-task formation builds (buildDeferred).
@@ -650,7 +650,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     registerFormation,
     /** Builds formation k now unless it is built or building; resolves when it is installed. */
     ensure,
-    /** After the veil lifts: builds every registered-but-unbuilt formation, one per idle task (spec §4.2). */
+    /** After the veil lifts: builds every registered-but-unbuilt formation, one per idle task. */
     buildDeferred() {
       deferring = true;
       scheduleDeferred();
@@ -695,7 +695,7 @@ export async function createEngine({ canvas, tier, reduced }) {
       return renderer.compileAsync(scene, camera);
     },
     /**
-     * prefers-reduced-motion changed (spec §3.3; main.js, gsap.matchMedia): the morph dips instead of travelling, the
+     * prefers-reduced-motion changed (main.js, gsap.matchMedia): the morph dips instead of travelling, the
      * camera cuts with roll 0, and parallax, repulsion, drift and the dust's motion stop (its alpha halves); off, all
      * of it comes back.
      */

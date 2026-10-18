@@ -1,4 +1,4 @@
-// The sign-off (spec §2.8, §4.2 row 7, §4.4): JULIAN drawn on an offscreen canvas, built as formation 7, and the
+// The sign-off: JULIAN drawn on an offscreen canvas, built as formation 7, and the
 // page room it is framed into. followRect and unionRect are pure and Node-testable; init(ctx) touches the DOM and
 // receives the engine through ctx (this module imports no CDN library).
 import { mulberry32 } from '../engine/formations/common.js';
@@ -49,7 +49,7 @@ const sameRect = (a, b) => a === b || (Boolean(a && b) && a.x === b.x && a.y ===
 
 /**
  * JULIAN in ink on a transparent canvas cut tight to the glyphs, as ImageData (the formation's box is the whole
- * image). Drawn only once the face is in (spec §3.2); under a failed font it draws in the fallback, and the page
+ * image). Drawn only once the face is in; under a failed font it draws in the fallback, and the page
  * room follows whatever width that comes out at.
  */
 export async function drawName() {

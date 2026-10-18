@@ -29,7 +29,7 @@
   background: var(--bg-dark); opacity: var(--route-night, 0);
 }
 
-/* ≥ 768 px: the head top left and the card panel bottom left, clear of the HUD (Ruling R54); the map fills the stage. */
+/* ≥ 768 px: the head top left and the card panel bottom left, clear of the HUD; the map fills the stage. */
 @media (min-width: 768px) {
   .route-live .stage { padding-top: calc(var(--header-h) + clamp(16px, 3svh, 40px)); }
   /* Each card hugs its own text, bottom-aligned, so a short card is not padded out to the tallest one. */
@@ -49,7 +49,7 @@
   .route-live .route-card { padding-inline: var(--gutter); transform: none; }
 }
 
-/* A phone on its side (a stage under 560 px tall, Ruling R57's query): the ≥ 768 px left panel, bottom-aligned at
+/* A phone on its side (a stage under 560 px tall, where the HUD hides too): the ≥ 768 px left panel, bottom-aligned at
    88 px, rose over the head (at 844 × 390 the cards covered "Route." and its subtitle for the whole stage). There the
    cards are the bottom sheet, as below 768 px (from 768 px wide each still hugs its own text: the tallest fits the
    sheet), and the head starts under the header as it does from 768 px up. From 768 px wide the map fills the stage

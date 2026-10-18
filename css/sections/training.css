@@ -9,14 +9,14 @@
 /* The heading's box is its text, so its keep-out rect and the HUD-beside-heading test (plotRect) use the text. */
 #training.is-live .section-head { width: fit-content; }
 /* The HUD carries its own paper ground, feathered like the hero HUD's, so particles swirling past never sit
-   behind its text (spec §3.1: text >= 4.5:1). Below 768 px it sits under the heading, full width, and the plot starts
+   behind its text (text >= 4.5:1). Below 768 px it sits under the heading, full width, and the plot starts
    below it; from 768 px it sits top-right beside the heading. */
 #training.is-live .train-hud {
   margin-top: 20px;
   background: var(--bg); box-shadow: 0 0 4px 4px var(--bg);
 }
 #training.is-live .loss-curve { height: 72px; }
-/* The four beats share one cell and cross-fade over 300 ms (spec §2.4); all four stay in the accessibility tree. */
+/* The four beats share one cell and cross-fade over 300 ms; all four stay in the accessibility tree. */
 #training.is-live .beats {
   position: absolute; left: var(--gutter); right: var(--gutter); bottom: 28px;
   display: grid; grid-template-columns: minmax(0, 1fr);
@@ -24,7 +24,7 @@
 }
 #training.is-live .beat { grid-area: 1 / 1; padding-bottom: 0; opacity: 0; transition: opacity 300ms; }
 /* Held, the beats sit below the landscape; as the stage scrolls away the camera flies past the landscape and it grows
-   under them, so their text carries its own paper ground, hugging the text (spec §3.1: text >= 4.5:1). */
+   under them, so their text carries its own paper ground, hugging the text (text >= 4.5:1). */
 #training.is-live .beat > * { width: fit-content; background: var(--bg); box-shadow: 0 0 4px 4px var(--bg); }
 #training.is-live .beat.is-active { opacity: 1; }
 
@@ -40,7 +40,7 @@
   width: calc(50% - 12px); margin-top: 12px;
 }
 /* Set tighter, so the beat ends at least 70 px above the stage's bottom on a phone on its side (812 x 375 up): from
-   768 px the fixed section HUD owns the bottom-left 210 x 70 px (Ruling R54). The body takes the label size. */
+   768 px the fixed section HUD owns the bottom-left 210 x 70 px. The body takes the label size. */
 #training.is-live.is-side .beat { padding-top: 10px; }
 #training.is-live.is-side .beat-title { margin-top: 8px; }
 #training.is-live.is-side .beat-body { margin-top: 6px; font-size: var(--fs-label); line-height: 1.45; }
@@ -51,6 +51,6 @@
   }
   #training.is-live .loss-curve { height: 112px; }
   #training.is-live.is-side .loss-curve { height: 72px; }
-  /* The fixed section HUD owns the bottom-left 210 x 70 px from 768 px up (Ruling R54): the beats end above it. */
+  /* The fixed section HUD owns the bottom-left 210 x 70 px from 768 px up: the beats end above it. */
   #training.is-live .beats { bottom: 94px; }
 }

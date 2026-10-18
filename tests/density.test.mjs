@@ -9,7 +9,7 @@ test('one point per cell gets the ceiling', () => {
 });
 test('size scale by tier', () => { assert.equal(sizeScale(48000), 1); assert.ok(Math.abs(sizeScale(14000) - 1.8516) < 1e-3); assert.equal(sizeScale(10000), 2); });
 
-// Beyond the brief.
+// More cases.
 test('k is the 99th percentile of the occupied cells', () => {
   // 99 cells hold 1 point, one cell holds 50: the 99th percentile (nearest rank) is still 1 → the ceiling.
   const p = [];

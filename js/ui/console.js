@@ -1,4 +1,4 @@
-// The ~ console (spec §6.4): a keyboard-driven dialog. Its projects, skills, journey and contact output is read from
+// The ~ console: a keyboard-driven dialog. Its projects, skills, journey and contact output is read from
 // the page's own DOM at boot, so it can never disagree with the page; `resume` follows the CV link as the DOM has it
 // when the command runs. The parser, completion, the "did you mean" distance and the ASCII loss curve are pure and
 // Node-testable; createConsole touches the DOM only when it is called. The rail's geometry (experiments.js) is
@@ -9,7 +9,7 @@ import { HELP, WHOAMI, CONSOLE } from '../content.js';
 const GUESS_MAX = 2;                   // "did you mean" only within this edit distance
 const HELP_W = 14;                     // help's name column: 'sudo hire-me' and two spaces
 const SKILL_W = 12;                    // skills' name column
-const PROJECT_W = { index: 6, title: 32, metric: 16 };   // projects' narrowest columns (Ruling R6's row)
+const PROJECT_W = { index: 6, title: 32, metric: 16 };   // projects' narrowest columns
 const MIN_ROOM = 16;                   // the narrow projects layout never wraps titles narrower than this
 const PROBE_CHARS = 20;                // characters measured for the log's character width
 const MAILTO_DELAY_MS = 800;
@@ -46,7 +46,7 @@ export function complete(prefix, names) {
 
 /**
  * One `projects` line: number, index, title, metric and verdict in columns of the given widths (`nW` for the number,
- * right-aligned). The default widths are Ruling R6's.
+ * right-aligned). The default widths are PROJECT_W.
  */
 export function projectLine(n, card, widths = PROJECT_W, nW = 1) {
   const { index, title, metric } = widths;
@@ -66,7 +66,7 @@ function wrapWords(text, width) {
 
 /**
  * The `projects` table for a log `columns` characters wide: one row per card, each column as wide as its longest
- * entry (never narrower than R6's), so every row lines up. Where a row would not fit (a phone), each project takes
+ * entry (never narrower than PROJECT_W), so every row lines up. Where a row would not fit (a phone), each project takes
  * two or more lines instead: number and index, then its title wrapped under the title column, then the metric and
  * the verdict under it (joined by · where they fit). No text is cut.
  */
@@ -243,7 +243,7 @@ export function createConsole({ root, scroll, ctx }) {
   prompt.textContent = CONSOLE.prompt;
   input.before(prompt);
   const isOpen = () => !root.hidden;
-  // main.js wires the console before the CDN settles (Ruling R65): under the loading veil (html.js without
+  // main.js wires the console before the CDN settles: under the loading veil (html.js without
   // .veil-done, the veil's own CSS condition) ~ does nothing.
   const veilUp = () => html.classList.contains('js') && !html.classList.contains('veil-done');
   const otherDialogOpen = () => [...doc.querySelectorAll('[role="dialog"][aria-modal="true"]')]
@@ -388,7 +388,7 @@ export function createConsole({ root, scroll, ctx }) {
       case 'clear': log.replaceChildren(); break;
       case 'close': close(); break;
       case 'jump-rail': jumpToCard(action.index); break;
-      case 'cv': doc.querySelector('a[data-cv]')?.click(); break;   // its own target, rel and download (spec §6.2)
+      case 'cv': doc.querySelector('a[data-cv]')?.click(); break;   // its own target, rel and download
       case 'mailto': setTimeout(() => doc.querySelector('a[href^="mailto:"]')?.click(), action.delayMs); break;
       case 'train': train(); break;
       default: break;

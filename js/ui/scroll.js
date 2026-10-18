@@ -1,11 +1,11 @@
-// The only door to scrolling (spec §5.4): smooth scroll, jumps, the scroll lock and the current section.
+// The only door to scrolling: smooth scroll, jumps, the scroll lock and the current section.
 // The pure helpers are Node-testable. createScroll receives the libraries from main.js (this module imports
 // none of them) and touches the DOM only when it is called.
 
 const ANIMATE_MAX_S = 1;                       // adjacent jumps: an animated scroll of at most 1.0 s
 const CUT_MS = { out: 180, in: 320 };          // far jumps: fade out, jump, fade back in
 const CUT_MS_REDUCED = { out: 0, in: 120 };
-const SCRUB_NATIVE_S = 0.3;                    // spec §5.1: a scrub's smoothing on native scroll (Lenis already smooths)
+const SCRUB_NATIVE_S = 0.3;                    // a scrub's smoothing on native scroll (none with Lenis, which smooths already)
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
@@ -25,7 +25,7 @@ export function groundFill(root) {
   return root.dataset.ground === 'night' ? 'var(--bg-dark)' : 'var(--bg)';
 }
 
-/** The scrub smoothing a ScrollTrigger takes (spec §5.1): none while Lenis smooths the scroll, 0.3 s on native scroll. */
+/** The scrub smoothing a ScrollTrigger takes: none while Lenis smooths the scroll, 0.3 s on native scroll. */
 export function scrubFor(lenisOn) {
   return lenisOn ? true : SCRUB_NATIVE_S;
 }
@@ -91,7 +91,7 @@ export function resizeRefreshes(a, b, touchOnly) {
  * lets the 8 s cap lift the veil first, and calls attach() once they resolve. That upgrades the same object in
  * place, so the handlers holding it and any lock already taken carry over. Passing the libraries here attaches at
  * once. Lenis exists only without reduced motion (gsap's ticker drives it); setReduced() follows a change of the
- * preference at runtime, destroying or creating it (Rulings R27/R45), and the triggers handed to followScrub() take
+ * preference at runtime, destroying or creating it, and the triggers handed to followScrub() take
  * the smoothing that goes with it. Without Lenis every scrollTo is instant.
  * Once attached, the reader keeps their place through a resize or a rotation (keepPlace).
  */
@@ -188,7 +188,7 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
   // Fade <main> and the canvas to the current ground, jump, let one frame render there, fade back in.
   // The ground colour is pinned on <body> for the whole cut, so passing in or out of Route never flashes.
   // The target is measured once faded out (`targetY()`): the layout can change meanwhile (the libraries arriving
-  // lengthen the stages, Ruling R29). `landed` runs once the page is there, while both layers are still faded out.
+  // lengthen the stages). `landed` runs once the page is there, while both layers are still faded out.
   async function cut(targetY, landed) {
     const ms = reduced ? CUT_MS_REDUCED : CUT_MS;
     const layers = [document.querySelector('main'), document.getElementById('scene')].filter(Boolean);

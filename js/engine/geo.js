@@ -1,4 +1,4 @@
-// Pure lattice geometry for the Route world map (spec §2.6, §10.5). Pacific-centred equirectangular
+// Pure lattice geometry for the Route world map. Pacific-centred equirectangular
 // lattice: column 0 sits at lon0 - 180, row 0 at latN. No three.js, no DOM.
 
 /** Longitude wrapped to [-180, 180). */

@@ -1,4 +1,4 @@
-// Formation 6 — a loose two-arm spiral (spec §4.2, About). Pure. The disc is built in its own plane, then tilted
+// Formation 6 — a loose two-arm spiral (About). Pure. The disc is built in its own plane, then tilted
 // and turned so the camera, looking down −z, sees an inclined spiral rather than a flat ring.
 import { makeFormation, gauss, shuffle } from './common.js';
 

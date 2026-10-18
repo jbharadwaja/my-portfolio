@@ -1,9 +1,9 @@
-// Custom cursor (spec §6.3): an 8 px dot on the pointer and a 28 px ring that lags it. Over links and buttons the
+// Custom cursor: an 8 px dot on the pointer and a 28 px ring that lags it. Over links and buttons the
 // ring grows to 48 px and the element leans toward the pointer (at most 6 px); over the rail the ring reads `drag`;
 // over the Route map while the reticle is on (route.js sets .reticle-on on the stage and prints the readout beside the
 // pointer), a crosshair. Mouse only: on from the first mouse move, off at any touch or pen press; hidden while the
 // console is open (html.console-shown, css/sections/ui.css). The rail's drag itself is experiments.js's: it shares
-// DRAG_THRESHOLD (Ruling R4). The maths is pure and Node-testable; createCursor touches the DOM only when called.
+// DRAG_THRESHOLD. The maths is pure and Node-testable; createCursor touches the DOM only when called.
 import { CURSOR_DRAG } from '../content.js';
 
 /** A press becomes a drag after this many CSS px of movement. */

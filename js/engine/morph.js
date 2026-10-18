@@ -1,4 +1,4 @@
-// The on-screen pair controller (spec §4.3): turns the pair resolved each frame into the pair the particles
+// The on-screen pair controller: turns the pair resolved each frame into the pair the particles
 // show, with the stand-in for formations still building and the alpha dip for discontinuous pair changes.
 // Pure and Node-testable; scene.js binds `state.pair` to the particles after every step.
 import { needsDip, showsFormation } from './resolver.js';

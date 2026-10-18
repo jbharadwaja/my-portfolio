@@ -1,10 +1,10 @@
-// GLSL for the formation particles (spec §4.3, §4.5, §4.6). Two attribute slots (aFrom, aTo: xyz + meta) are
+// GLSL for the formation particles. Two attribute slots (aFrom, aTo: xyz + meta) are
 // read through each formation's own rules (placement at −k·D, cluster offsets, route reveal, network pulse,
 // reticle), blended per particle with a staggered t, swirled by curl noise on the way, then shaded as ink on
 // paper (MultiplyBlending) or mist on night (AdditiveBlending). Colours are raw sRGB uniforms. The dust tunnel's
 // GLSL is here too: it shares the particles' text keep-out (KEEP_OUT_GLSL).
 
-/** Lattice of the world-map formation (spec §4.2 row 5), for the reticle's row/column test. */
+/** Lattice of the world-map formation, for the reticle's row/column test. */
 const MAP_COLS = 260;
 const MAP_ROWS = 96;
 
@@ -19,7 +19,7 @@ export function sizeFactor(k, meta) {
 }
 
 /**
- * The text keep-out (spec §4.5), shared by the formation particles and the dust tunnel: uSafe holds two NDC rects
+ * The text keep-out, shared by the formation particles and the dust tunnel: uSafe holds two NDC rects
  * per side of the pair (scene.js syncUniforms), and keepAt(ndc, t) is the alpha factor at a point for a pair at
  * mix t. The dust takes it too, so a drifting speck never darkens the text a formation keeps clear.
  */
@@ -98,7 +98,7 @@ int slot(float x) {
   return int(clamp(x, 0.0, 7.0) + 0.5);
 }
 
-// One particle of formation k: local xyz + meta read by that formation's rules (spec §4.2 meta column).
+// One particle of formation k: local xyz + meta read by that formation's rules.
 Shape shape(float k, vec4 a) {
   int id = slot(k);
   float meta = a.w;
@@ -144,7 +144,7 @@ Shape shape(float k, vec4 a) {
       }
     }
   }
-  // Per-particle size variation (0.75–1.25×) for formation particles only: dust stays at 0.6× (spec §4.2: ≤ 0.6×).
+  // Per-particle size variation (0.75–1.25×) for formation particles only: dust stays at 0.6×, always smaller.
   if (meta >= -0.5) s.size *= 0.75 + 0.5 * fract(aSeed.y * 61.7);
   s.pos.z -= k * SPACING;
   return s;
@@ -254,7 +254,7 @@ void main() {
   if (depth < 0.3) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
 }`;
 
-// The dust tunnel (spec §4.4; scene.js createDust): drifting specks around the camera path, faded by size and
+// The dust tunnel (scene.js createDust): drifting specks around the camera path, faded by size and
 // nearness, dipped across the ground flip, and kept off the text like the formations (KEEP_OUT_GLSL), so a speck
 // passing behind muted copy never takes it under 4.5:1.
 export const DUST_VERTEX = /* glsl */ `

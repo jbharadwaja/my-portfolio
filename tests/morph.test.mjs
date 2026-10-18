@@ -137,7 +137,7 @@ test('a zero-length frame (resync) holds the dip where it is', () => {
   assert.equal(s.opacity, o);
 });
 
-// Task 8 deferred minor (Task 19 triage): a stand-in that ends on a real pair still showing its formation (nearly)
+// A stand-in that ends on a real pair still showing its formation (nearly)
 // alone is a hand-off, not a jump — the particles no longer fade out and back in for nothing.
 test('an ended stand-in hands off without a dip when the real pair shows the same formation', () => {
   const built = new Set([0, 1, 2, 3]);
@@ -173,7 +173,7 @@ test('an ended stand-in on another formation, or held in the middle of its pair,
   assert.equal(stepMorph(t, P(5, 5, 0), DT, builtOnly(new Set([3, 5]))), false, 'another stand-in');
 });
 
-// Task 8 deferred minor: the pair coming back before the screen has emptied (a flick reversed within 120 ms) no
+// The pair coming back before the screen has emptied (a flick reversed within 120 ms) no
 // longer finishes the dip-out and fades in from 0: the dip turns round where it is, on the pair still bound.
 test('a dip-out turns round when the pair comes back: no rebind, fading in from where it was', () => {
   const s = at(P(3, 4, 0.5));
@@ -192,7 +192,7 @@ test('a dip-out turns round when the pair comes back: no rebind, fading in from 
   assert.deepEqual([h.pair, h.dip], [P(3, 4, 0.02), 'in']);
 });
 
-// Final review M1: a far (cut) jump has the canvas faded out already, so the engine rebinds at once on the frame
+// A far (cut) jump has the canvas faded out already, so the engine rebinds at once on the frame
 // after it lands (snapMorph) instead of holding the old pair through its own dip — no ghost as the page fades in.
 import { snapMorph } from '../js/engine/morph.js';
 test('after snapMorph the next pair binds at once at full opacity, without a dip; one step only', () => {

@@ -1,4 +1,4 @@
-// Formation 7 — the name (spec §4.2 row 7). Pure. `image` is the word drawn in ink on a transparent canvas, tight
+// Formation 7 — the name. Pure. `image` is the word drawn in ink on a transparent canvas, tight
 // to the glyphs (ImageData-shaped); 85% of N is sampled from its coverage, the rest becomes faint dust.
 import { makeFormation, fillDust, systematicSample, shuffle } from './common.js';
 import { imageWeights } from './image-weights.js';

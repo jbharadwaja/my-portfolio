@@ -1,4 +1,4 @@
-// The Route's 2D map for the no-WebGL page (spec §8.3), and the route geometry the live stage frames with too
+// The Route's 2D map for the no-WebGL page, and the route geometry the live stage frames with too
 // (routeBox, narrowRegion; js/sections/route.js). main.js mounts the map through ctx.fallback and imports this
 // module only then, so the Route's own module failing (or this one) never takes main.js down with it.
 // mapFit is pure and Node-testable; nothing here touches the DOM until it is called.
@@ -16,7 +16,7 @@ export const FULL_STAGE = '(min-width: 768px), (max-height: 559.98px)';
 const MAP_GAP = 12;                    // px between the route box's rect and the head or the sheet (narrowRegion)
 
 /**
- * The 2D fallback map's placement (spec §8.3): the lattice's `focus` box (in cells; the whole lattice by default)
+ * The 2D fallback map's placement: the lattice's `focus` box (in cells; the whole lattice by default)
  * fitted inside `region` (CSS px) and centred. Lattice cell (c, r) spans x + c·cell … x + (c + 1)·cell.
  */
 export function mapFit(region, focus = { x: 0, y: 0, w: WORLDMAP.cols, h: WORLDMAP.rows }) {
@@ -67,7 +67,7 @@ export function narrowRegion(stage, head, deck) {
 let landDots = null;                   // interleaved (col, row) of the land dots, decoded on first draw
 
 /**
- * Draws the no-WebGL map (spec §8.3) on a 2D canvas, sized to its CSS box: the land dots in mist and the whole
+ * Draws the no-WebGL map on a 2D canvas, sized to its CSS box: the land dots in mist and the whole
  * route in orange with its four stops, the lattice (or its `focus`, in cells) fitted into `region` (CSS px; the
  * whole canvas by default).
  */

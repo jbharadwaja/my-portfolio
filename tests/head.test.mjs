@@ -36,7 +36,7 @@ test('no-js root and skeleton', () => {
   assert.match(html, /<a class="skip" href="#main">/);
 });
 
-// Boot sequence (spec §6.1, rulings R15/R23)
+// Boot sequence
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const bootStart = html.indexOf('<script>');
 test('head order: charset, inline boot script, then stylesheets and the import map', () => {
@@ -82,7 +82,7 @@ test('main.css switches transitions off while the page carries .preload (the vei
   assert.match(css, /\.preload \*:not\(\.veil\),\s*\.preload \*:not\(\.veil\)::before,\s*\.preload \*:not\(\.veil\)::after\s*\{\s*transition: none !important;/);
 });
 
-// Ruling R26: no third-party stylesheet can hold up first paint or the module scripts
+// No third-party stylesheet can hold up first paint or the module scripts
 const FONT_CSS = [
   'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Geist+Mono:wght@100..900&display=swap',
   'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Geist+Mono:wght@100..900&text=%E2%86%92%E2%86%97%E2%86%90%E2%89%A4&display=swap',

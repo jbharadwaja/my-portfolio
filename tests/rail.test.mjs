@@ -21,7 +21,7 @@ test('eight equal clusters', () => {
   assert.deepEqual(c, Array(8).fill(1100));
 });
 
-// Ruling R37: what each card's chart draws, from its data-* attributes.
+// What each card's chart draws, from its data-* attributes.
 test('two-bar chart: the model bar is the accent, both values print as written', () => {
   const up = chartSpec({ metric: '0.90', compare: '0.85', better: 'higher' });
   assert.equal(up.kind, 'pair');
@@ -44,7 +44,7 @@ test('series chart: the chosen entry is the accent, values keep separators and d
 });
 test('a card without chart data draws no chart', () => assert.equal(chartSpec({ better: undefined }), null));
 
-// Ruling R59: one emphasis per chart (the accent), decimals as written, count-ups only for cards on screen.
+// One emphasis per chart (the accent), decimals as written, count-ups only for cards on screen.
 import { shouldCount } from '../js/sections/experiments.js';
 test('a chart has one emphasis: the accent row, and no "best" marking beside it', () => {
   const pair = chartSpec({ metric: '0.90', compare: '0.85', better: 'higher' });
@@ -66,7 +66,7 @@ test('a card counts up only while it is on screen: entered from the right, not y
   assert.equal(shouldCount({ left: -900, right: -440 }, 1440), false);
   assert.equal(shouldCount({ left: 1224, right: 1684 }, 1440), false);   // not yet past 85% of the width
 });
-// Wave-2 deferred minor (Task 19 triage): a number written with an exponent is one value, and its decimals are the
+// A number written with an exponent is one value, and its decimals are the
 // mantissa's less the exponent ("1.5e3" is 1500, no decimals; "2.5e-1" is 0.25, two), never "1.5" plus a stray "3".
 test('series values written with an exponent keep the decimals they stand for', () => {
   const big = chartSpec({ series: '[["a",1.5e3],["b",2.25e3,"chosen"]]' });
@@ -77,8 +77,8 @@ test('series values written with an exponent keep the decimals they stand for', 
   assert.deepEqual(plus.rows.map((r) => r.text), ['12.5', '3.0']);
 });
 
-// ---------------------------------------------------------------- final review: a phone on its side (experience I2)
-// On a stage under 560 px tall (Ruling R57's query) the one-column card ran ~360 px tall at 844 × 390, so its index,
+// ---------------------------------------------------------------- a phone on its side
+// On a stage under 560 px tall (where the HUD hides too) the one-column card ran ~360 px tall at 844 × 390, so its index,
 // title and chips sat under the fixed header for the whole rail; and the Route's ≥ 768 left card panel rose over the
 // head. There the card's text runs in two columns (nothing hidden), and the Route's cards are the bottom sheet.
 const sheet = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');

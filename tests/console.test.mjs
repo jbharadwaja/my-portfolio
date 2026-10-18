@@ -15,7 +15,7 @@ test('tab completion', () => { assert.equal(complete('j', ['journey', 'clear', '
 test('levenshtein', () => assert.equal(levenshtein('kitten', 'sitting'), 3));
 test('cursor ring and drag threshold', () => { assert.ok(Math.abs(ringFactor(1 / 60) - 0.18) < 1e-9); assert.ok(Math.abs(ringFactor(1 / 30) - 0.3276) < 1e-9); assert.equal(isDrag(6), false); assert.equal(isDrag(6.1), true); });
 
-// Ruling R6: the projects line, column by column.
+// The projects line, column by column.
 test('projects line columns', () => {
   assert.equal(projectLine(1, card), '1  EXP_01  Movie review sentiment' + ' '.repeat(10) + ' F1 0.90' + ' '.repeat(9) + ' BEAT TARGET');
 });
@@ -42,7 +42,7 @@ test('projects: each column starts at the same place on every row, widened to it
     assert.deepEqual(at, starts[0], `row ${i + 1} lines up with row 1`);
   }
   assert.ok(lines.every((line, i) => line.startsWith(`${i + 1}  `)));
-  // R6's widths are the floor: cards no longer than R6's still print its exact row
+  // The default widths are the floor: cards no longer than them still print the exact default row
   assert.equal(runCommand('projects', ctx).lines[0], projectLine(1, card));
   // a console wide enough for the table prints the same table
   assert.deepEqual(runCommand('projects', { ...ctx, cards: RAIL }, { columns: 120 }).lines, lines);
@@ -71,7 +71,7 @@ test('projects on a narrow console (a phone): each project wraps under its title
   }
 });
 
-test('every other spec command answers', () => {
+test('every other console command answers', () => {
   const full = {
     ...ctx,
     skills: [{ name: 'Python', list: 'pandas, NumPy' }],
@@ -291,7 +291,7 @@ test('the cursor watches a stage only while its reticle is on, not every stage w
   assert.equal(watchesReticle(null), false);
 });
 
-// Ruling R65: the console is wired before the CDN settles, so the veil can still be up; ~ does nothing under it.
+// The console is wired before the CDN settles, so the veil can still be up; ~ does nothing under it.
 test('~ does not open the console while the loading veil is up (html.js without .veil-done)', () => {
   const { doc, root, press } = consolePage();
   doc.documentElement.classList.add('js');
@@ -302,7 +302,7 @@ test('~ does not open the console while the loading veil is up (html.js without 
   assert.equal(root.hidden, false, 'opens once the veil has lifted');
 });
 
-// Task 26 review (R69): focus must leave the hidden input even when the element it returns to does not take it.
+// Focus must leave the hidden input even when the element it returns to does not take it.
 test('Esc leaves focus off the hidden input even when the element it returns to refuses focus', () => {
   const { doc, root, input, press } = consolePage();
   const button = new FakeElement(doc, 'button');
@@ -318,7 +318,7 @@ test('Esc leaves focus off the hidden input even when the element it returns to 
   assert.equal(root.hidden, false, '~ reopens it at once');
 });
 
-// R69: the rail's geometry is imported only when `open <n>` runs (a section module failing to load would otherwise
+// The rail's geometry is imported only when `open <n>` runs (a section module failing to load would otherwise
 // take main.js down), and the jump still goes to railPositionFor(card), then focuses the card.
 test('open <n> imports the rail geometry lazily, jumps to the card\'s rail place, then focuses the card', async (t) => {
   const src = readFileSync(new URL('../js/ui/console.js', import.meta.url), 'utf8');
@@ -342,7 +342,7 @@ test('open <n> imports the rail geometry lazily, jumps to the card\'s rail place
   assert.equal(focused?.i, 1, 'the card has focus once the page is there');
 });
 
-// Wave-2 deferred minor (Task 19 triage): only contact's lines are links. A line of another command that happens to
+// Only contact's lines are links. A line of another command that happens to
 // read like a contact link (here whoami's, set as one) prints as text, not as that link.
 test('only the contact command prints links; the same text from another command stays text', () => {
   const contact = [{ text: WHOAMI, href: 'mailto:someone@example.com' }];

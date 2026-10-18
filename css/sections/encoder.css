@@ -1,7 +1,7 @@
 /* Encoder section (#encoder): the network labels, pinned to the projected nodes by js/sections/encoder.js. */
 /* .net-live is set once the engine runs; without it the labels keep the static layer grid (css/main.css). */
 /* The grid can be taller than a short screen (a phone, on its side too): the stage then grows to hold it, so it pins
-   for the rest of the section's length and its foot scrolls into view at the end (spec §8.3: everything readable). */
+   for the rest of the section's length and its foot scrolls into view at the end (everything stays readable). */
 .js-scroll #encoder:not(.net-live) .stage { height: auto; min-height: 100svh; }
 .net-live .net-labels {
   position: fixed; top: 0; left: 0; width: 0; height: 0;   /* labels are placed in viewport px */
@@ -18,17 +18,17 @@
   will-change: transform;
 }
 .net-live .net-label::before { content: none; }
-/* Shown: the active layer's labels plus the outputs; the previous layer's fade out over 200 ms (spec §2.3). */
+/* Shown: the active layer's labels plus the outputs; the previous layer's fade out over 200 ms. */
 .net-live .net-labels .net-label[data-layer="3"],
 .net-live .net-labels[data-active="0"] .net-label[data-layer="0"],
 .net-live .net-labels[data-active="1"] .net-label[data-layer="1"],
 .net-live .net-labels[data-active="2"] .net-label[data-layer="2"] { opacity: 1; }
 
-/* 768–1023 px: mono-small (spec §8.4, Ruling R16); narrower too, where the vertical network leaves less room. */
+/* 768–1023 px: mono-small; narrower too, where the vertical network leaves less room. */
 @media (max-width: 1023.98px) {
   .net-live .net-labels .net-label { font-size: var(--fs-mono-small); }
 }
-/* Below 768 px only the input and output labels show (spec §2.3). */
+/* Below 768 px only the input and output labels show. */
 @media (max-width: 767.98px) {
   .net-live .net-labels[data-active] .net-label:is([data-layer="1"], [data-layer="2"]) { opacity: 0; }
 }

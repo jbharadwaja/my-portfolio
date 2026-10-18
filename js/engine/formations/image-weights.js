@@ -1,6 +1,6 @@
-// An image → a sampling-weight grid (spec §4.2 row 1). Pure and Node-testable: `image` is ImageData-shaped
-// ({ width, height, data: RGBA bytes, not premultiplied }). The portrait (Task 9) uses the defaults; the JULIAN
-// glyph mask (Task 15) switches the tone terms off and samples plain coverage.
+// An image → a sampling-weight grid. Pure and Node-testable: `image` is ImageData-shaped
+// ({ width, height, data: RGBA bytes, not premultiplied }). The portrait formation uses the defaults; the JULIAN
+// glyph mask (name formation) switches the tone terms off and samples plain coverage.
 //
 //   g = clamp((0.85 − lum) / 0.70)                  global darkness
 //   l = clamp(0.5 + kL · (blur₁₀ − lum))            local contrast (box blur, radius 10 cells)

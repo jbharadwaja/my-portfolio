@@ -1,4 +1,4 @@
-// The training run (spec §2.4): the stage scrub drives the epoch 0 → 100, and the epoch drives the HUD readout, the
+// The training run: the stage scrub drives the epoch 0 → 100, and the epoch drives the HUD readout, the
 // loss curve, the beat on screen and, with the engine, uEpoch and the orange ball rolling down its trail over the loss
 // landscape (formation 3). curvePoints, framedSurface, wantsSide and plotRect are pure and Node-testable; init(ctx)
 // touches the DOM and receives gsap, ScrollTrigger and the engine through ctx (this module imports no CDN library).
@@ -12,17 +12,17 @@ import { frameDistance, rectShift } from '../engine/framing.js';
 
 const K = 3;                           // the landscape's formation index
 const SEED = 0x7a11;
-const ROLL_DEG = 2.5;                  // the pose's camera roll (spec §3.3: ≤ 3°): lowers the far right corner, clear of the HUD
+const ROLL_DEG = 2.5;                  // the pose's camera roll (at most 3°): lowers the far right corner, clear of the HUD
 const CURVE = { w: 200, h: 80, top: 1.3 };   // the loss curve's viewBox; a loss sits at y = h · (1 − loss / top)
-// The plot (spec §2.4): the upper 55% of the stage, `gap` px from the text around it and at least a fifth of the stage
+// The plot: the upper 55% of the stage, `gap` px from the text around it and at least a fifth of the stage
 // tall. Its top moves down in `step` px until no surface sample lands within `clear` px of the heading or the HUD.
 // The surface is fitted into it with the engine's framing slack (framing.js) in `fitSteps` steps.
 const PLOT = { share: 0.55, gap: 16, minShare: 0.2, clear: 16, step: 2, slack: 1.08, fitSteps: 6 };
 const RESIZE_DEBOUNCE_MS = 150;
-// The ball and its trail: one small Points draw over the landscape (spec §8.1), sized in CSS px.
+// The ball and its trail: one small Points draw over the landscape, sized in CSS px.
 const BALL = { px: 12, trailPx: 3.5, trailAlpha: 0.85, fadeIn: [0.55, 0.95] };
 
-/** Raw sRGB components of a #RRGGBB token (colours are raw sRGB uniforms, spec §4.5). */
+/** Raw sRGB components of a #RRGGBB token (colours are raw sRGB uniforms). */
 const srgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -86,7 +86,7 @@ const stackedHud = (head, hud) => hud.y >= head.y + head.h;
  * Whether the stage takes the side layout (a phone on its side, a very short window): the beats, held at the stage's
  * bottom, would run into the heading or the HUD, or leave the plot less than a fifth of the stage. Then the beats sit
  * under the heading and the landscape in the right column under the HUD (css/sections/training.css .is-side).
- * Measured in the regular layout. The fixed section HUD's zone (Ruling R54) needs no check here: both layouts keep the
+ * Measured in the regular layout. The fixed section HUD's zone needs no check here: both layouts keep the
  * beats above it in CSS (the regular one 94 px from the bottom, the side one with a tighter beat that ends 70 px or
  * more above the bottom of any stage 340 px tall or more).
  */
@@ -129,7 +129,7 @@ export function fitFrame(target, view) {
 }
 
 /**
- * The rect pose 3 frames the landscape's box into (spec §2.4, §4.4), in CSS px of the held stage; `head`, `hud` are
+ * The rect pose 3 frames the landscape's box into, in CSS px of the held stage; `head`, `hud` are
  * rects { x, y, w, h } relative to the stage's top, `beatsTop` likewise, `vw` × `vh` the canvas. The surface is fitted
  * (fitFrame) into a target area. Regular layout: the full width, ending at 55% of the stage (above the beats); it
  * starts at the header's bottom when the HUD sits beside the heading — moved down until the surface clears the heading
@@ -211,7 +211,7 @@ export async function init(ctx) {
     e: EPOCHS,
     ease: 'none',
     onUpdate: () => show(proxy.e),
-    // Spec §5.1: scrub 0.3 only when Lenis is off (it already smooths); scroll.js followScrub keeps it so.
+    // Scrub 0.3 only when Lenis is off (it already smooths); scroll.js followScrub keeps it so.
     scrollTrigger: { trigger: section, start: 'top top', end: 'bottom bottom', scrub: true },
   });
   ctx.scroll?.followScrub(run.scrollTrigger);
@@ -339,7 +339,7 @@ void main() {
 }`;
 
 /**
- * The orange ball and its 101-point trail (spec §2.4): one Points of 102 vertices at formation 3's origin, drawn over
+ * The orange ball and its 101-point trail: one Points of 102 vertices at formation 3's origin, drawn over
  * the particles. The trail shows epochs 0..⌊e⌋, the ball sits at P(e); both fade in as the landscape forms.
  */
 function createBall(engine) {

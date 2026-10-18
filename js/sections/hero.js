@@ -1,5 +1,5 @@
-// The hero (spec §2.2, §4.3, §6.1, §8.3): the portrait formation and where it sits (the strip right of the name, or
-// the slot after the lead — Ruling R47), its preparation before the veil lifts (decode, build, compile), the denoise
+// The hero: the portrait formation and where it sits (the strip right of the name, or
+// the slot after the lead), its preparation before the veil lifts (decode, build, compile), the denoise
 // entrance after it, and without WebGL the cut-out as a static halftone in the same place. portraitLayout,
 // entranceMode and halftoneRect are pure and Node-testable; init(ctx) touches the DOM and receives gsap, the scroll
 // and the engine through ctx (this module imports no CDN library).
@@ -10,18 +10,18 @@ import { mulberry32 } from '../engine/formations/common.js';
 import { buildPortrait } from '../engine/formations/portrait.js';
 
 const PORTRAIT_URL = 'assets/img/portrait-cutout.webp';
-const GRID_W = 400;                    // the weight grid is 400 cells wide (spec §4.2): decode straight to that
+const GRID_W = 400;                    // the weight grid is 400 cells wide: decode straight to that
 const SEED = 0x4a42;                   // the seed the hero HUD prints
 const STEPS = 50;
 const ENTRANCE_S = 2.4;
-const ENTRANCE_REDUCED_S = 0.6;        // reduced motion: a cross-fade (spec §3.3)
+const ENTRANCE_REDUCED_S = 0.6;        // reduced motion: a cross-fade
 const RUSH = 6;                        // timeScale after the first scroll input: done within 0.4 s
 // Any scroll counts (a scrollbar drag, autoscroll, a nav jump, Lenis), as do the inputs that start one
 const RUSH_INPUTS = ['wheel', 'touchmove', 'keydown', 'scroll'];
 const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta']);
 const RESIZE_DEBOUNCE_MS = 150;
 const STRIP = { gap: 32, margin: 48, minShare: 0.34, minWidth: 1024, top: 0.1, bottom: 0.96 };
-const KEEP_FEATHER = 32;               // the text keep-out's feather in CSS px (spec §4.5; shaders.js keepOut)
+const KEEP_FEATHER = 32;               // the text keep-out's feather in CSS px (shaders.js keepOut)
 
 const roundRect = ({ x, y, w, h }) => ({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
 
@@ -42,9 +42,9 @@ function slotOnStage(slot, vh, copyTop) {
 }
 
 /**
- * Where the portrait is framed (spec §2.2), in CSS px of a vw × vh stage: the strip [h1Right + 32, vw − 48],
+ * Where the portrait is framed, in CSS px of a vw × vh stage: the strip [h1Right + 32, vw − 48],
  * 10%–96% of the stage height, when the viewport is ≥ 1024 px wide and the strip is ≥ 34% of it. Otherwise the
- * bottom layout: the portrait slot (Ruling R47: the slot after the lead), measured as laid out at scroll 0 and
+ * bottom layout: the portrait slot (the one after the lead), measured as laid out at scroll 0 and
  * kept on the stage (slotOnStage; `copyTop` is the copy's top at scroll 0), or, when no slot is measured, the
  * bottom half of the stage. Every rect field is a whole pixel.
  */
@@ -72,7 +72,7 @@ export function slotFollow(rect, slotY, scrollY) {
 }
 
 /**
- * The no-WebGL portrait's box (spec §8.3): an image of `aspect` (width / height) contained in the portrait's `rect`
+ * The no-WebGL portrait's box: an image of `aspect` (width / height) contained in the portrait's `rect`
  * as the engine frames a box (framing.js, with its slack), centred. Every field is a whole pixel.
  */
 export function halftoneRect(rect, aspect) {
@@ -146,8 +146,8 @@ function createLayout({ section, h1, copy, slot, header }) {
     const top0 = section.getBoundingClientRect().top;
     const at0 = (r) => ({ x: r.left, y: r.top - top0, w: r.width, h: r.height });
     const c = at0(copy.getBoundingClientRect());
-    // The fixed header's band keeps particles out too: at the top of the page the header has no ground yet (Ruling
-    // R50), and the entrance's swirl and fly-through would otherwise pass behind its items.
+    // The fixed header's band keeps particles out too: at the top of the page the header has no ground yet,
+    // and the entrance's swirl and fly-through would otherwise pass behind its items.
     const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
     const band = headerBottom > 0 ? { x: 0, y: 0, w: vw, h: headerBottom } : null;
     let nextSafe = [c.h > 0 ? c : null, band];
@@ -204,7 +204,7 @@ function createLayout({ section, h1, copy, slot, header }) {
 }
 
 /**
- * The no-WebGL portrait (spec §8.3): the cut-out as a static halftone (halftone-reveal.js) over the hero where the
+ * The no-WebGL portrait: the cut-out as a static halftone (halftone-reveal.js) over the hero where the
  * formation would be framed — the strip, or the slot — scrolling with the page. Shown once the image has decoded.
  * Returns { place() (after a relayout), destroy() }.
  */
@@ -253,7 +253,7 @@ function mountHalftone({ section, slot, layout }) {
 
 /**
  * Lays the hero out at once — the strip or the bottom layout, and with it the portrait slot, decided with or without
- * the engine, so an engine arriving after the veil never moves the page (Ruling R53) — and starts decoding the
+ * the engine, so an engine arriving after the veil never moves the page — and starts decoding the
  * cut-out (it does not wait for three). Once the engine exists it builds the noise and portrait formations eagerly
  * and compiles the shaders, reporting each stage to the veil. Returns a promise that settles when the hero is ready
  * to show — it never rejects, and never settles if the engine never arrives (the 8 s cap lifts the veil then). When
@@ -268,7 +268,7 @@ export function init(ctx) {
   const header = document.querySelector('.site-header');
   if (!section || !h1 || !copy) return Promise.resolve();
 
-  // The markup reads 50 / 50, the no-JS page's finished portrait (Ruling R86); the entrance counts from 01 itself.
+  // The markup reads 50 / 50, the no-JS page's finished portrait; the entrance counts from 01 itself.
   let shownStep = Number(step?.textContent) || STEPS;
   const showStep = (n) => {
     if (n === shownStep || !step) return;

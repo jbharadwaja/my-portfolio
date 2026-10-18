@@ -1,12 +1,12 @@
-// Boot orchestrator (spec §6.1 step 4). Own modules without a CDN dependency are imported statically;
+// Boot orchestrator. Own modules without a CDN dependency are imported statically;
 // three, gsap, ScrollTrigger and Lenis load through await import() inside try/catch, and nothing that works without
 // them waits for them: the CV state, native scroll, nav, the hero's layout, the cursor and the ~ console are wired
-// first (Ruling R65). If gsap or Lenis fails the banner names it, scrolling stays native and .js-scroll is never set,
-// so the sections keep their no-JS lengths; the engine then renders from main.js's own rAF loop (Ruling R31), its
-// canvas shown only while the hero fills the viewport (Ruling R68).
+// first. If gsap or Lenis fails the banner names it, scrolling stays native and .js-scroll is never set,
+// so the sections keep their no-JS lengths; the engine then renders from main.js's own rAF loop, its
+// canvas shown only while the hero fills the viewport (so the held portrait never sits behind later text).
 // Without WebGL — ?nowebgl, no webgl2 context, three or the engine failing, a context lost for good — the page shows
-// its no-WebGL visuals (enterNoWebgl, spec §8.3); so does a veil lifted before the engine is ready, until it arrives
-// and fades in (spec §6.1 late ready). prefers-reduced-motion is followed live (spec §3.3, Rulings R27/R45).
+// its no-WebGL visuals (enterNoWebgl); so does a veil lifted before the engine is ready, until it arrives
+// and fades in (the late-ready path). prefers-reduced-motion is followed live.
 // The veil lifts once the fonts are in and the hero is ready (portrait decoded, noise + portrait built, shaders
 // compiled), or at the 8 s cap. The canvas first renders on the frame the veil starts fading.
 // Debug flags: ?nowebgl (the no-WebGL page), ?simulate=hang (never signals ready; the 8 s cap lifts the veil),
@@ -27,18 +27,18 @@ import { createConsole, readConsoleContext } from './ui/console.js';
 import { CV_PUBLISHED, applyCvState } from './content.js';
 
 const REDUCED = '(prefers-reduced-motion: reduce)';
-const LATE_FADE_MS = 400;              // a late engine's canvas fades in (spec §6.1)
+const LATE_FADE_MS = 400;              // a late engine's canvas fades in
 const LATE_BUILD_WAIT_MS = 1500;       // ...once the formations on screen are built, or after this long at most
-const HERO_FADE_MS = 300;              // without gsap's ticker, the canvas fades as the hero leaves or returns (R68)
+const HERO_FADE_MS = 300;              // without gsap's ticker, the canvas fades as the hero leaves or returns
 const FONT_REFRESH_MS = 150;           // after a late font's relayouts, ScrollTrigger re-measures (debounced)
 const FAILING_GSAP = 'https://cdn.jsdelivr.net/npm/gsap@0.0.0-nope/index.js';   // ?simulate=cdnfail
 
-/** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries (spec §4.3). */
+/** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries. */
 export const boundaries = new Float32Array(7);
 
 const tickers = [];
 let settleEngine;
-const fallbacks = [];                  // { mount, unmount }: the no-WebGL visuals (spec §8.3)
+const fallbacks = [];                  // { mount, unmount }: the no-WebGL visuals
 let noWebgl = '';                      // why the page is in its no-WebGL state ('' while it is not)
 
 /** Shared with every section module's init(ctx); filled during boot. */
@@ -46,7 +46,7 @@ export const ctx = {
   gsap: null,
   ScrollTrigger: null,
   scroll: null,
-  tier: pickTier(readEnv(window)),   // once at load (spec §4.1)
+  tier: pickTier(readEnv(window)),   // once at load
   reduced: matchMedia(REDUCED).matches,   // follows the preference (applyReduced)
   boundaries,
   engine: null,
@@ -57,7 +57,7 @@ export const ctx = {
   onTick: (fn) => { tickers.push(fn); },
   /**
    * Registers a no-WebGL visual: mount() runs whenever the page enters its no-WebGL state (at once if it is in it)
-   * and may return an unmount, which runs if a late engine takes over (spec §6.1).
+   * and may return an unmount, which runs if a late engine takes over.
    */
   fallback(mount) {
     const entry = { mount, unmount: null };
@@ -75,7 +75,7 @@ function mountFallback(entry) {
 }
 
 /**
- * The no-WebGL state (spec §8.3): <html class="no-webgl"> hides the canvas, every registered fallback mounts (the
+ * The no-WebGL state: <html class="no-webgl"> hides the canvas, every registered fallback mounts (the
  * hero's halftone portrait, the Route's 2D map; the encoder keeps its label grid) and ScrollTrigger re-measures.
  * `reason`: 'nowebgl' (the debug flag), 'webgl2' (no context), 'three' (its import failed), 'engine' (it could not
  * be created), 'contextfail' (lost for good) or 'late' (the veil lifted before the engine was ready). Already in
@@ -94,7 +94,7 @@ export function enterNoWebgl(reason) {
 }
 
 /**
- * The engine arrived after the veil (spec §6.1 late ready): once the formations for the current scroll position are
+ * The engine arrived after the veil (late ready): once the formations for the current scroll position are
  * built, the fallbacks go and the canvas fades in over 400 ms there (the entrance was skipped at the lift).
  */
 async function leaveNoWebgl(engine) {
@@ -122,7 +122,7 @@ async function leaveNoWebgl(engine) {
   body.style.backgroundColor = '';
 }
 
-// One measuring trigger per boundary, in page order; the trigger is the incoming section (spec §4.3, §5.3).
+// One measuring trigger per boundary, in page order; the trigger is the incoming section.
 const BOUNDARIES = [
   { trigger: '#encoder', start: 'top 70%' },
   { trigger: '#training' },
@@ -164,7 +164,7 @@ async function load(specifier) {
 }
 
 // One still in flight when the veil lifts (the 8 s cap lifted it) is named as still loading, not as failed: the page
-// works without it, and upgrades if it arrives (spec §6.1, §8.3).
+// works without it, and upgrades if it arrives.
 veil.onLift(() => loading.forEach((url) => name(url, true)));
 
 async function loadScrollLibs() {
@@ -196,7 +196,7 @@ function hasWebgl2() {
   }
 }
 
-/** three, then the engine on #scene; null without WebGL, the page then in its no-WebGL state (spec §8.3). */
+/** three, then the engine on #scene; null without WebGL, the page then in its no-WebGL state. */
 async function loadEngine() {
   const without = (reason) => {
     veil.dropKey('three');
@@ -217,8 +217,8 @@ async function loadEngine() {
     engine.setReduced(ctx.reduced);    // the preference may have changed while it was being created
     engine.state.boundaries = boundaries;
     registerFormations(engine);
-    engine.on('contextfail', () => enterNoWebgl('contextfail'));   // not restored within 3 s (spec §4.8)
-    engine.pause();                    // nothing WebGL draws behind the veil (spec §6.1 Exit)
+    engine.on('contextfail', () => enterNoWebgl('contextfail'));   // not restored within 3 s
+    engine.pause();                    // nothing WebGL draws behind the veil
     veil.onLift(() => engine.resume());
     return engine;
   } catch (err) {
@@ -228,7 +228,7 @@ async function loadEngine() {
 }
 
 /**
- * The Route's no-WebGL map (spec §8.3). Its module is imported only here, when the page needs it, so neither it nor
+ * The Route's no-WebGL map. Its module is imported only here, when the page needs it, so neither it nor
  * the Route's own module sits in main.js's static graph: one of them failing to load costs the map, not the page.
  */
 function mountRouteMap() {
@@ -308,7 +308,7 @@ function createBoundaryTriggers(ScrollTrigger) {
   });
 }
 
-/** prefers-reduced-motion changed (spec §3.3): Lenis, the engine's motion, and what the sections read from ctx. */
+/** prefers-reduced-motion changed: Lenis, the engine's motion, and what the sections read from ctx. */
 function applyReduced(on) {
   ctx.reduced = on;
   ctx.scroll.setReduced(on);
@@ -324,7 +324,7 @@ initNav(ctx);
 initHeroFit();                // the hero name's fit needs no library
 const heroReady = hero.init(ctx);   // lays the hero out and starts decoding the portrait now; builds once the engine exists
 ctx.fallback(mountRouteMap);
-// The custom cursor and the ~ console (spec §6.3–6.4). Either one failing leaves the other (and the page) working.
+// The custom cursor and the ~ console. Either one failing leaves the other (and the page) working.
 for (const start of [
   () => createCursor({ root: document.body }),
   () => createConsole({ root: document.getElementById('console'), scroll: ctx.scroll, ctx: readConsoleContext(document) }),
@@ -340,8 +340,8 @@ const followReduced = (e) => applyReduced(e.matches);
 reducedQuery.addEventListener('change', followReduced);   // until gsap.matchMedia takes over (for good without gsap)
 
 // The engine loads alongside the scroll libraries and never holds them up. It renders at the end of the GSAP ticker
-// once gsap is there (spec §4.7); until then, and for good if gsap fails, from this rAF loop, with the boundaries
-// left at 0: the hero portrait stays (Ruling R31; heroGate shows it only in the hero). Both pass performance.now(),
+// once gsap is there; until then, and for good if gsap fails, from this rAF loop, with the boundaries
+// left at 0: the hero portrait stays (heroGate shows it only in the hero). Both pass performance.now(),
 // so the hand-over keeps one clock.
 let ownLoop = true;
 let renderUntil = Infinity;            // the loop renders until then (heroGate)
@@ -353,7 +353,7 @@ requestAnimationFrame(function frame() {
 });
 
 /**
- * Ruling R68: while this loop drives the engine, the canvas can only show the hero portrait, held still, which
+ * While this loop drives the engine, the canvas can only show the hero portrait, held still, which
  * would sit behind every later section's text. So the canvas shows only while the hero still reaches the foot of the
  * viewport (an IntersectionObserver on #top over the viewport's bottom 1%): once the next section scrolls in, it
  * fades out and the loop stops rendering when the fade ends; back in the hero, rendering resumes and it fades in.
@@ -406,7 +406,7 @@ restorePlace();               // on the native layout: a CDN that never answers 
 const libs = await loadScrollLibs();
 if (libs) {
   const { gsap, ScrollTrigger, Lenis } = libs;
-  // Arriving after the veil (the cap lifted it; Ruling R29), .js-scroll lengthens the stages under the reader: the
+  // Arriving after the veil (the cap lifted it), .js-scroll lengthens the stages under the reader: the
   // place is taken before and put back after, and again once the sections have set their lengths if the reader has
   // not scrolled meanwhile. A jump in flight measures its target after its fade-out (scroll.js).
   const here = window.__veil?.lifted ? ctx.scroll.anchor() : null;
@@ -435,7 +435,7 @@ if (libs) {
         tickers.splice(i--, 1);
       }
     }
-    ctx.engine?.tick(performance.now());   // render last (spec §4.7: lenis.raf → section state → render)
+    ctx.engine?.tick(performance.now());   // render last (order: lenis.raf → section state → render)
   });
   createBoundaryTriggers(ScrollTrigger);
   // The sections after the hero: all six modules load at once, then init in page order; one that fails is logged

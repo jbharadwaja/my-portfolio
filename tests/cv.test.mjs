@@ -10,7 +10,7 @@ test('publish state', () => {
   assert.equal(cvLinkAttrs(true, 'header').text, '[ CV ↓ ]');
 });
 
-// applyCvState writes every a[data-cv] on the page from cvLinkAttrs (spec §6.2).
+// applyCvState writes every a[data-cv] on the page from cvLinkAttrs.
 import { applyCvState } from '../js/content.js';
 
 /** Just enough of an <a data-cv> for applyCvState: attributes and text. */

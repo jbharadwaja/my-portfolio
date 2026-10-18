@@ -8,7 +8,7 @@ test('systematic sampling is proportional', () => {
   assert.deepEqual(counts, [0, 100, 0, 300]);
 });
 
-// Beyond the brief: the other helpers and the two formations of this task.
+// The other helpers and the two formations (noise cloud, galaxy).
 import { makeFormation, fillDust, shuffle } from '../js/engine/formations/common.js';
 import { buildNoise } from '../js/engine/formations/noise.js';
 import { buildGalaxy } from '../js/engine/formations/galaxy.js';

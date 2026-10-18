@@ -1,4 +1,4 @@
-// Formation 2 — the encoder's neural network (spec §2.3, §4.2 row 2). Pure. 19 nodes in four layers (4-6-6-3):
+// Formation 2 — the encoder's neural network. Pure. 19 nodes in four layers (4-6-6-3):
 // 35% of N fill the nodes as particle spheres, 50% run along every edge between adjacent layers (each edge's share
 // ∝ its length), 15% are dust. Horizontal (inputs left), or top to bottom at aspect < 0.8 (inputs on top).
 // meta = position along the network, 0 at the inputs to 1 at the outputs (layer / 3 for a node, between its two
@@ -108,7 +108,7 @@ export function buildNetwork(N, { vertical, rng }) {
       edges.push({ a, b, length, t0: a.r / length, t1: 1 - b.r / length });
     }
   }
-  const counts = apportion(nEdges, edges.map((e) => e.length));   // ∝ edge length (spec §4.2)
+  const counts = apportion(nEdges, edges.map((e) => e.length));   // ∝ edge length
   edges.forEach(({ a, b, length, t0, t1 }, e) => {
     const nx = -(b.y - a.y) / length;    // the in-plane normal, for the line's thickness
     const ny = (b.x - a.x) / length;

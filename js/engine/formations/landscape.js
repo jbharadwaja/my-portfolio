@@ -1,4 +1,4 @@
-// Formation 3 — the loss landscape of the training run (spec §2.4, §4.2 row 3). Pure and Node-testable.
+// Formation 3 — the loss landscape of the training run. Pure and Node-testable.
 // f(x, y) is a bowl with two gaussian wells and gentle ripples on x, y ∈ [−3, 3]. The training run is a dense
 // fixed-step gradient descent from START, resampled into epochs: epoch e puts the ball at P(e) and the HUD's losses
 // are f(P(e)) rescaled. The formation is the surface seen from above at an angle: a regular grid, extra particles on
@@ -9,7 +9,7 @@ const EXTENT = 3;                      // x, y ∈ [−EXTENT, EXTENT]
 const GRID_CELLS = 200;                // the grid gridMin() searches: 200 × 200 samples, edges included
 const GRAD_H = 1e-4;                   // central-difference step of the numeric gradient
 export const EPOCHS = 100;
-// Committed constants (spec §2.4 revised, Ruling R62): DENSE_STEPS small steps of STEP from START, resampled so that
+// Committed constants: DENSE_STEPS small steps of STEP from START, resampled so that
 // epoch e sits at dense index ∝ (1 − e^(−e/TAU)). The run starts on the far flank of the deeper well and comes down
 // toward the viewer into it: train falls fast, and after epoch 5 every drop is smaller than the one before (no cliff);
 // ≈ 0.30 by epoch 25, ≈ 0.20 by 60, still easing down at 100 (0.190), with the ball creeping on to the end. On this
@@ -24,7 +24,7 @@ const VAL = { base: 1.04, gain: 0.08 };   // val(e) = train(e) · (1.04 + 0.08 �
 const LR = '3e-3';
 const BEATS = 4;
 
-// Builder shares (spec §4.2): 60% a regular grid, 25% on the contour bands, the rest (15%) dust.
+// Builder shares: 60% a regular grid, 25% on the contour bands, the rest (15%) dust.
 const SHARE = { grid: 0.6, contour: 0.25 };
 const CONTOUR = { levels: 6, halfWidth: 0.08 };   // |fract(6·f̂) − 0.5| < 0.08
 const CONTOUR_TRIES = 400;             // rejection-sampling attempts per contour particle before giving up on a band
@@ -122,9 +122,9 @@ export function pathAt(e, out = [0, 0, 0]) {
 
 const at = [0, 0, 0];
 /**
- * The HUD's losses at epoch e: train = f(P(e)) rescaled so f(P[0]) → 1.200 and gridMin() → 0.180; val per
- * spec §2.4. Train never reads under 0.180: the deep well's floor dips a hair (≈ 3e-4) below the grid minimum, between
- * grid points.
+ * The HUD's losses at epoch e: train = f(P(e)) rescaled so f(P[0]) → 1.200 and gridMin() → 0.180; val is train
+ * times a factor growing from VAL.base by VAL.gain over the run. Train never reads under 0.180: the deep well's
+ * floor dips a hair (≈ 3e-4) below the grid minimum, between grid points.
  */
 export function epochValues(e) {
   const t = clamp(e, 0, EPOCHS);

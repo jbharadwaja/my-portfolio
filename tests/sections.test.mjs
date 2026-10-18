@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadSections } from '../js/sections/index.js';
 
-// The section loader (Ruling R55): every import starts at once, the inits then run one after another in page order,
+// The section loader: every import starts at once, the inits then run one after another in page order,
 // and a section that fails to load or to initialise is logged by name without stopping the rest.
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 

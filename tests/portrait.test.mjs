@@ -45,7 +45,7 @@ test('bottom layout: hero text that can pass over the portrait carries its own p
   const items = rule[1].split(',').map((s) => s.trim());
   for (const s of ['.hero-meta li > span', '.cv-inline', '.socials a']) assert.ok(items.includes(s), s);
   assert.match(rule[2], /background:\s*var\(--bg\);/);
-  // The scroll cue carries its ground in every layout (Task 19 review: the dust drifts behind it in the strip one too).
+  // The scroll cue carries its ground in every layout (the dust drifts behind it in the strip one too).
   const cue = css.match(/(^|\n)\.scroll-cue\s*\{([^}]*)\}/);
   assert.ok(items.includes('.scroll-cue') || /background:\s*var\(--bg\);/.test(cue?.[2] ?? ''), '.scroll-cue');
 });
@@ -127,7 +127,7 @@ test('bottom layout: the portrait slot follows the lead, is hidden outside the b
   assert.doesNotMatch(css, /var\(--bg\) 0 45%/, 'the 45% copy gradient is gone');
 });
 
-// Spec §8.3: the no-WebGL hero shows the cut-out as a static halftone where the portrait formation would be framed
+// The no-WebGL hero shows the cut-out as a static halftone where the portrait formation would be framed
 // (framing.js: contained, centred, with the engine's 8% slack).
 import { halftoneRect } from '../js/sections/hero.js';
 test('the halftone portrait is the image aspect contained in the portrait rect with 8% slack, centred, whole px', () => {
@@ -137,7 +137,7 @@ test('the halftone portrait is the image aspect contained in the portrait rect w
   for (const k of ['x', 'y', 'w', 'h']) assert.ok(Number.isInteger(r[k]), k);
 });
 
-// ---------------------------------------------------------------- final review: header ground and hero spacing
+// ---------------------------------------------------------------- header ground and hero spacing
 const mainCss = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');
 /** The declarations of the first rule whose selector is exactly `selector` in `css`, or null. */
 const cssRule = (css, selector) => {
@@ -145,15 +145,15 @@ const cssRule = (css, selector) => {
   return css.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]*)\\}`))?.[1] ?? null;
 };
 
-// Ruling R84: display type passing under the header ghosted through its 92% ground; the ground is opaque once scrolled.
+// Display type passing under the header ghosted through its 92% ground; the ground is opaque once scrolled.
 test('the header ground is fully opaque once the page has scrolled', () => {
   const scrolled = cssRule(mainCss, '.site-header.is-scrolled::before');
   assert.ok(scrolled, 'a .site-header.is-scrolled::before rule');
   assert.match(scrolled, /opacity:\s*1;/);
-  assert.match(cssRule(mainCss, '.site-header::before'), /opacity:\s*0;/, 'no ground at the top of the page (Ruling R50)');
+  assert.match(cssRule(mainCss, '.site-header::before'), /opacity:\s*0;/, 'no ground at the top of the page');
 });
 
-// Final review (experience I3): at 1024 × 768 the strip came out at 33.86%, a hair under spec §2.2's 34%, so an iPad on
+// At 1024 × 768 the strip came out at 33.86%, a hair under the 34% minimum, so an iPad on
 // its side got the bottom layout with the right 40% of the screen empty. The rule stays; in a landscape window the copy
 // column (which the name is fit to, split.js --h1-fit) gives way below ~1143 px so the strip keeps its 34% at every
 // width from 1024 up. A portrait window keeps the 55vw column (1024 × 1366 stays in the bottom layout).
@@ -174,7 +174,7 @@ test('from 1024 px up, in a landscape window, the copy column leaves the portrai
   assert.ok(Math.abs(column(1440) - 792) < 1e-9, 'from ~1143 px up the column is 55vw, as before (792 px at 1440)');
 });
 
-// Final review (experience M6): at 1366 × 768 the hero ran 898 px tall, so the CTA ended at 778 px and the scroll cue
+// At 1366 × 768 the hero ran 898 px tall, so the CTA ended at 778 px and the scroll cue
 // (at the hero's foot) at 870 px, both under the fold. From 1024 px wide the hero's vertical rhythm tightens with the
 // stage height: each spacing is min(usual, short + --hero-tall × slope), --hero-tall being how far the stage is above
 // 768 px (0–132 px). From 900 px tall up it must change nothing (the 1440 × 900 composition stays as it was).
@@ -191,7 +191,7 @@ test('the hero tightens on short laptop screens and is unchanged from 900 px tal
   }
 });
 
-// Final review (experience M4): in the bottom layout the portrait was held in viewport space while the hero scrolled,
+// In the bottom layout the portrait was held in viewport space while the hero scrolled,
 // so at 390 × 844 its empty slot scrolled up as a blank band and the face ended up under the meta rows and the panels.
 // It now rides with its slot: held where portraitLayout put it until the slot reaches it (a short stage frames it
 // higher), then moving with the page, and held again just above the viewport once the slot has left it.

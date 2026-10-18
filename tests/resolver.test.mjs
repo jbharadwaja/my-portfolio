@@ -14,7 +14,7 @@ test('dip only for a mid-morph pair change', () => {
 });
 test('night follows at ≤ 2.5/s', () => { assert.equal(limitRate(0, 1, 2.5, 0.1), 0.25); assert.equal(limitRate(0.9, 1, 2.5, 0.1), 1); });
 
-// Beyond the brief: edges of the same rules.
+// Edges of the same rules.
 test('the entrance alone morphs noise → hero', () => assert.deepEqual(resolve(B(0.25)), { from: 0, to: 1, mix: 0.25 }));
 test('a full boundary below the snap holds its formation', () => assert.deepEqual(resolve(B(1, 1, 1, 1, 1, 1, 0.99)), { from: 6, to: 7, mix: Math.fround(0.99) }));
 test('a finished entrance leaves the hero formed and the scroll free', () => {
@@ -23,7 +23,7 @@ test('a finished entrance leaves the hero formed and the scroll free', () => {
   assert.deepEqual([b[0], b[1]], [1, Math.fround(0.4)]);
   assert.deepEqual(resolve(b), { from: 1, to: 2, mix: Math.fround(0.4) });
 });
-// Ruling R40: any pair change dips unless it is a continuous hand-off at the shared formation (ε = 0.08).
+// Any pair change dips unless it is a continuous hand-off at the shared formation (ε = 0.08).
 test('a far jump dips even when the old pair was nearly at rest', () => {
   assert.equal(needsDip({ from: 1, to: 2, mix: 0.02 }, { from: 3, to: 4, mix: 0 }), true);
   assert.equal(needsDip({ from: 1, to: 2, mix: 0.98 }, { from: 3, to: 4, mix: 0 }), true);

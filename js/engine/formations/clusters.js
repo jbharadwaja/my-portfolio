@@ -1,4 +1,4 @@
-// Formation 4 — eight clusters, one per rail card (spec §2.5, §4.2). Pure. Each blob is an anisotropic gaussian
+// Formation 4 — eight clusters, one per rail card. Pure. Each blob is an anisotropic gaussian
 // (two principal spreads, turned in the view plane, shallow in depth) built around its own local origin; the shader
 // places blob `id` at (uClusterX[id], uClusterY) every frame, so the clusters ride above their cards.
 import { makeFormation, gauss, fillDust, shuffle } from './common.js';

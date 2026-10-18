@@ -19,7 +19,7 @@
   --chrome-fg: var(--fg);  --chrome-muted: var(--fg-muted);   /* swapped under [data-ground="night"] */
 }
 
-/* scale, faces, rhythm (spec §3.2) */
+/* scale, faces, rhythm */
 :root {
   --font-sans: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -61,7 +61,7 @@ a { color: inherit; text-decoration: none; }
   html.no-js { scroll-behavior: smooth; }
 }
 
-/* lenis 1.3.26 dist/lenis.css, inlined (Ruling R26: no third-party stylesheet can hold up first paint) */
+/* lenis 1.3.26 dist/lenis.css, inlined (no third-party stylesheet can hold up first paint) */
 html.lenis,
 html.lenis body {
   height: auto;
@@ -141,7 +141,7 @@ a:not(.cta-primary) {
 :focus-visible { outline: 2px solid var(--c-ink); outline-offset: 3px; }
 .site-header :focus-visible { outline-color: var(--chrome-fg); }
 
-/* night chrome (spec §2.1) */
+/* night chrome */
 :root[data-ground="night"] { --chrome-fg: var(--fg-on-dark); --chrome-muted: var(--fg-on-dark-muted); }
 
 /* layers */
@@ -172,8 +172,8 @@ main, .site-footer { position: relative; z-index: 1; }
 }
 .no-js .site-header { background: var(--bg); border-bottom: 1px solid var(--hairline); }
 /* Once the page leaves the top (nav.js sets .is-scrolled past 8 px) the header takes a ground, so its items never
-   sit on copy or particles: opaque paper and a hairline (Ruling R50; no backdrop blur). Opaque, not 92%: display
-   type scrolling under it ghosted through behind JB· and CV (Ruling R84). */
+   sit on copy or particles: opaque paper and a hairline (no backdrop blur). Opaque, not 92%: display
+   type scrolling under it ghosted through behind JB· and CV. */
 .site-header::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: var(--bg); opacity: 0;
@@ -225,7 +225,7 @@ main, .site-footer { position: relative; z-index: 1; }
   letter-spacing: -0.02em; line-height: 1;
 }
 
-/* section HUD (driven by nav.js): an opaque chip, so its label never sits on copy or particles (Ruling R50).
+/* section HUD (driven by nav.js): an opaque chip, so its label never sits on copy or particles.
    The 10 px padding and 1 px border are taken back from the offsets, so the label keeps the gutter line. */
 .hud {
   position: fixed; z-index: 40; left: calc(var(--gutter) - 11px); bottom: 15px;
@@ -247,12 +247,12 @@ main, .site-footer { position: relative; z-index: 1; }
 }
 .no-js .hud { display: none; }
 .js:not(.veil-done) .hud { opacity: 0; }
-/* It rests while the hero is current (nav.js hudResting): there it would cover the hero copy (Ruling R50). It hides
+/* It rests while the hero is current (nav.js hudResting): there it would cover the hero copy. It hides
    at once (the entered state's transition applies, and this one lists no opacity): a fade-out left the chip
    part-opaque over the hero panels on an upward flick. Leaving the hero, it fades in over the .hud rule's 600 ms. */
 .hud.is-resting { opacity: 0; transition: color 200ms, background-color 200ms, border-color 200ms; }
-/* Hidden below 768 px (spec §2.1) and on stages under 560 px tall, a phone on its side, where no layout keeps the
-   bottom-left corner free for it (Ruling R57). */
+/* Hidden below 768 px and on stages under 560 px tall, a phone on its side, where no layout keeps the
+   bottom-left corner free for it. */
 @media (max-width: 767.98px), (max-height: 559.98px) { .hud { display: none; } }
 
 /* asset banner (the boot script fills it): an asset that failed, or one still loading when the veil lifted, with a
@@ -340,7 +340,7 @@ main, .site-footer { position: relative; z-index: 1; }
 main > section { position: relative; }
 main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.js): focus moves the keyboard's starting point, no ring */
 
-/* scroll foundation (spec §5.1–5.2): sticky stages, only once gsap and Lenis have loaded (main.js sets .js-scroll).
+/* scroll foundation: sticky stages, only once gsap and Lenis have loaded (main.js sets .js-scroll).
    #work gets its length from the rail (experiments.js). */
 .js-scroll #encoder { height: calc(100svh + 100vh); }
 .js-scroll #training { height: calc(100svh + 200vh); }
@@ -398,10 +398,10 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; margin-top: clamp(24px, 2vw, 28px); }
 .cv-inline { font-size: var(--fs-label); }
 .socials { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; font-size: var(--fs-label); }
-/* bottom layout (hero.js; Ruling R47 supersedes spec §2.2's bottom half): the portrait is framed into an empty slot
-   right after the lead, and the meta rows, panels and actions follow below it. Hidden in the strip layout and
-   without JS; hero.js decides the layout at boot, with or without the engine, so a late engine never moves the page
-   (Ruling R53). The copy above the slot keeps its paper ground, which ends at the slot's top (--slot-top, measured
+/* bottom layout (hero.js): the portrait is framed into an empty slot (its own box, not just the bottom half of the
+   stage) right after the lead, and the meta rows, panels and actions follow below it. Hidden in the strip layout and
+   without JS; hero.js decides the layout at boot, with or without the engine, so a late engine never moves the page.
+   The copy above the slot keeps its paper ground, which ends at the slot's top (--slot-top, measured
    by hero.js), so it never covers the face. */
 .hero-portrait-slot { display: none; }
 .portrait-bottom .hero-portrait-slot {
@@ -412,19 +412,19 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
 .portrait-bottom .hero-copy { background: linear-gradient(to bottom, var(--bg) 0 calc(var(--slot-top, 0px) - 20px), transparent var(--slot-top, 0px)); }
 /* Text below the slot that scrolls over the held portrait outside the opaque panels (the meta rows, the CV link,
    the socials) carries its own paper ground, feathered like the engine's keep-out. It travels with the text, so
-   what is directly behind the text is always paper (spec §3.1: text ≥ 4.5:1). The scroll cue has its own below. */
+   what is directly behind the text is always paper (text ≥ 4.5:1). The scroll cue has its own below. */
 .portrait-bottom :is(.hero-meta li > span, .cv-inline, .socials a) {
   background: var(--bg);
   box-shadow: 0 0 4px 4px var(--bg);
 }
 /* The denoise HUD sits where the entrance's cloud swirls (the strip's top; above the copy on a short stage), so it
-   carries its own paper ground in every layout, feathered like the grounds above (spec §3.1: text ≥ 4.5:1). */
+   carries its own paper ground in every layout, feathered like the grounds above (text ≥ 4.5:1). */
 .hero-hud {
   position: absolute; top: calc(var(--header-h) + 24px); right: var(--gutter); color: var(--fg-muted);
   background: var(--bg); box-shadow: 0 0 4px 4px var(--bg);
 }
 /* The scroll cue sits outside the copy's keep-out in every layout (bottom centre: over the portrait in the bottom
-   layout, in the dust tunnel's path in the strip one), so it carries the same feathered paper ground (spec §3.1). */
+   layout, in the dust tunnel's path in the strip one), so it carries the same feathered paper ground. */
 .scroll-cue {
   position: absolute; bottom: 28px; left: 50%;
   white-space: pre; color: var(--fg-muted);
@@ -453,7 +453,7 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
   .socials { margin-top: min(16px, calc(10px + var(--hero-tall) * .0455)); }                                  /* short: 10 */
 }
 
-/* no WebGL (spec §8.3: ?nowebgl, no webgl2, three failing, a context lost for good, or the engine still loading
+/* no WebGL (?nowebgl, no webgl2, three failing, a context lost for good, or the engine still loading
    when the veil lifts; main.js sets .no-webgl). The canvas hides; the hero shows the cut-out as a static halftone
    (hero.js places .hero-halftone over the strip or the slot), the encoder keeps its label grid, and the Route its
    own night ground with the map drawn on a 2D canvas (route.js .route-map). */
@@ -570,7 +570,7 @@ a.signoff-email {
 .signoff-links { display: flex; flex-wrap: wrap; gap: 10px 32px; margin-top: clamp(28px, 3vw, 40px); font-size: var(--fs-label); }
 
 /* footer: on the paper ground below its hairline. No text keep-out covers it and the dust tunnel drifts behind it,
-   and its muted lines (ink-60) need the bare paper to stay ≥ 4.5:1 (spec §3.1). */
+   and its muted lines (ink-60) need the bare paper to stay ≥ 4.5:1. */
 .site-footer {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 32px;
   padding: 22px var(--gutter) 26px;
@@ -589,7 +589,7 @@ a.signoff-email {
   .console-open-touch { display: inline; }
 }
 
-/* responsive (spec §8.4: 1280 / 1024 / 768) */
+/* responsive (1280 / 1024 / 768) */
 @media (min-width: 768px) {
   .hero-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .net-labels { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-flow: row dense; }
@@ -612,7 +612,7 @@ a.signoff-email {
   .rail, .route-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 /* The name is fit to the copy column (split.js --h1-fit), and the portrait takes the strip right of the name when that
-   is ≥ 34% of the width (spec §2.2: [h1Right + 32, vw − 48]). 55vw left it 33.9% at 1024 × 768, an iPad on its side,
+   is ≥ 34% of the width ([h1Right + 32, vw − 48]). 55vw left it 33.9% at 1024 × 768, an iPad on its side,
    so in a landscape window the column gives way below ~1143 px (62vw − 80px) and every width from 1024 up keeps its
    strip, with ~1% to spare. A portrait window keeps 55vw: at 1024 × 1366 the bottom layout frames a larger face. */
 @media (min-width: 1024px) and (min-aspect-ratio: 1/1) {

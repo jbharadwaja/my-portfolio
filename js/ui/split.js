@@ -1,4 +1,4 @@
-// Text reveals (spec §3.2–3.3): split text into words or letters that rise in, headline letters resolving from
+// Text reveals: split text into words or letters that rise in, headline letters resolving from
 // condensed to wide, with each word's width locked so lines never re-wrap mid-reveal; count-ups for numbers;
 // and the hero name's measured fit. The metric maths is pure and Node-testable. This module imports no CDN
 // library: initReveals/countUp receive gsap from main.js, and every DOM touch happens inside a function.
@@ -261,7 +261,7 @@ const WDTH = { from: 62, to: 112 };
 const gates = new WeakMap();           // element -> gate(play): when its reveal may play
 
 /**
- * Holds el's reveal for a section that shows its text later than it scrolls in (the Route, Ruling R33): once the
+ * Holds el's reveal for a section that shows its text later than it scrolls in (the Route): once the
  * reveal's trigger has entered and the veil is up, `gate(play)` is called instead of playing, and calls play()
  * when the text can be seen. Call before initReveals.
  */
@@ -270,7 +270,7 @@ export function holdReveal(el, gate) {
 }
 
 /**
- * Arms and plays the reveals (spec §3.3). Everything lives inside gsap.matchMedia, so under reduced motion
+ * Arms and plays the reveals. Everything lives inside gsap.matchMedia, so under reduced motion
  * nothing is split or hidden (the text is simply there) and a change of the preference re-runs this. The units
  * are hidden by gsap only after the split, so without gsap (or after any error here) the text stays visible.
  * Returns the promise that settles once the fonts are in and the word widths are locked (callbacks added to it

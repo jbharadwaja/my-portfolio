@@ -1,4 +1,4 @@
-// Formation 1 — the portrait (spec §4.2 row 1). Pure. The cut-out's weight grid (image-weights.js) is
+// Formation 1 — the portrait. Pure. The cut-out's weight grid (image-weights.js) is
 // resampled systematically (one random offset, N evenly spaced draws over the weight CDF) with sub-cell jitter,
 // then shuffled so any slice of the particles covers the whole face. Every particle is part of the portrait.
 import { makeFormation, systematicSample, shuffle } from './common.js';

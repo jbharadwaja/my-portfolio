@@ -144,7 +144,7 @@ test('boot: at the cap a stalled stylesheet stops blocking the page, is named, a
   assert.ok(b.classes.has('veil-done'));
   stalled.handlers.load.call(stalled);
   assert.equal(stalled.media, '', 'the sheet applies once it arrives');
-  assert.equal(b.banner.hidden, true, 'and leaves the banner: it was slow, not failed (Task 4 deferred minor)');
+  assert.equal(b.banner.hidden, true, 'and leaves the banner: it was slow, not failed');
   assert.equal(b.banner.textContent, '');
 });
 
@@ -180,7 +180,7 @@ test('boot: a second failure keeps the first URL and counts the rest', () => {
   assert.match(b.banner.textContent, /\+1 more/);
 });
 
-// Review R70: main.js names an import still in flight at the lift; if it arrives later the page upgrades after all.
+// main.js names an import still in flight at the lift; if it arrives later the page upgrades after all.
 test('boot: clear(url) takes a named URL off the banner, and hides it once nothing is left', () => {
   const b = boot();
   const V = b.win.__veil;
@@ -222,9 +222,9 @@ test('boot: a failure before the body exists is painted at DOMContentLoaded', ()
   assert.equal(b.attrs['aria-label'], 'Loaded');
 });
 
-// ---------------------------------------------------------------- final review (fix wave F1)
+// ---------------------------------------------------------------- slow assets, background tabs and boot robustness
 
-// R85 / readiness I1: an asset still in flight is not a failure; the banner says so, can be dismissed, names a URL
+// An asset still in flight is not a failure; the banner says so, can be dismissed, names a URL
 // once, and goes when it arrives.
 test('boot: at the cap a stalled stylesheet is named as still loading, not as failed', () => {
   const b = boot();
@@ -273,7 +273,7 @@ test('boot: the banner\'s close button dismisses it; a new name shows it again',
   assert.equal(b.banner.hidden, false, 'and so does a new one');
 });
 
-// C-minor M4: a blocked font stylesheet is no reason to lift the veil at once (the meter carries on without it).
+// A blocked font stylesheet is no reason to lift the veil at once (the meter carries on without it).
 test('boot: a failed stylesheet is named but does not lift the veil; failed(url) records it', () => {
   const b = boot();
   const url = 'https://fonts.googleapis.com/css2?family=Archivo';
@@ -285,7 +285,7 @@ test('boot: a failed stylesheet is named but does not lift the veil; failed(url)
   assert.equal(b.win.__veil.failed('https://x.test/other.css'), false);
 });
 
-// C-minor M5: main.js's module graph failing leaves the page to the no-JS layout (its header needs no script).
+// main.js's module graph failing leaves the page to the no-JS layout (its header needs no script).
 test('boot: main.js failing to load turns the page into the no-JS page (js-failed) and lifts', () => {
   const b = boot();
   b.fireError({ tagName: 'SCRIPT', src: 'https://jbharadwaja.github.io/my-portfolio/js/main.js' });
@@ -297,7 +297,7 @@ test('boot: main.js failing to load turns the page into the no-JS page (js-faile
   assert.ok(other.classes.has('js') && !other.classes.has('js-failed'), 'another script failing does not');
 });
 
-// C-minor M3 / readiness M2: a stylesheet that never settles keeps window load from firing; transitions still come on.
+// A stylesheet that never settles keeps window load from firing; transitions still come on.
 test('boot: preload also goes one frame after the lift', () => {
   const b = boot();
   b.win.__veil.lift();
@@ -306,7 +306,7 @@ test('boot: preload also goes one frame after the lift', () => {
   assert.ok(!b.classes.has('preload'));
 });
 
-// C3: a tab opened in the background runs no frames; lifting there would play the entrance unseen.
+// A tab opened in the background runs no frames; lifting there would play the entrance unseen.
 test('boot: a lift while the tab is hidden waits for it to be shown', () => {
   const b = boot();
   b.document.hidden = true;
@@ -342,7 +342,7 @@ test('boot: preload is removed one frame after the window load event', () => {
   assert.ok(!b.classes.has('preload'));
 });
 
-// ---------------------------------------------------------------- fontSheetsApplied (Ruling R26)
+// ---------------------------------------------------------------- fontSheetsApplied
 
 // A font stylesheet as the page has it: media="print" with onload="this.media='all'" (registered at parse time, so it
 // runs before any listener added later), and a `sheet` once parsed.
@@ -421,7 +421,7 @@ test('font sheets: the veil lifting settles it while a sheet is still pending; n
   assert.equal(asked, false, 'nothing pending: the lift is not waited on');
 });
 
-// C-minor M4: the boot script no longer lifts the veil when a font sheet fails, so the meter must not wait for one
+// The boot script no longer lifts the veil when a font sheet fails, so the meter must not wait for one
 // that failed before veil.js asked (it would hold the page until the 8 s cap); with every font sheet failed, the
 // fonts stage is weighted away.
 test('font sheets: one the boot script saw fail is not waited for', async () => {

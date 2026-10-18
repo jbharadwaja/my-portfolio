@@ -1,4 +1,4 @@
-// Formation 0 — the noise cloud the hero denoises from (spec §4.2): a 3D gaussian, σ = 2.2. Pure.
+// Formation 0 — the noise cloud the hero denoises from: a 3D gaussian, σ = 2.2. Pure.
 import { makeFormation, gauss } from './common.js';
 
 const SIGMA = 2.2;

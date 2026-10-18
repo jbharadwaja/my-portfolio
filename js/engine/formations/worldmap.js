@@ -1,4 +1,4 @@
-// Formation 5 — the world map (spec §4.2 row 5, §2.6). Pure. The baked lattice (js/data/worldmap-dots.js) is laid
+// Formation 5 — the world map. Pure. The baked lattice (js/data/worldmap-dots.js) is laid
 // out in the formation's plane, one cell per CELL world units: column c, row r sits at u = (c + 0.5)/cols,
 // v = (r + 0.5)/rows, x = (u − 0.5)·w, y = (0.5 − v)·h — the mapping the shader's reticle inverts (shaders.js).
 // Land dots (meta 0) are stacked up to three deep where the tier has particles to spare; the route (meta 1 + t)
@@ -11,7 +11,7 @@ const DEG = Math.PI / 180;
 const CELL = 0.04;                     // world units per lattice cell
 const ROUTE_MAX = 1500;
 const ROUTE_SHARE = 0.12;              // R = min(1,500, round(0.12·N))
-const DUST_MIN = 300;                  // minN = land dots + R + 300 (spec §4.2)
+const DUST_MIN = 300;                  // minN = land dots + R + 300
 const STACK_MAX = 3;                   // one dot plus up to two stacked on it (desktop and laptop only)
 const STACK_TIERS = new Set(['desktop', 'laptop']);
 const STACK_JITTER = 0.18;             // ± of a cell: a stacked dot stays inside its cell (the reticle's test)

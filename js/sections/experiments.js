@@ -1,4 +1,4 @@
-// Experiments (spec §2.5, §5.2): the horizontal rail of eight cards, the clusters that ride above them, the cards'
+// Experiments: the horizontal rail of eight cards, the clusters that ride above them, the cards'
 // bar charts and count-ups, and the rail's keyboard, mouse-drag and touch behaviour. The geometry and chart helpers
 // are pure and Node-testable; init(ctx) touches the DOM and receives gsap, ScrollTrigger, the scroll and the engine
 // through ctx (this module imports no CDN library).
@@ -9,7 +9,7 @@ import { frameDistance } from '../engine/framing.js';
 import { mulberry32 } from '../engine/formations/common.js';
 import { buildClusters, CLUSTERS, CLUSTER_BOX } from '../engine/formations/clusters.js';
 
-const K = 4;                           // the clusters formation (spec §4.2)
+const K = 4;                           // the clusters formation
 const STEPS = CLUSTERS - 1;            // card i is centred at rail progress i/7
 const STAGE_SCROLL = 0.65;             // page scroll per px of rail travel: the cards move ~1.5× the scroll speed
 const BAND_Y = 0.22;                   // the clusters' band: 22% from the stage top
@@ -31,7 +31,7 @@ const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 // ---------------------------------------------------------------- geometry (pure)
 
 /**
- * The rail at viewport width `vw` (spec §2.5): card width 32 / 40 / 56 / 84 vw (≥ 1280, 1024–1279, 768–1023,
+ * The rail at viewport width `vw`: card width 32 / 40 / 56 / 84 vw (≥ 1280, 1024–1279, 768–1023,
  * < 768), gap max(2vw, 16px), inline padding that centres the first card, and the travel that centres the last.
  */
 export function railGeometry(vw) {
@@ -41,7 +41,7 @@ export function railGeometry(vw) {
   return { cardW, gap, pad: vw / 2 - cardW / 2, travel: STEPS * (cardW + gap) };
 }
 
-/** The page scroll the rail takes beyond the stage's own 100svh (spec §5.2). */
+/** The page scroll the rail takes beyond the stage's own 100svh. */
 export function stageScroll(travel) {
   return STAGE_SCROLL * travel;
 }
@@ -72,7 +72,7 @@ export function shouldCount(rect, vw) {
 let centreOnRail = null;
 
 /**
- * The page y that brings rail card `card` to the centre (spec §5.4 railScrollFor over the rail trigger's range and
+ * The page y that brings rail card `card` to the centre (railScrollFor in scroll.js, over the rail trigger's range and
  * the rail's travel), measured when called: the rail's own keyboard focus and the console's `open <n>` both go there.
  * Without the live rail (no scroll libraries), the card's own place under the header.
  */
@@ -97,7 +97,7 @@ const SERIES_TOKEN = /"(?:[^"\\]|\\.)*"|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
 const writtenNumbers = (json) => [...json.matchAll(SERIES_TOKEN)].map((m) => m[1]).filter(Boolean);
 
 /**
- * What a card's chart shows, from its data-* values (spec §2.5, Ruling R37): two bars from data-metric and
+ * What a card's chart shows, from its data-* values: two bars from data-metric and
  * data-compare (the model's orange, the comparison's ink), or one bar per data-series entry (the chosen one orange).
  * The orange bar is the chart's one emphasis. Series values print with thousands separators and the most decimals
  * any of them is written with in data-series (JSON.parse would turn "2.0" into 2); the two bars print their
@@ -139,7 +139,7 @@ function svg(name, attrs = {}, text) {
 
 /**
  * Draws `spec` as inline SVG at the slot's width, before the slot's "compared with" text: a bar per row, from 0, with
- * its value after it (series rows are named on the left). Text is ink (spec §3.1); widths are measured once the
+ * its value after it (series rows are named on the left). Text is ink; widths are measured once the
  * texts are in the document, so a late font swap only needs a redraw.
  */
 function drawChart(slot, spec) {
@@ -188,7 +188,7 @@ function drawChart(slot, spec) {
 // ---------------------------------------------------------------- init
 
 /**
- * Wires the rail (spec §2.5, §5.2): #work's length from the rail travel, the scrubbed rail tween, count-ups as the
+ * Wires the rail: #work's length from the rail travel, the scrubbed rail tween, count-ups as the
  * cards enter, the charts, hover/focus highlighting, focus scrolling, ←/→, mouse drag and the touch hint. With the
  * engine (it may never come: the rail works without it) the clusters formation is registered and placed every
  * frame. Nothing here waits for the engine, so the sections after this one are not held up.
@@ -221,7 +221,7 @@ export async function init(ctx) {
   let engine = null;
 
   // The section's length follows the rail travel; set before any trigger measures, so the boundaries after the
-  // rail (B4–B6) and the rail's own trigger see the final height (spec §5.2).
+  // rail (B4–B6) and the rail's own trigger see the final height.
   const sizeSection = () => {
     travel = railGeometry(innerWidth).travel;   // vw units and media queries are both innerWidth-based
     section.style.height = `calc(100svh + ${stageScroll(travel)}px)`;
@@ -245,7 +245,7 @@ export async function init(ctx) {
       trigger: section,
       start: 'top top',
       end: 'bottom bottom',
-      scrub: true,                     // its smoothing follows Lenis (followScrub below; spec §5.1)
+      scrub: true,                     // its smoothing follows Lenis (followScrub below)
       invalidateOnRefresh: true,
       onUpdate: (self) => showProgress(self.progress),
     },
@@ -262,7 +262,7 @@ export async function init(ctx) {
     railTravel: travel,
   });
 
-  // Count-ups (spec §3.3): once per card, the first time it enters (Ruling R33). A card enters sideways through
+  // Count-ups: once per card, the first time it enters. A card enters sideways through
   // the rail (containerAnimation) — except the ones already in view at rail x 0, which enter upward with the stage:
   // their sideways trigger would only fire once the rail moves, after they had been read at their final value. A
   // jump straight into mid-rail passes the cards before it: those are off screen and keep their final value.
@@ -296,7 +296,7 @@ export async function init(ctx) {
     },
   });
 
-  // ---- hover and focus → the highlighted cluster (spec §2.5); on coarse pointers the card at the centre
+  // ---- hover and focus → the highlighted cluster; on coarse pointers the card at the centre
 
   let pointerCard = -1;
   let focusCard = -1;
@@ -332,7 +332,7 @@ export async function init(ctx) {
     next.focus({ preventScroll: true });
   });
 
-  // ---- mouse drag (spec §6.3): after 6 px the rail pans with the pointer, 1 px = (end − start)/travel px of scroll
+  // ---- mouse drag: after 6 px the rail pans with the pointer, 1 px = (end − start)/travel px of scroll
 
   let press = null;
   let swallowClick = false;
@@ -379,7 +379,7 @@ export async function init(ctx) {
   }, true);
   viewport.addEventListener('dragstart', (e) => e.preventDefault());   // no native link drag in place of the pan
 
-  // ---- clusters (spec §2.5): placed above their cards every frame, from the current camera
+  // ---- clusters: placed above their cards every frame, from the current camera
 
   const clusterX = new Float32Array(CLUSTERS);
   const hit = { x: 0, y: 0 };
@@ -397,8 +397,8 @@ export async function init(ctx) {
     uniforms.uHoverCluster = hovered();
     if (pair.from !== K && pair.to !== K) return;
     if (engine.camera.position.z + K * engine.D < MIN_DEPTH) return;
-    // Each cluster goes to the point of the clusters' plane under its card's centre on the band, unprojected through
-    // this frame's camera (Ruling R7's unproject, taken per card): the pointer parallax turns the camera, which makes
+    // Each cluster goes to the point of the clusters' plane under its card's centre on the band, unprojected per
+    // card through this frame's camera: the pointer parallax turns the camera, which makes
     // the screen-to-plane map projective, so one half-width scaled linearly (clusterWorldX) drifts up to ~19 px at
     // 1440 while this stays exact. Without parallax both agree (the density estimate below uses clusterWorldX).
     const bandY = stageTop() + BAND_Y * layout.stageH;
@@ -407,7 +407,7 @@ export async function init(ctx) {
     uniforms.uClusterY = engine.unproject(K, layout.vw / 2, bandY, hit).y;
   }
 
-  // The density estimate (Ruling R44) sees the blobs where the held pose places them, not stacked at the origin:
+  // The density estimate sees the blobs where the held pose places them, not stacked at the origin:
   // band centre at world (0, 0), each blob over its card at the rail's current x.
   const heldX = new Float32Array(CLUSTERS);
   let placed = null;

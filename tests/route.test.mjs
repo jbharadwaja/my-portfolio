@@ -25,7 +25,7 @@ test('timeline', () => {
   assert.deepEqual(routeTimeline(1), { route: 1, card: 3, reticle: false });
 });
 
-// Beyond the brief: how the route and the land dots are laid out.
+// How the route and the land dots are laid out.
 import { routeAlpha, MAP_BOX } from '../js/engine/formations/worldmap.js';
 import { WORLDMAP } from '../js/data/worldmap-dots.js';
 import { decodeRuns } from '../js/engine/geo.js';
@@ -77,7 +77,7 @@ test('a tier too small for the map is refused', () => {
   assert.throws(() => buildWorldMap(9000, { tierName: 'mobile', rng: mulberry32(1) }), RangeError);
 });
 
-// Ruling R59: the night chrome flips with hysteresis, so a fast flick through the Route never flips it.
+// The night chrome flips with hysteresis, so a fast flick through the Route never flips it.
 import { groundState, readoutAt } from '../js/sections/route.js';
 test('the night ground attribute turns on at uNight ≥ 0.7 and off at ≤ 0.3, and holds in between', () => {
   assert.equal(groundState(false, 0.69), false);
@@ -100,7 +100,7 @@ test('the reticle readout sits right of and below the pointer, flipped left near
   assert.deepEqual(place(400, 900 - 18 - 24), { x: 418, y: 900 - 24 });   // just fits below
 });
 
-// Ruling R75 (spec §2.6): the night is time-driven at thresholds, with hysteresis, so no pause is half grey.
+// The night is time-driven at thresholds, with hysteresis, so no pause is half grey.
 import { nightOn, nightStep, LANDING_P } from '../js/sections/route.js';
 import { mapFit } from '../js/ui/fallback-map.js';
 test('the night comes on at p ≥ 0.02 and goes at p ≥ 0.94; on the way back it returns below 0.93 and goes below 0.01', () => {
@@ -136,9 +136,9 @@ test('the Route\'s landing point (nav jumps, #route) is p = 0.10: on night, the 
   assert.equal(routeTimeline(LANDING_P).card, 0);
 });
 
-// Spec §8.3: the 2D fallback map's lattice fitted (contain) into a region, centred, optionally on a focus box.
+// The 2D fallback map's lattice fitted (contain) into a region, centred, optionally on a focus box.
 // main.js imports it (js/ui/fallback-map.js) only when the page needs it: the Route's modules failing to load cost the
-// map, never main.js (final review M5).
+// map, never main.js.
 import { readFileSync } from 'node:fs';
 test('main.js reaches the Route\'s modules only through import(), never statically', () => {
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');

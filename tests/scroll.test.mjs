@@ -210,7 +210,7 @@ test('a fresh visit ignores saved places and lands where a jump to the #hash sec
   assert.equal(placeToRestore({ visit: undefined, entry: null, tab: null, hashId: 'nowhere', ids }), null);
 });
 
-// The jump event (Ruling R59): the Route snaps its ground to the destination's while a cut has the page faded out.
+// The jump event: the Route snaps its ground to the destination's while a cut has the page faded out.
 test('a cut emits jump { mode: "cut", targetIndex } once the page has moved, while main and the canvas are faded out', async (t) => {
   const page = fakePage();
   onFakePage(t, page);
@@ -240,7 +240,7 @@ test('an adjacent jump emits jump { mode: "animate", targetIndex }; a throwing l
   assert.deepEqual(page.faded(), []);
 });
 
-// Rulings R27/R45: a change of prefers-reduced-motion re-runs the scroll setup at once (main.js, gsap.matchMedia).
+// A change of prefers-reduced-motion re-runs the scroll setup at once (main.js, gsap.matchMedia).
 test('setReduced(true) destroys Lenis and scrolls natively; setReduced(false) creates a new one', (t) => {
   const page = fakePage();
   onFakePage(t, page);
@@ -274,7 +274,7 @@ test('setReduced before the libraries arrive decides whether attach() creates Le
   assert.equal(scroll.lenis.stopped, true, 'a Lenis recreated under the lock starts stopped');
 });
 
-// Review R70: a live reduced-motion switch must also reach the scrub smoothing set when the sections were created.
+// A live reduced-motion switch must also reach the scrub smoothing set when the sections were created.
 test('a followed scrub takes no smoothing with Lenis and 0.3 s on native scroll, through every switch', (t) => {
   const page = fakePage();
   onFakePage(t, page);
@@ -320,7 +320,7 @@ test('under reduced motion set at runtime a cut fades out in 0 ms', async (t) =>
   assert.deepEqual(durations.slice(0, 2), [0, 0]);
 });
 
-// Ruling R29: the libraries can arrive (and .js-scroll lengthen the stages) while a cut is fading out.
+// The libraries can arrive (and .js-scroll lengthen the stages) while a cut is fading out.
 test('a cut measures its target once faded out, so a layout change mid-jump still lands on the section', async (t) => {
   const page = fakePage();
   onFakePage(t, page);
@@ -339,7 +339,7 @@ test('a cut measures its target once faded out, so a layout change mid-jump stil
   assert.equal(page.win.scrollY, 6 * 3 * 900);
 });
 
-// Task 5 deferred minor (Task 19 triage): Lenis drops a scrollTo while it is stopped unless it is forced, and the
+// Lenis drops a scrollTo while it is stopped unless it is forced, and the
 // scroll lock (an open overlay) stops it. A jump asked for while locked now lands, as it does on native scroll.
 class StoppableLenis extends FakeLenis {
   scrollTo(y, opts = {}) {
@@ -365,7 +365,7 @@ test('while the page is locked, glides, scrollTo and cuts still move the page (f
   assert.equal(scroll.lenis.stopped, false);
 });
 
-// ---------------------------------------------------------------- final review (fix wave F1)
+// ---------------------------------------------------------------- navigation, place-keeping and boot robustness
 
 /** A ScrollTrigger stand-in with the refresh event (keepPlace listens to it). */
 function fakeTrigger({ isTouch = 0 } = {}) {
@@ -387,7 +387,7 @@ function relayout(page, { innerWidth = page.win.innerWidth, innerHeight, screens
   });
 }
 
-// C1 / E4 (Ruling R75): the Route's start shows nothing yet, so a jump to it lands at its landing point.
+// The Route's start shows nothing yet, so a jump to it lands at its landing point.
 test('a section with a landing point is reached there by a cut or a glide, and a #hash place lands there too', async (t) => {
   const page = fakePage();
   onFakePage(t, page);
@@ -414,7 +414,7 @@ test('a section with a landing point is reached there by a cut or a glide, and a
   assert.equal(page.win.scrollY, routeTop);
 });
 
-// E1: Lenis clamps to the page height it measured last, which the stages outgrow at boot for 250 ms.
+// Lenis clamps to the page height it measured last, which the stages outgrow at boot for 250 ms.
 class LimitedLenis extends FakeLenis {
   constructor() { super(); this.limit = 1000; this.resizes = 0; }
   resize() { this.resizes++; this.limit = 99999; }
@@ -484,7 +484,7 @@ test('resizeRefreshes: any size change, except a touch-only URL-bar height chang
   assert.equal(resizeRefreshes(a, { w: 390, h: 500 }, true), true, 'the keyboard, say: over 25%');
 });
 
-// C2: rotating a phone or resizing a window keeps the reader's place.
+// Rotating a phone or resizing a window keeps the reader's place.
 test('after a resize the first refresh puts the reader back in the same section at the same place', (t) => {
   const page = fakePage();
   onFakePage(t, page);

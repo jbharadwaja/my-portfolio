@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { KEEP_OUT_GLSL, PARTICLE_VERTEX, DUST_VERTEX, DUST_FRAGMENT } from '../js/engine/shaders.js';
 
-// Spec §3.1 / §4.5: text sits >= 4.5:1 against what is behind it. The text keep-out greys out whatever drifts
+// Text sits >= 4.5:1 against what is behind it. The text keep-out greys out whatever drifts
 // behind a section's text, and the dust tunnel drifts behind all of it: a dust disc (alpha up to 0.5, up to
-// 12·DPR px) under muted ink-60 text left ~2.95:1 (Task 19 review). So the dust takes the same keep-out.
+// 12·DPR px) under muted ink-60 text left ~2.95:1. So the dust takes the same keep-out.
 
 test('the formation particles and the dust tunnel share one text keep-out', () => {
   assert.ok(PARTICLE_VERTEX.includes(KEEP_OUT_GLSL), 'the particles use the shared keep-out');
   assert.ok(DUST_VERTEX.includes(KEEP_OUT_GLSL), 'the dust uses the shared keep-out');
   assert.match(KEEP_OUT_GLSL, /uniform vec4 uSafe\[4\];/);
-  assert.match(KEEP_OUT_GLSL, /mix\(0\.12, 1\.0, smoothstep\(0\.0, 32\.0, /, 'x 0.12 inside, a 32 px feather (spec §4.5)');
+  assert.match(KEEP_OUT_GLSL, /mix\(0\.12, 1\.0, smoothstep\(0\.0, 32\.0, /, 'x 0.12 inside, a 32 px feather');
 });
 
 test('the dust alpha is multiplied by the keep-out at its screen position, lerped with the pair mix', () => {
@@ -33,7 +33,7 @@ const rule = (source, selector) => {
 };
 const grounded = (body) => /background:\s*var\(--bg\);/.test(body ?? '');
 
-test('About: the copy block carries its own paper ground (the galaxy arms pass under the skills, Task 19)', () => {
+test('About: the copy block carries its own paper ground (the galaxy arms pass under the skills)', () => {
   assert.ok(grounded(rule(css('sections/about.css'), '.about-text')));
 });
 

@@ -1,4 +1,4 @@
-// The halftone photo reveal (spec §2.7). A canvas laid over an <img> shows the photo as ink dots on paper; the
+// The halftone photo reveal. A canvas laid over an <img> shows the photo as ink dots on paper; the
 // pointer wipes the dots away along its recent path to uncover the full-colour photo, and the wipe heals over ~1 s.
 // Layers, sized once and again on resize(): the halftone (dots pre-rendered), the photo (scaled to the canvas),
 // a mask at 1/4 resolution holding the wipe, and a scratch canvas where halftone minus mask is composed before it
@@ -14,7 +14,7 @@
 const MAX_DPR = 1.5;
 const HEAL_S = 0.35;                   // the heal's time constant: a wipe is ~5% left after 1 s
 const POINTER_WINDOW_MS = 1200;        // the loop keeps running this long after the last pointer move
-const MAX_DT = 1 / 30;                 // integrators never step more than this (spec §4.7)
+const MAX_DT = 1 / 30;                 // integrators never step more than this
 const MASK_SCALE = 4;                  // the mask is 1/4 of the canvas resolution
 // Below this the mask's strongest pixel is cleared outright: an 8-bit canvas faded by a few % a frame stops
 // decreasing at low alpha, so it would never reach empty on its own (and the loop would never sleep).
@@ -141,7 +141,7 @@ function makeBrush() {
  * Mounts the reveal of `img` on `canvas` (laid over the image, same box). `interactive`: pointer moves (mouse,
  * pen) and touches on the canvas wipe the dots. `autoSweep`: one slow automatic sweep the first time the canvas is
  * well in view; a boolean, or a function asked each time the sweep would start and on each of its frames (About
- * passes one so the sweep follows a live reduced-motion change, spec §3.3: refused, the sweep stays pending; turned
+ * passes one so the sweep follows a live reduced-motion change: refused, the sweep stays pending; turned
  * false mid-sweep, it stops there and the wipe heals). Nothing loads or draws until start(), which makes the image
  * load now (it may be lazy), samples it, draws the halftone and sets the image to opacity 0 once the canvas has drawn
  * (it stays in the accessibility tree). start() resolves to true once the image is ready, false if it failed to load
