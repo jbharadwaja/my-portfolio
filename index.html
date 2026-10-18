@@ -42,7 +42,8 @@
   }
 
   /* the 8 s cap. A stylesheet still pending by now (a stalled CDN) would keep the page unpainted, so it is
-     switched to media=print, which stops it blocking first paint and scripts, and applies if it ever arrives */
+     switched to media=print, which stops it blocking first paint and scripts; if it ever arrives it applies and
+     leaves the banner (it was slow, not failed) */
   function cap() {
     var links = d.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
@@ -50,7 +51,7 @@
       if (l.sheet || failed[l.href]) continue;
       V.banner(l.href);
       l.media = 'print';
-      l.addEventListener('load', function () { this.removeAttribute('media'); });
+      l.addEventListener('load', function () { this.removeAttribute('media'); V.clear(this.href); });
     }
     V.lift();
   }

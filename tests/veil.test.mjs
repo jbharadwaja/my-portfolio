@@ -137,6 +137,8 @@ test('boot: at the cap a stalled stylesheet stops blocking the page, is named, a
   assert.ok(b.classes.has('veil-done'));
   stalled.handlers.load.call(stalled);
   assert.equal(stalled.media, '', 'the sheet applies once it arrives');
+  assert.equal(b.banner.hidden, true, 'and leaves the banner: it was slow, not failed (Task 4 deferred minor)');
+  assert.equal(b.banner.textContent, '');
 });
 
 test('boot: at the cap a stylesheet that already failed is not reported twice', () => {
