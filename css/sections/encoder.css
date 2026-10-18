@@ -1,1 +1,33 @@
-/* Encoder section (#encoder): styles for this section only; filled in by its own task. */
+/* Encoder section (#encoder): the network labels, pinned to the projected nodes by js/sections/encoder.js. */
+/* .net-live is set once the engine runs; without it the labels keep the static layer grid (css/main.css). */
+.net-live .net-labels {
+  position: fixed; top: 0; left: 0; width: 0; height: 0;   /* labels are placed in viewport px */
+  display: block; margin: 0;
+  pointer-events: none;
+}
+.net-live .net-labels .net-label {
+  position: absolute; top: 0; left: 0;
+  display: block; margin: 0; padding: 0; border: 0;
+  white-space: nowrap; line-height: 1.1;   /* one line: the box hugs the glyphs, so a hidden label clears the node above */
+  /* a 3 px paper halo: an edge line crossing a label never sits behind its text (encoder.js HALO) */
+  background: var(--bg); box-shadow: 0 0 0 3px var(--bg);
+  opacity: 0; transition: opacity 200ms;
+  will-change: transform;
+}
+.net-live .net-label::before { content: none; }
+/* Shown: the active layer's labels plus the outputs; the previous layer's fade out over 200 ms (spec §2.3). */
+.net-live .net-labels .net-label[data-layer="3"],
+.net-live .net-labels[data-active="0"] .net-label[data-layer="0"],
+.net-live .net-labels[data-active="1"] .net-label[data-layer="1"],
+.net-live .net-labels[data-active="2"] .net-label[data-layer="2"] { opacity: 1; }
+
+/* 768–1023 px: mono-small (spec §8.4, Ruling R16); narrower too, where the vertical network leaves less room. */
+@media (max-width: 1023.98px) {
+  .net-live .net-labels .net-label { font-size: var(--fs-mono-small); }
+}
+/* Below 768 px only the input and output labels show (spec §2.3). */
+@media (max-width: 767.98px) {
+  .net-live .net-labels[data-active] .net-label:is([data-layer="1"], [data-layer="2"]) { opacity: 0; }
+}
+/* A label that would cover the text block or the HUD's corner fades out until it clears (encoder.js guard). */
+.net-live .net-labels[data-active] .net-label[data-blocked] { opacity: 0; }
