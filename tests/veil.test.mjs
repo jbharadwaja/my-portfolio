@@ -50,7 +50,10 @@ function boot() {
   const timers = [];
   const frames = [];
   const listeners = { doc: {}, win: {} };
-  const banner = { hidden: true, textContent: '' };
+  // The banner: its text in .banner-text (the full URL as its title), and a close button.
+  const text = { textContent: '', title: '' };
+  const banner = { hidden: true, querySelector: (sel) => (sel === '.banner-text' ? text : null), text };
+  Object.defineProperty(banner, 'textContent', { get: () => text.textContent });
   const veilEl = { setAttribute: (k, v) => { attrs[k] = v; } };
   const dom = { '.veil': veilEl, '.banner': banner };
   const links = [];
@@ -78,6 +81,7 @@ function boot() {
   return {
     win, classes, attrs, events, timers, frames, listeners, banner, dom, links,
     fireError: (target) => listeners.win.error.forEach(({ fn }) => fn({ target })),
+    fireDoc: (type, e = {}) => (listeners.doc[type] || []).slice().forEach((fn) => fn(e)),
   };
 }
 
@@ -151,13 +155,18 @@ test('boot: at the cap a stylesheet that already failed is not reported twice', 
   assert.ok(!/more/.test(b.banner.textContent));
 });
 
-test('boot: script and link load errors show a banner naming the URL and lift', () => {
+test('boot: script and preload errors show a banner naming the URL and lift', () => {
   const b = boot();
   assert.ok(b.listeners.win.error.every((l) => l.capture === true), 'error listener is capture-phase');
-  b.fireError({ tagName: 'LINK', href: 'https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.css' });
+  const url = 'https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.mjs';
+  b.fireError({ tagName: 'LINK', rel: 'modulepreload', href: url });
   assert.equal(b.banner.hidden, false);
-  assert.match(b.banner.textContent, /https:\/\/cdn\.jsdelivr\.net\/npm\/lenis@1\.3\.26\/dist\/lenis\.css/);
+  assert.equal(b.banner.textContent, 'Could not load cdn.jsdelivr.net/\u2026/dist/lenis.mjs', 'host and the path\'s last two parts');
+  assert.equal(b.banner.text.title, url, 'the full URL in its title');
   assert.ok(b.classes.has('veil-done'));
+  const s = boot();
+  s.fireError({ tagName: 'SCRIPT', src: 'https://x.test/a.js' });
+  assert.ok(s.classes.has('veil-done'));
 });
 
 test('boot: a second failure keeps the first URL and counts the rest', () => {
@@ -176,9 +185,9 @@ test('boot: clear(url) takes a named URL off the banner, and hides it once nothi
   V.banner('https://x.test/gsap.js');
   V.clear('https://x.test/three.js');
   assert.equal(b.banner.hidden, false);
-  assert.equal(b.banner.textContent, 'Could not load https://x.test/gsap.js', 'the next one is named, with no count');
+  assert.equal(b.banner.textContent, 'Could not load x.test/gsap.js', 'the next one is named, with no count');
   V.clear('https://x.test/never-named.js');
-  assert.equal(b.banner.textContent, 'Could not load https://x.test/gsap.js');
+  assert.equal(b.banner.textContent, 'Could not load x.test/gsap.js');
   V.clear('https://x.test/gsap.js');
   assert.equal(b.banner.hidden, true);
   assert.equal(b.banner.textContent, '');
@@ -208,6 +217,57 @@ test('boot: a failure before the body exists is painted at DOMContentLoaded', ()
   assert.equal(b.banner.hidden, false);
   assert.match(b.banner.textContent, /early\.css/);
   assert.equal(b.attrs['aria-label'], 'Loaded');
+});
+
+// ---------------------------------------------------------------- final review (fix wave F1)
+
+// R85 / readiness I1: an asset still in flight is not a failure; the banner says so, can be dismissed, names a URL
+// once, and goes when it arrives.
+test('boot: at the cap a stalled stylesheet is named as still loading, not as failed', () => {
+  const b = boot();
+  b.links.push(link('https://fonts.googleapis.com/css2?family=Archivo', null));
+  b.timers.find((x) => x.ms === 8000).fn();
+  assert.equal(b.banner.textContent, 'Still loading fonts.googleapis.com/css2 \u2014 the page works without it');
+});
+test('boot: slow(url) names an import still in flight; one that fails later is named as failed; failures come first', () => {
+  const b = boot();
+  const V = b.win.__veil;
+  V.slow('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js');
+  V.slow('https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js');
+  assert.equal(b.banner.textContent, 'Still loading cdn.jsdelivr.net/\u2026/build/three.module.js (+1 more) \u2014 the page works without it');
+  V.banner('https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js');
+  assert.equal(b.banner.textContent, 'Could not load cdn.jsdelivr.net/\u2026/gsap@3.15.0/index.js', 'a failure outranks what is still loading');
+  V.slow('https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js');
+  assert.match(b.banner.textContent, /^Could not load/, 'a failed URL never goes back to "still loading"');
+  V.clear('https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js');
+  assert.match(b.banner.textContent, /^Still loading .*three\.module\.js — the page works without it$/);
+  V.clear('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js');
+  assert.equal(b.banner.hidden, true, 'it arrived: the banner goes');
+});
+test('boot: a URL is named once, however many times it is reported (a failed preload, then its import)', () => {
+  const b = boot();
+  const url = 'https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.core.js';
+  b.fireError({ tagName: 'LINK', rel: 'modulepreload', href: url });
+  b.win.__veil.banner(url);
+  b.win.__veil.banner('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js');
+  b.win.__veil.banner('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js');
+  assert.match(b.banner.textContent, /three\.core\.js \(\+1 more\)$/);
+});
+test('boot: the banner\'s close button dismisses it; a new name shows it again', () => {
+  const b = boot();
+  b.win.__veil.slow('https://x.test/a.js');
+  assert.equal(b.banner.hidden, false);
+  b.fireDoc('click', { target: { closest: () => null } });
+  assert.equal(b.banner.hidden, false, 'a click elsewhere leaves it');
+  b.fireDoc('click', { target: { closest: (sel) => (sel === '.banner-close' ? {} : null) } });
+  assert.equal(b.banner.hidden, true);
+  b.win.__veil.slow('https://x.test/a.js');
+  assert.equal(b.banner.hidden, true, 'the same name again does not bring it back');
+  b.win.__veil.banner('https://x.test/a.js');
+  assert.equal(b.banner.hidden, false, 'but its failure does');
+  b.fireDoc('click', { target: { closest: (sel) => (sel === '.banner-close' ? {} : null) } });
+  b.win.__veil.banner('https://x.test/b.js');
+  assert.equal(b.banner.hidden, false, 'and so does a new one');
 });
 
 test('boot: preload is removed one frame after the window load event', () => {

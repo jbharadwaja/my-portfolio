@@ -135,12 +135,12 @@ const params = new URLSearchParams(location.search);
 const simulate = params.get('simulate');
 
 const loading = new Set();             // CDN module URLs still in flight
-const named = new Set();               // URLs the banner already names
+const named = new Set();               // URLs the banner names (still loading, or failed)
 
-function nameFailed(url) {
-  if (named.has(url)) return;
+/** The banner names `url` as failed, or as still loading (`slow`); it shows each URL once (the boot script). */
+function name(url, slow) {
   named.add(url);
-  window.__veil?.banner(url);
+  window.__veil?.[slow ? 'slow' : 'banner']?.(url);
 }
 
 /**
@@ -155,15 +155,16 @@ async function load(specifier) {
     if (named.delete(url)) window.__veil?.clear?.(url);
     return mod;
   } catch (err) {
-    nameFailed(url);
+    name(url, false);
     throw err;
   } finally {
     loading.delete(url);
   }
 }
 
-// One still in flight when the veil lifts has stalled (the 8 s cap lifted it): the banner names it too (spec §6.1).
-veil.onLift(() => loading.forEach(nameFailed));
+// One still in flight when the veil lifts (the 8 s cap lifted it) is named as still loading, not as failed: the page
+// works without it, and upgrades if it arrives (spec §6.1, §8.3).
+veil.onLift(() => loading.forEach((url) => name(url, true)));
 
 async function loadScrollLibs() {
   const gsapReady = Promise.all([load('gsap'), load('gsap/ScrollTrigger')]).then((mods) => {
