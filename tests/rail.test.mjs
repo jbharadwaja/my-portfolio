@@ -21,24 +21,47 @@ test('eight equal clusters', () => {
 });
 
 // Ruling R37: what each card's chart draws, from its data-* attributes.
-test('two-bar chart: the model bar is the accent, data-better picks the better value', () => {
+test('two-bar chart: the model bar is the accent, both values print as written', () => {
   const up = chartSpec({ metric: '0.90', compare: '0.85', better: 'higher' });
   assert.equal(up.kind, 'pair');
-  assert.deepEqual(up.rows.map((r) => [r.text, r.accent, r.best]), [['0.90', true, true], ['0.85', false, false]]);
+  assert.deepEqual(up.rows.map((r) => [r.text, r.accent]), [['0.90', true], ['0.85', false]]);
   close(up.max, 0.9);
   assert.equal(up.limit, null);
   const down = chartSpec({ metric: '34.5', compare: '48', better: 'lower' });
-  assert.deepEqual(down.rows.map((r) => [r.value, r.best]), [[34.5, true], [48, false]]);
+  assert.deepEqual(down.rows.map((r) => [r.value, r.text]), [[34.5, '34.5'], [48, '48']]);
 });
 test('series chart: the chosen entry is the accent, values keep separators and decimals, the limit is carried', () => {
   const cars = chartSpec({ better: 'lower', seriesLabel: 'validation RMSE (€)', series: '[["mean baseline",4567],["XGBoost",1556],["LightGBM",1560,"chosen"]]' });
   assert.equal(cars.kind, 'series');
   assert.equal(cars.label, 'validation RMSE (€)');
-  assert.deepEqual(cars.rows.map((r) => [r.label, r.text, r.accent, r.best]),
-    [['mean baseline', '4,567', false, false], ['XGBoost', '1,556', false, true], ['LightGBM', '1,560', true, false]]);
+  assert.deepEqual(cars.rows.map((r) => [r.label, r.text, r.accent]),
+    [['mean baseline', '4,567', false], ['XGBoost', '1,556', false], ['LightGBM', '1,560', true]]);
   const wells = chartSpec({ better: 'lower', series: '[["Region 0",2.0],["Region 1",0.1,"chosen"],["Region 2",2.5]]', limit: '2.5' });
   assert.deepEqual(wells.rows.map((r) => r.text), ['2.0', '0.1', '2.5']);
   close(wells.limit, 2.5);
   close(wells.max, 2.5);
 });
 test('a card without chart data draws no chart', () => assert.equal(chartSpec({ better: undefined }), null));
+
+// Ruling R59: one emphasis per chart (the accent), decimals as written, count-ups only for cards on screen.
+import { shouldCount } from '../js/sections/experiments.js';
+test('a chart has one emphasis: the accent row, and no "best" marking beside it', () => {
+  const pair = chartSpec({ metric: '0.90', compare: '0.85', better: 'higher' });
+  const series = chartSpec({ better: 'lower', series: '[["XGBoost",1556],["LightGBM",1560,"chosen"]]' });
+  for (const spec of [pair, series]) assert.ok(spec.rows.every((r) => !('best' in r)), JSON.stringify(spec.rows));
+  assert.deepEqual(series.rows.map((r) => r.accent), [false, true]);
+});
+test('series values keep the decimals written in data-series, trailing zeros included', () => {
+  const all = chartSpec({ series: '[["Region 0",2.0],["Region 1",1.0,"chosen"],["Region 2",3.0]]' });
+  assert.deepEqual(all.rows.map((r) => r.text), ['2.0', '1.0', '3.0']);
+  assert.deepEqual(all.rows.map((r) => r.value), [2, 1, 3]);
+  const mixed = chartSpec({ series: '[["a 10",12.50],["b",1,"chosen"]]' });   // digits inside a label are not a value
+  assert.deepEqual(mixed.rows.map((r) => r.text), ['12.50', '1.00']);
+});
+test('a card counts up only while it is on screen: entered from the right, not yet gone off the left', () => {
+  assert.equal(shouldCount({ left: 100, right: 560 }, 1440), true);
+  assert.equal(shouldCount({ left: -300, right: 160 }, 1440), true);     // partly off the left, still seen
+  assert.equal(shouldCount({ left: -460, right: 0 }, 1440), false);      // gone off the left
+  assert.equal(shouldCount({ left: -900, right: -440 }, 1440), false);
+  assert.equal(shouldCount({ left: 1224, right: 1684 }, 1440), false);   // not yet past 85% of the width
+});

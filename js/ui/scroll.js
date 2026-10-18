@@ -94,7 +94,8 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
 
   // Fade <main> and the canvas to the current ground, jump, let one frame render there, fade back in.
   // The ground colour is pinned on <body> for the whole cut, so passing in or out of Route never flashes.
-  async function cut(y) {
+  // `landed` runs once the page is at y, while both layers are still faded out.
+  async function cut(y, landed) {
     const ms = reduced ? CUT_MS_REDUCED : CUT_MS;
     const layers = [document.querySelector('main'), document.getElementById('scene')].filter(Boolean);
     let out = [];
@@ -106,6 +107,7 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
       // Both run every ScrollTrigger callback synchronously (Lenis through its scroll emit), so a section module can throw here.
       scrollTo(y, { immediate: true });
       trigger?.update();
+      landed();
       await new Promise(requestAnimationFrame);
       back = layers.map((el) => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms.in, easing: 'ease-out' }));
       out.forEach((a) => a.cancel());
@@ -117,6 +119,19 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     }
   }
 
+  // 'jump' listeners: { mode, targetIndex } as a jump runs — an animated one as its glide starts, a cut once the page
+  // has moved and before it fades back in (the Route snaps its ground there). A listener that throws is logged.
+  const jumpListeners = new Set();
+  function emitJump(detail) {
+    for (const fn of jumpListeners) {
+      try {
+        fn(detail);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+
   // Jumps run one after another, so a second click never interleaves with a cut in progress.
   let queue = Promise.resolve();
   function jumpTo(target) {
@@ -125,7 +140,11 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
       if (typeof target === 'string' && !el) return;
       const y = el ? pageTop(el) : target;
       const all = tops();
-      return jumpMode(currentSection(all, centreY()), currentSection(all, y)) === 'animate' ? glide(y) : cut(y);
+      const targetIndex = currentSection(all, y);
+      const mode = jumpMode(currentSection(all, centreY()), targetIndex);
+      if (mode === 'cut') return cut(y, () => emitJump({ mode, targetIndex }));
+      emitJump({ mode, targetIndex });
+      return glide(y);
     };
     queue = queue.then(run).catch((err) => console.error(err));
     return queue;
@@ -150,6 +169,12 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     attach,
     scrollTo,
     jumpTo,
+    /** on('jump', fn): fn({ mode: 'cut' | 'animate', targetIndex }) on each jump (emitJump); returns its off switch. */
+    on(type, fn) {
+      if (type !== 'jump') return () => {};
+      jumpListeners.add(fn);
+      return () => jumpListeners.delete(fn);
+    },
     lock,
     unlock,
     sectionIndex: () => currentSection(tops(), centreY()),

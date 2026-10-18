@@ -307,6 +307,13 @@ export async function init(ctx) {
     if (!ready) return;
     engine = ready;
     engine.state.uniforms.uPulse = pulse;
-    goLive({ ctx, engine, section, stage, head, container, labels, nodeOf });
+    try {
+      goLive({ ctx, engine, section, stage, head, container, labels, nodeOf });
+    } catch (err) {
+      // A failed setup (its first measure) leaves the labels hidden in their live style: the static grid comes back.
+      section.classList.remove('net-live');
+      container.style.removeProperty('opacity');
+      throw err;
+    }
   }).catch((err) => console.error('Encoder network setup failed.', err));
 }

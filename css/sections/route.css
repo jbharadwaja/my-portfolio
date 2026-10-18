@@ -36,13 +36,17 @@
   .route-live .route-cards { position: absolute; left: var(--gutter); bottom: 88px; width: clamp(300px, 30vw, 400px); align-items: end; }
 }
 
-/* < 768 px: the cards are a bottom sheet (at most 40svh); the map frames the route between the head and the sheet. */
+/* < 768 px: the cards are a bottom sheet (at most 40svh); the map frames the route between the head and the sheet.
+   Only while a card is taller than the sheet does it scroll on its own, its overscroll contained (route.js sets
+   data-lenis-prevent then); otherwise a swipe or a wheel on it scrolls the page. Its cards swap without the rise: a
+   hidden card held 10 px low would give every sheet 10 px of scroll. */
 @media (max-width: 767.98px) {
   .route-live .route-cards {
     position: absolute; inset: auto 0 0;
-    max-height: 40svh; overflow-y: auto; overscroll-behavior: contain;
+    max-height: 40svh; overflow-y: auto;
   }
-  .route-live .route-card { padding-inline: var(--gutter); }
+  .route-live .route-cards[data-lenis-prevent] { overscroll-behavior: contain; }
+  .route-live .route-card { padding-inline: var(--gutter); transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

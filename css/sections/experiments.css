@@ -88,7 +88,6 @@
   font-family: var(--font-mono); font-size: var(--fs-mono-small); font-weight: 500; letter-spacing: .04em;
 }
 .card-bars text { fill: var(--c-ink); dominant-baseline: central; }
-.card-bars .is-best { font-weight: 700; }
 .card-bars .bar { fill: var(--c-ink); }
 .card-bars .bar.is-accent { fill: var(--accent); }
 .card-bars .limit { stroke: var(--c-ink); stroke-width: 1; stroke-dasharray: 2 2; }

@@ -108,14 +108,14 @@ export async function init(ctx) {
     const text = { x: 0, y: 0, w: 0, h: 0 };
     let rest = NaN;
     // What the pose and the keep-out read, where the section's top is `top` (the engine ignores an empty keep-out).
+    // The engine keeps the keep-out object and reads it every frame, so it is handed over once and moved in place.
     const rect = { x: 0, y: 0, w: 0, h: 0 };
     const safe = { x: 0, y: 0, w: 0, h: 0 };
-    const safeRects = { 7: safe };
     const pose = { roll: 0, rect: () => rect };
+    engine.setSafeRects({ 7: safe });
     const place = (top) => {
       followRect(held, top, rect);
       offsetRect(text, top, safe);
-      engine.setSafeRects(safeRects);
     };
 
     /**

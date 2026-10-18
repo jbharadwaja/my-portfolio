@@ -31,7 +31,7 @@ test('the descent starts at START, takes fixed steps and z is the height', () =>
 });
 
 test('fractional epochs sit between their neighbours and clamp to 0..100', () => {
-  const [a, b, c] = [42, 42.5, 43].map((e) => epochValues(e).train);
+  const [a, b, c] = [12, 12.5, 13].map((e) => epochValues(e).train);   // on the way down (from epoch ~22 it holds)
   assert.ok(a > b && b > c);
   assert.deepEqual(epochValues(-5), epochValues(0));
   assert.deepEqual(epochValues(130), epochValues(100));
@@ -202,4 +202,29 @@ test('side layout from 768 px: the beat ends 70 px or more above the stage botto
 test('plot never collapses on a stage too short for everything', () => {
   const b = shown(plotRect(at(L844)), L844);
   assert.ok(b.y1 - b.y0 >= 0.2 * 390 / 1.08 - 1 && b.y0 >= 64);
+});
+
+// A classic training curve (Ruling R59): a fast early drop, then a plateau into the deeper well.
+test('the loss drops fast, then plateaus: ≤ 0.60 by epoch 25, ≤ 0.30 by epoch 60', () => {
+  assert.ok(epochValues(25).train <= 0.6, `epoch 25: ${epochValues(25).train.toFixed(3)}`);
+  assert.ok(epochValues(60).train <= 0.3, `epoch 60: ${epochValues(60).train.toFixed(3)}`);
+});
+test('the HUD\'s train readout never ticks up as the epoch runs, and never reads under 0.180', () => {
+  let prev = Infinity;
+  for (let i = 0; i <= 2000; i++) {
+    const e = i / 20;
+    const { train } = epochValues(e);
+    assert.ok(train >= 0.18, `epoch ${e}: ${train}`);
+    const shown = Number(formatHud(e).match(/train (\d\.\d{3})/)[1]);
+    assert.ok(shown <= prev, `epoch ${e}: ${shown} after ${prev}`);
+    prev = shown;
+  }
+});
+
+test('side layout on a stage too short for it: the plot keeps a fifth of the stage, never an empty rect', () => {
+  const tiny = { vw: 812, vh: 200, stageH: 200, headerBottom: 64, head: { x: 27, y: 88, w: 304, h: 46 }, hud: { x: 425, y: 88, w: 360, h: 99 }, side: true };
+  const rect = plotRect(at(tiny));
+  assert.ok([rect.x, rect.y, rect.w, rect.h].every(Number.isFinite) && rect.w > 0 && rect.h > 0, JSON.stringify(rect));
+  const b = shown(rect, tiny);
+  assert.ok(b.y1 - b.y0 >= 0.2 * 200 / 1.08 - 1, JSON.stringify(b));
 });

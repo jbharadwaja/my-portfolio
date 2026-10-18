@@ -1,9 +1,10 @@
 // The Route (spec §2.6, §4.4, §4.5): the night stage. Its sticky stage's progress p drives the timeline — the
 // ground goes to night, the route traces AIT → Tokyo → Seoul → Tustin, the city cards swap in at each third, a
 // hold for the reticle, then back to paper. uNight follows the timeline at no more than 2.5 units/s, so racing
-// through only dims the page partially; the Route DOM shows only while uNight ≥ 0.9. Without the engine the stage
-// still runs on a DOM night ground. routeTimeline is pure and Node-testable; init(ctx) touches the DOM and gets
-// ScrollTrigger and the engine through ctx (this module imports no CDN library).
+// through only dims the page partially (a cut jump snaps it under its fade instead); the night chrome flips with
+// hysteresis, and the Route DOM shows only while uNight ≥ 0.9. Until the engine is there (and without it) the stage
+// runs on a DOM night ground. routeTimeline, groundState and readoutAt are pure and Node-testable; init(ctx) touches
+// the DOM and gets ScrollTrigger, the scroll and the engine through ctx (this module imports no CDN library).
 import { WORLDMAP, CITIES } from '../data/worldmap-dots.js';
 import { cellToLonLat, formatLatLon } from '../engine/geo.js';
 import { limitRate } from '../engine/resolver.js';
@@ -21,7 +22,7 @@ const LEGS = 3;                        // AIT → Tokyo → Seoul → Tustin: ca
 const NIGHT_RATE = 2.5;                // uNight units/s at most (spec §4.5)
 const DT_MAX = 1 / 30;                 // every integrator's clamped dt (spec §4.7)
 const SHOW_FROM = 0.9;                 // the Route DOM fades in over uNight 0.9 → 1 and out again before 0.9
-const BLEND_FLIP = 0.5;                // the blend, the chrome and the ground attribute flip here
+const GROUND = { on: 0.7, off: 0.3 };  // <html data-ground="night"> from uNight ≥ 0.7 until ≤ 0.3 (Ruling R59)
 const WIDE = '(min-width: 768px)';     // left panel at ≥ 768 px; below, a bottom sheet and the route box framed
 const FINE = '(pointer: fine)';
 const MAP_GAP = 12;                    // px between the route box's rect and the head or the sheet (< 768 px)
@@ -39,6 +40,29 @@ export function routeTimeline(p, out = {}) {
   out.route = clamp01((p - NIGHT_IN) / (ROUTE_END - NIGHT_IN));
   out.card = Math.min(LEGS, Math.floor(out.route * LEGS));
   out.reticle = p >= ROUTE_END && p <= HOLD_END;
+  return out;
+}
+
+/**
+ * Whether the night chrome is on (`<html data-ground="night">`, spec §2.1) at uNight `night`, given `prev`: on from
+ * 0.7, off from 0.3, held in between, so a fast flick through the Route (uNight peaks near 0.66) never flips it.
+ * The engine still flips its blend at 0.5 (engine.ground), under the particle dip.
+ */
+export function groundState(prev, night) {
+  if (night >= GROUND.on) return true;
+  if (night <= GROUND.off) return false;
+  return prev;
+}
+
+/**
+ * Where the reticle readout chip goes, as { x, y } in the stage's CSS px, for a pointer at (px, py): right of and
+ * below it, flipped to its left near the right edge and above it near the bottom (a vw × vh stage, a w × h chip).
+ */
+export function readoutAt(px, py, w, h, vw, vh, out = { x: 0, y: 0 }) {
+  const right = px + READOUT_OFFSET;
+  const below = py + READOUT_OFFSET;
+  out.x = right + w > vw ? px - READOUT_OFFSET - w : right;
+  out.y = below + h > vh ? py - READOUT_OFFSET - h : below;
   return out;
 }
 
@@ -68,7 +92,8 @@ function readoutFor(col, row) {
 
 /**
  * Wires the Route stage: its scrub, the night ground and chrome, the city cards and the held reveals; the map and
- * the reticle once the engine is there. Never waits for the engine (Ruling R55).
+ * the reticle once the engine is there. Never waits for the engine (Ruling R55): the stage starts on its DOM night
+ * ground (.route-dom), which gives way to the canvas's once the engine resolves.
  */
 export async function init(ctx) {
   const root = document.documentElement;
@@ -80,7 +105,15 @@ export async function init(ctx) {
   if (!section || !stage || !head || !deck || !readout || !ctx.ScrollTrigger) return;
   const cards = [...deck.querySelectorAll('.route-card[data-stop]')].sort((a, b) => a.dataset.stop - b.dataset.stop);
   const fine = matchMedia(FINE);
-  section.classList.add('route-live');
+  section.classList.add('route-live', 'route-dom');
+
+  // Below 768 px the cards are a bottom sheet (css/sections/route.css). While a card is taller than the sheet, the
+  // sheet scrolls on its own: Lenis leaves its wheel alone and its overscroll is contained (both keyed on
+  // data-lenis-prevent). Otherwise a wheel or a swipe on it scrolls the page.
+  const wide = matchMedia(WIDE);
+  new ResizeObserver(() => {
+    deck.toggleAttribute('data-lenis-prevent', !wide.matches && deck.scrollHeight > deck.clientHeight);
+  }).observe(deck);
 
   // The stage scrub: measures only (spec §5.1).
   let progress = 0;
@@ -105,9 +138,11 @@ export async function init(ctx) {
   let engine = null;
   let night = 0;
   let applied = NaN;                   // the uNight last applied to the ground, the chrome and the DOM
+  let nightChrome = false;             // <html data-ground="night"> (groundState)
   let ink = -1;
   let card = -1;
   let reticleOn = false;
+  let parallax = true;                 // engine.state.parallax as last written (the engine starts with it on)
 
   function showCard(k) {
     if (k === card) return;
@@ -122,8 +157,12 @@ export async function init(ctx) {
     applied = n;
     if (engine) engine.ground(night);   // clear colour, mist, and the blend flip at 0.5 (engine.particles.setBlending)
     else section.style.setProperty('--route-night', night.toFixed(3));
-    if (night >= BLEND_FLIP) root.dataset.ground = 'night';
-    else if (root.dataset.ground) delete root.dataset.ground;
+    const chrome = groundState(nightChrome, night);
+    if (chrome !== nightChrome) {
+      nightChrome = chrome;
+      if (chrome) root.dataset.ground = 'night';
+      else delete root.dataset.ground;
+    }
     const nextInk = clamp01((night - SHOW_FROM) / (1 - SHOW_FROM));
     if (nextInk !== ink) {
       // Rising, the blocks ease in (css/sections/route.css); falling, they follow uNight exactly, so they are gone
@@ -144,15 +183,27 @@ export async function init(ctx) {
     reticleOn = Boolean(engine) && tl.reticle && fine.matches;
     if (!engine) return;
     engine.state.uniforms.uRoute = tl.route;
-    engine.state.parallax = !reticleOn;   // the map must not slide under the crosshair (spec §2.6)
+    // The map must not slide under the crosshair (spec §2.6). Written only on a change, so the flag stays free for
+    // any other section to use.
+    const follow = !reticleOn;
+    if (follow !== parallax) {
+      parallax = follow;
+      engine.state.parallax = follow;
+    }
+  });
+
+  // A cut jump (scroll.js) has the page faded out once it lands: uNight goes straight to the destination's value
+  // there, so the page never fades back in on a night that then slowly clears.
+  ctx.scroll.on('jump', ({ mode }) => {
+    if (mode !== 'cut') return;
+    routeTimeline(progress, tl);
+    setNight(tl.night);
   });
 
   ctx.engineReady.then((ready) => {
-    if (!ready) {
-      section.classList.add('route-dom');   // no canvas: the stage carries its own night ground
-      return;
-    }
+    if (!ready) return;                // no canvas: the stage keeps its own night ground (.route-dom)
     engine = ready;
+    section.classList.remove('route-dom');
     applied = NaN;
     setNight(night);
     initMap(ctx, engine, { stage, head, deck });
@@ -210,13 +261,20 @@ function initReticle(engine, { stage, readout, isOn }) {
   const reticle = [-1, -1];
   engine.state.uniforms.uReticle = reticle;
   const hit = { x: 0, y: 0 };
-  const placed = { x: NaN, y: NaN };   // where the chip was last put
+  const placed = { x: NaN, y: NaN };   // the pointer where the chip was last put
+  const at = { x: 0, y: 0 };
   let overPanel = false;
   let on = false;
   let text = '';
   let chipW = 0;
+  let chipH = 0;
+  // While pinned the stage is the viewport: its width, and its height (100svh) for the chip's flip above the pointer.
   let vw = document.documentElement.clientWidth;
-  addEventListener('resize', () => { vw = document.documentElement.clientWidth; });
+  let vh = stage.clientHeight || innerHeight;
+  addEventListener('resize', () => {
+    vw = document.documentElement.clientWidth;
+    vh = stage.clientHeight || innerHeight;
+  });
   addEventListener('pointermove', (e) => {
     overPanel = Boolean(e.target.closest?.('.route-head, .route-card.is-current'));
   }, { passive: true });
@@ -245,15 +303,14 @@ function initReticle(engine, { stage, readout, isOn }) {
       if (next !== text) {
         readout.textContent = text = next;
         chipW = text ? readout.offsetWidth : 0;
+        chipH = text ? readout.offsetHeight : 0;
         placed.x = NaN;
       }
     }
     if (!text || (pointer.x === placed.x && pointer.y === placed.y)) return;
     placed.x = pointer.x;
     placed.y = pointer.y;
-    // Right of and below the pointer, flipped to its left near the right edge (while pinned the stage is the viewport).
-    const right = pointer.x + READOUT_OFFSET;
-    const x = right + chipW > vw ? pointer.x - READOUT_OFFSET - chipW : right;
-    readout.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(pointer.y + READOUT_OFFSET)}px, 0)`;
+    readoutAt(pointer.x, pointer.y, chipW, chipH, vw, vh, at);
+    readout.style.transform = `translate3d(${Math.round(at.x)}px, ${Math.round(at.y)}px, 0)`;
   });
 }

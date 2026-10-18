@@ -201,3 +201,33 @@ test('a fresh visit ignores saved places and lands at the #hash section\'s start
   assert.equal(placeToRestore({ visit: 'navigate', entry: saved, tab: saved, hashId: '', ids }), null);
   assert.equal(placeToRestore({ visit: undefined, entry: null, tab: null, hashId: 'nowhere', ids }), null);
 });
+
+// The jump event (Ruling R59): the Route snaps its ground to the destination's while a cut has the page faded out.
+test('a cut emits jump { mode: "cut", targetIndex } once the page has moved, while main and the canvas are faded out', async (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const scroll = createScroll({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} }, reduced: false });
+  page.win.scrollTo({ top: 4 * 2 * 900 + 300 });                     // in #route
+  const seen = [];
+  scroll.on('jump', (e) => seen.push({ ...e, scrollY: page.win.scrollY, faded: page.faded() }));
+  await scroll.jumpTo('top');
+  assert.deepEqual(seen, [{ mode: 'cut', targetIndex: 0, scrollY: 0, faded: ['main', 'scene'] }]);
+});
+
+test('an adjacent jump emits jump { mode: "animate", targetIndex }; a throwing listener is logged and the jump still runs', async (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const logged = t.mock.method(console, 'error', () => {});
+  const scroll = createScroll({ Lenis: null, gsap: null, ScrollTrigger: { update() {} }, reduced: false });
+  const seen = [];
+  scroll.on('jump', () => { throw new Error('listener failed'); });
+  scroll.on('jump', (e) => seen.push(e));
+  await scroll.jumpTo('encoder');
+  assert.deepEqual(seen, [{ mode: 'animate', targetIndex: 1 }]);
+  assert.equal(page.win.scrollY, 2 * 900);
+  assert.equal(logged.mock.callCount(), 1);
+  await scroll.jumpTo('contact');
+  assert.deepEqual(seen.at(-1), { mode: 'cut', targetIndex: 6 });
+  assert.equal(page.win.scrollY, 6 * 2 * 900);
+  assert.deepEqual(page.faded(), []);
+});

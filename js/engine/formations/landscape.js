@@ -9,10 +9,11 @@ const EXTENT = 3;                      // x, y ∈ [−EXTENT, EXTENT]
 const GRID_CELLS = 200;                // the grid gridMin() searches: 200 × 200 samples, edges included
 const GRAD_H = 1e-4;                   // central-difference step of the numeric gradient
 export const EPOCHS = 100;
-// Committed start and step (spec §2.4): from high on the far rim the run crosses between the two wells and settles
-// into the deeper one in its last epochs, still a hair above the grid minimum at epoch 100.
-export const START = [-1.9, 2.9];
-export const STEP = 0.085;
+// Committed start and step (spec §2.4): a classic training curve (Ruling R59). From high on the far rim the run comes
+// down between the two wells — the loss falls fast, then more slowly across the shoulder — drops into the deeper
+// well by epoch 22 and settles there without a visible bounce: train reads 0.180 from then on.
+export const START = [-1.8, 2.9];
+export const STEP = 0.37;
 
 const LOSS = { start: 1.2, min: 0.18 };   // f(P[0]) → 1.200, gridMin() → 0.180
 const VAL = { base: 1.04, gain: 0.08 };   // val(e) = train(e) · (1.04 + 0.08 · e/100)
@@ -98,13 +99,18 @@ export function pathAt(e, out = [0, 0, 0]) {
 }
 
 const at = [0, 0, 0];
-/** The HUD's losses at epoch e: train = f(P(e)) rescaled so f(P[0]) → 1.200 and gridMin() → 0.180; val per spec §2.4. */
+/**
+ * The HUD's losses at epoch e: train = f(P(e)) rescaled so f(P[0]) → 1.200 and gridMin() → 0.180; val per
+ * spec §2.4. The deep well's floor dips a hair (≈ 3e-4) below the grid minimum between grid points, where the settled
+ * run lies: train holds at 0.180 there instead of reading under it.
+ */
 export function epochValues(e) {
   const t = clamp(e, 0, EPOCHS);
   pathAt(t, at);
   const f0 = descentPath()[0][2];
   const min = gridMin();
-  const train = LOSS.min + ((landscapeF(at[0], at[1]) - min) * (LOSS.start - LOSS.min)) / (f0 - min);
+  const rescaled = LOSS.min + ((landscapeF(at[0], at[1]) - min) * (LOSS.start - LOSS.min)) / (f0 - min);
+  const train = Math.max(LOSS.min, rescaled);
   return { train, val: train * (VAL.base + (VAL.gain * t) / EPOCHS) };
 }
 
