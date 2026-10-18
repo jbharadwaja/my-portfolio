@@ -549,7 +549,15 @@ export async function createEngine({ canvas, tier, reduced }) {
     if (timeMs - lastRender < renderGapMs) return;
     lastRender = timeMs;
     dustUniforms.uTime.value = elapsed;
-    for (let i = 0; i < frameCallbacks.length; i++) frameCallbacks[i](timeMs, dt);
+    // A section's callback that throws is logged and dropped: one bug must not stop every later frame's render.
+    for (let i = 0; i < frameCallbacks.length; i++) {
+      try {
+        frameCallbacks[i](timeMs, dt);
+      } catch (err) {
+        console.error('A frame callback failed and was removed.', err);
+        frameCallbacks.splice(i--, 1);
+      }
+    }
     syncUniforms();
     renderer.render(scene, camera);
     if (debugEl) updateDebug(timeMs);
@@ -663,7 +671,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     cutTo() {
       snapMorph(morph);
     },
-    /** cb(timeMs, dt) on every rendered frame, after the camera update and before the render. */
+    /** cb(timeMs, dt) on every rendered frame, after the camera update and before the render; one that throws is dropped. */
     onFrame(cb) {
       frameCallbacks.push(cb);
     },

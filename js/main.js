@@ -52,7 +52,7 @@ export const ctx = {
   /** Resolves to the engine once created (formations registered), or to null without WebGL or if it failed;
    *  never rejects. Section inits await this instead of reading ctx.engine, which is null until then. */
   engineReady: new Promise((resolve) => { settleEngine = resolve; }),
-  /** fn(time, deltaTime) runs every GSAP tick, after Lenis and before the render. */
+  /** fn(time, deltaTime) runs every GSAP tick, after Lenis and before the render; one that throws is dropped. */
   onTick: (fn) => { tickers.push(fn); },
   /**
    * Registers a no-WebGL visual: mount() runs whenever the page enters its no-WebGL state (at once if it is in it)
@@ -424,7 +424,15 @@ if (libs) {
   ownLoop = false;
   releaseHeroGate();
   gsap.ticker.add((time, deltaTime) => {
-    for (const fn of tickers) fn(time, deltaTime);
+    // A section's tick that throws is logged and dropped, so one bug cannot stop the render after it.
+    for (let i = 0; i < tickers.length; i++) {
+      try {
+        tickers[i](time, deltaTime);
+      } catch (err) {
+        console.error('A tick callback failed and was removed.', err);
+        tickers.splice(i--, 1);
+      }
+    }
     ctx.engine?.tick(performance.now());   // render last (spec §4.7: lenis.raf → section state → render)
   });
   createBoundaryTriggers(ScrollTrigger);
