@@ -1,6 +1,8 @@
 // Boot orchestrator (spec §6.1 step 4). Own modules without a CDN dependency are imported statically;
 // gsap, ScrollTrigger and Lenis load through await import() inside try/catch. If any of them fails the banner
 // names it, scrolling stays native and .js-scroll is never set, so the sections keep their no-JS lengths.
+// The veil lifts once the fonts are in and the hero is ready (portrait decoded, noise + portrait built, shaders
+// compiled), or at the 8 s cap. The canvas first renders on the frame the veil starts fading.
 // Debug flags: ?simulate=hang (never signals ready; the 8 s cap lifts the veil),
 //              ?simulate=cdnfail (a CDN import fails: banner naming the URL, the veil still lifts).
 import { veil } from './ui/veil.js';
@@ -11,10 +13,10 @@ import { pickTier, readEnv } from './engine/tier.js';
 import { mulberry32 } from './engine/formations/common.js';
 import { buildNoise } from './engine/formations/noise.js';
 import { buildGalaxy } from './engine/formations/galaxy.js';
+import * as hero from './sections/hero.js';
 
-/** Morph boundaries 0..1: B0 the entrance, B1–B6 the section boundaries (spec §4.3). */
+/** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries (spec §4.3). */
 export const boundaries = new Float32Array(7);
-boundaries[0] = 1;            // the entrance counts as done until the hero (Task 9) runs it
 
 const tickers = [];
 let settleEngine;
@@ -26,6 +28,7 @@ export const ctx = {
   scroll: null,
   tier: pickTier(readEnv(window)),   // once at load (spec §4.1)
   reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+  boundaries,
   engine: null,
   /** Resolves to the engine once created (formations registered), or to null without WebGL or if it failed;
    *  never rejects. Section inits await this instead of reading ctx.engine, which is null until then. */
@@ -34,7 +37,7 @@ export const ctx = {
   onTick: (fn) => { tickers.push(fn); },
 };
 
-/** Section modules in page order; each exports init(ctx). */
+/** Section modules after the hero, in page order; each exports init(ctx). The hero inits at boot (it gates the veil). */
 const SECTIONS = [];
 
 // One measuring trigger per boundary, in page order; the trigger is the incoming section (spec §4.3, §5.3).
@@ -86,6 +89,8 @@ async function loadEngine() {
     const engine = await createEngine({ canvas: document.getElementById('scene'), tier: ctx.tier, reduced: ctx.reduced });
     engine.state.boundaries = boundaries;
     registerFormations(engine);
+    engine.pause();                    // nothing WebGL draws behind the veil (spec §6.1 Exit)
+    veil.onLift(() => engine.resume());
     return engine;
   } catch (err) {
     console.warn('WebGL engine unavailable.', err);
@@ -93,13 +98,42 @@ async function loadEngine() {
   }
 }
 
-/** Noise (0) is built before the veil lifts; the galaxy (6) builds after it. */
+/** Noise (0) is built before the veil lifts (the portrait, 1, is hero.js's); the galaxy (6) builds after it. */
 function registerFormations(engine) {
   const { N } = ctx.tier;
   engine.registerFormation(0, () => buildNoise(N, { rng: mulberry32(0x4a42) }));
   engine.ensure(0).catch(() => {});   // a failed build is logged by the engine; the page carries on without it
-  // Temporary: the galaxy also stands in at 1–5 and 7 so every morph can be seen; Tasks 9–15 register the real ones.
-  for (const k of [1, 2, 3, 4, 5, 6, 7]) engine.registerFormation(k, () => buildGalaxy(N, { rng: mulberry32(600 + k) }));
+  // Temporary: the galaxy also stands in at 2–5 and 7 so every morph can be seen; Tasks 10–15 register the real ones.
+  for (const k of [2, 3, 4, 5, 6, 7]) engine.registerFormation(k, () => buildGalaxy(N, { rng: mulberry32(600 + k) }));
+}
+
+// Scroll restoration (Review Focus #2): the browser's own would restore into the no-JS layout and be wrong once
+// .js-scroll lengthens the stages. So the place is saved as { section id, fraction through it } on pagehide and
+// put back right after .js-scroll applies, on a reload or a back/forward visit; a #hash lands at its section's
+// start. The hero's entrance then sees where the page really is (hero.js entranceMode).
+const PLACE_KEY = 'latent-space:place';
+try {
+  history.scrollRestoration = 'manual';
+} catch { /* not supported: the browser restores on its own */ }
+addEventListener('pagehide', () => {
+  try {
+    sessionStorage.setItem(PLACE_KEY, JSON.stringify(ctx.scroll.anchor()));
+  } catch { /* storage blocked: a reload starts at the top */ }
+});
+
+function restorePlace() {
+  const visit = performance.getEntriesByType?.('navigation')[0]?.type;
+  let saved = null;
+  try {
+    if (visit === 'reload' || visit === 'back_forward') saved = JSON.parse(sessionStorage.getItem(PLACE_KEY));
+  } catch { /* storage blocked or garbled */ }
+  if (saved && ctx.scroll.toAnchor(saved)) return;
+  let section = null;
+  try {
+    const id = decodeURIComponent(location.hash.slice(1));
+    section = id ? document.getElementById(id)?.closest('main > section') : null;
+  } catch { /* a malformed #hash */ }
+  if (section) ctx.scroll.toAnchor({ id: section.id, fraction: 0 });
 }
 
 function createBoundaryTriggers(ScrollTrigger) {
@@ -115,6 +149,7 @@ function createBoundaryTriggers(ScrollTrigger) {
 ctx.scroll = createScroll({ reduced: ctx.reduced });
 initNav(ctx);
 initHeroFit();                // the hero name's fit needs no library
+const heroReady = hero.init(ctx);   // starts decoding the portrait now; builds and compiles once the engine exists
 
 // The engine loads alongside the scroll libraries and never holds them up; the ticker renders once it exists.
 loadEngine().then((engine) => {
@@ -139,6 +174,7 @@ if (libs) {
   ctx.gsap = gsap;
   ctx.ScrollTrigger = ScrollTrigger;
   ctx.scroll.attach({ Lenis, gsap, ScrollTrigger });
+  restorePlace();
   gsap.ticker.add((time, deltaTime) => {
     for (const fn of tickers) fn(time, deltaTime);
     ctx.engine?.tick(time * 1000);   // render last (spec §4.7: lenis.raf → section state → render)
@@ -152,9 +188,13 @@ if (libs) {
     console.error(err);
   }
   laidOut.then(() => ScrollTrigger.refresh());
+} else {
+  restorePlace();
 }
 
+// After the lift, by any route (the meter, the 8 s cap, an asset error), the other formations build in idle tasks.
+veil.onLift(() => ctx.engineReady.then((engine) => engine?.buildDeferred()));
 await document.fonts.ready;
+await heroReady;
 if (simulate === 'hang') await new Promise(() => {});
 await veil.liftWhenReady();
-ctx.engineReady.then((engine) => engine?.buildDeferred());

@@ -27,6 +27,16 @@ export function currentSection(tops, y) {
 }
 
 /**
+ * Where offset y sits: the section holding it (as currentSection) and how far through that section, 0..1.
+ * `heights` are the sections' heights; past the last section (the footer) the fraction is 1.
+ */
+export function anchorAt(tops, heights, y) {
+  const index = currentSection(tops, y);
+  const height = heights[index];
+  return { index, fraction: height > 0 ? clamp01((y - tops[index]) / height) : 0 };
+}
+
+/**
  * Scrolling starts native: main.js creates this before the CDN imports settle, so nav works even when a slow CDN
  * lets the 8 s cap lift the veil first, and calls attach() once they resolve. That upgrades the same object in
  * place, so the handlers holding it and any lock already taken carry over. Passing the libraries here attaches at
@@ -127,5 +137,17 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     lock,
     unlock,
     sectionIndex: () => currentSection(tops(), centreY()),
+    /** Where the page is: the section at the viewport's top edge and the fraction scrolled through it, { id, fraction }. */
+    anchor() {
+      const { index, fraction } = anchorAt(tops(), sections.map((s) => s.getBoundingClientRect().height), window.scrollY);
+      return { id: sections[index]?.id ?? '', fraction };
+    },
+    /** Puts the page at an anchor at once (a reload, a #hash: fraction 0); false when no section has that id. */
+    toAnchor({ id, fraction = 0 }) {
+      const el = sections.find((s) => s.id === id);
+      if (!el) return false;
+      scrollTo(pageTop(el) + clamp01(fraction) * el.getBoundingClientRect().height, { immediate: true });
+      return true;
+    },
   };
 }

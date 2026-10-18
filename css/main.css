@@ -41,6 +41,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; }
 html, body, main { overflow-x: clip; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: var(--header-h); }
+.js { scroll-padding-top: 0; }   /* main.js places #hash visits at the section's start itself (stages carry their own top padding) */
 body {
   background: var(--bg); color: var(--fg);
   font: 400 var(--fs-body)/1.55 var(--font-sans);
@@ -335,6 +336,8 @@ main > section { position: relative; }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; margin-top: clamp(24px, 2vw, 28px); }
 .cv-inline { font-size: var(--fs-label); }
 .socials { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; font-size: var(--fs-label); }
+/* portrait across the bottom half of the stage (hero.js, spec §2.2): the copy keeps a paper ground behind its top */
+.portrait-bottom .hero-copy { background: linear-gradient(to bottom, var(--bg) 0 45%, transparent 75%); }
 .hero-hud { position: absolute; top: calc(var(--header-h) + 24px); right: var(--gutter); color: var(--fg-muted); }
 .scroll-cue {
   position: absolute; bottom: 28px; left: 50%;

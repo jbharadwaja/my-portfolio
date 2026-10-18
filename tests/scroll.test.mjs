@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { jumpMode, railScrollFor, currentSection } from '../js/ui/scroll.js';
+import { jumpMode, railScrollFor, currentSection, anchorAt } from '../js/ui/scroll.js';
 test('adjacent jumps animate, far jumps cut', () => {
   assert.equal(jumpMode(0, 1), 'animate'); assert.equal(jumpMode(4, 3), 'animate');
   assert.equal(jumpMode(0, 2), 'cut'); assert.equal(jumpMode(6, 0), 'cut');
@@ -24,6 +24,15 @@ test('clamped before the first card, and a rail with no travel stays at its star
   assert.equal(railScrollFor({ ...geo, cardLeft: -500 }), 1000);
   assert.equal(railScrollFor({ ...geo, cardLeft: 300, railTravel: 0 }), 1000);
 });
+test('an anchor is the section at the viewport top and the fraction scrolled through it', () => {
+  const tops = [0, 900, 2700, 5400];
+  const heights = [900, 1800, 2700, 900];
+  assert.deepEqual(anchorAt(tops, heights, 0), { index: 0, fraction: 0 });
+  assert.deepEqual(anchorAt(tops, heights, 1800), { index: 1, fraction: 0.5 });
+  assert.deepEqual(anchorAt(tops, heights, 2700), { index: 2, fraction: 0 });
+  assert.deepEqual(anchorAt(tops, heights, 99999), { index: 3, fraction: 1 });   // past the last section (the footer)
+  assert.deepEqual(anchorAt(tops, [900, 0, 2700, 900], 900), { index: 1, fraction: 0 });   // a collapsed section
+});
 test('scroll.js imports no library (it loads in Node, so nothing touches the DOM at load)', () => {
   const src = readFileSync(new URL('../js/ui/scroll.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /^\s*import\b/m);
@@ -37,10 +46,10 @@ const IDS = ['top', 'encoder', 'training', 'work', 'route', 'about', 'contact'];
 function fakePage({ innerHeight = 900 } = {}) {
   const win = { scrollY: 0, innerHeight, scrollTo: ({ top }) => { win.scrollY = top; } };
   const anims = [];
-  const el = (id, top = 0) => {
+  const el = (id, top = 0, height = 0) => {
     const node = {
       id, dataset: {}, style: {},
-      getBoundingClientRect: () => ({ top: top - win.scrollY }),
+      getBoundingClientRect: () => ({ top: top - win.scrollY, height }),
       animate(keyframes, options) {
         const a = { el: node, options, cancelled: false, finished: Promise.resolve(), cancel() { a.cancelled = true; } };
         anims.push(a);
@@ -49,7 +58,7 @@ function fakePage({ innerHeight = 900 } = {}) {
     };
     return node;
   };
-  const sections = IDS.map((id, i) => el(id, i * 2 * innerHeight));
+  const sections = IDS.map((id, i) => el(id, i * 2 * innerHeight, 2 * innerHeight));
   const main = el('main');
   const scene = el('scene');
   const byId = Object.fromEntries([...sections, main, scene].map((n) => [n.id, n]));
@@ -151,4 +160,19 @@ test('under reduced motion the upgrade creates no Lenis, but cuts still update S
   await scroll.jumpTo('about');
   assert.equal(updates, 1);
   assert.deepEqual(page.faded(), []);
+});
+
+test('anchor() and toAnchor() put the page back in the same section at the same fraction, at once', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const scroll = createScroll({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} }, reduced: false });
+  page.win.scrollTo({ top: 2 * 2 * 900 + 450 });                     // a quarter of the way through #training
+  assert.deepEqual(scroll.anchor(), { id: 'training', fraction: 0.25 });
+  page.win.scrollTo({ top: 0 });
+  assert.equal(scroll.toAnchor({ id: 'training', fraction: 0.25 }), true);
+  assert.equal(page.win.scrollY, 2 * 2 * 900 + 450);
+  assert.equal(scroll.toAnchor({ id: 'route', fraction: 0 }), true);  // a hash URL: the section's start
+  assert.equal(page.win.scrollY, 4 * 2 * 900);
+  assert.equal(scroll.toAnchor({ id: 'gone', fraction: 0.5 }), false);
+  assert.equal(page.win.scrollY, 4 * 2 * 900);
 });
