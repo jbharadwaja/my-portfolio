@@ -87,7 +87,9 @@ const stackedHud = (head, hud) => hud.y >= head.y + head.h;
  * Whether the stage takes the side layout (a phone on its side, a very short window): the beats, held at the stage's
  * bottom, would run into the heading or the HUD, or leave the plot less than a fifth of the stage. Then the beats sit
  * under the heading and the landscape in the right column under the HUD (css/sections/training.css .is-side).
- * Measured in the regular layout.
+ * Measured in the regular layout. The fixed section HUD's zone (Ruling R54) needs no check here: both layouts keep the
+ * beats above it in CSS (the regular one 94 px from the bottom, the side one with a tighter beat that ends 70 px or
+ * more above the bottom of any stage 340 px tall or more).
  */
 export function wantsSide({ stageH, headerBottom, head, hud, beatsTop }) {
   const top = stackedHud(head, hud) ? hud.y + hud.h + PLOT.gap : headerBottom;

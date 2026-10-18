@@ -37,8 +37,13 @@
 }
 #training.is-live.is-side .beats {
   position: relative; left: auto; right: auto; bottom: auto;
-  width: calc(50% - 12px); margin-top: 16px;
+  width: calc(50% - 12px); margin-top: 12px;
 }
+/* Set tighter, so the beat ends at least 70 px above the stage's bottom on a phone on its side (812 x 375 up): from
+   768 px the fixed section HUD owns the bottom-left 210 x 70 px (Ruling R54). The body takes the label size. */
+#training.is-live.is-side .beat { padding-top: 10px; }
+#training.is-live.is-side .beat-title { margin-top: 8px; }
+#training.is-live.is-side .beat-body { margin-top: 6px; font-size: var(--fs-label); line-height: 1.45; }
 
 @media (min-width: 768px) {
   #training.is-live .train-hud {

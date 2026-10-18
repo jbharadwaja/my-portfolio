@@ -172,6 +172,33 @@ test('side layout: the landscape in the right column, below the HUD, on the stag
   assert.ok(b.x0 >= 456 && b.x1 <= 844 && b.y0 >= 88 + 99 + 16 && b.y1 <= 390 - 16, JSON.stringify(b));
 });
 
+// Phones on their side, from 768 px wide, as measured in the browser: in the regular layout, where the side layout is
+// decided, and then in the side layout with its tighter beat (css/sections/training.css). 812 × 375 is the iPhone X–13
+// mini; 768 × 360 is the narrowest beat column and a stage shorter still.
+const SIDE_STAGES = [
+  [{ vw: 812, vh: 375, stageH: 375, headerBottom: 64, head: { x: 27, y: 88, w: 304, h: 46 }, hud: { x: 425, y: 88, w: 360, h: 139 }, beatsTop: 115 },
+    { hud: { x: 425, y: 88, w: 360, h: 99 }, beats: { x: 27, y: 146, w: 367, h: 122 } }],
+  [L844, { hud: { x: 456, y: 88, w: 360, h: 99 }, beats: { x: 28, y: 147, w: 382, h: 123 } }],
+  [{ vw: 768, vh: 360, stageH: 360, headerBottom: 64, head: { x: 26, y: 88, w: 295, h: 45 }, hud: { x: 382, y: 88, w: 360, h: 139 }, beatsTop: 100 },
+    { hud: { x: 396, y: 88, w: 346, h: 115 }, beats: { x: 26, y: 145, w: 346, h: 122 } }],
+];
+// From 768 px the fixed section HUD owns the bottom-left 210 × 70 px of the viewport (Ruling R54).
+const HUD_ZONE = { w: 210, h: 70 };
+
+test('side layout from 768 px: the beat ends 70 px or more above the stage bottom, clear of the HUD zone (R54)', () => {
+  for (const [regular, laidOut] of SIDE_STAGES) {
+    const m = { ...regular, ...laidOut, side: true };
+    const { beats, stageH, vw } = m;
+    assert.equal(wantsSide(regular), true, `${vw} × ${stageH} takes the side layout`);
+    assert.ok(beats.x < HUD_ZONE.w, 'the beat column starts over the zone, so only its bottom keeps it out');
+    assert.ok(beats.y + beats.h <= stageH - HUD_ZONE.h, `${vw} × ${stageH}: beats end at ${beats.y + beats.h}, the zone starts at ${stageH - HUD_ZONE.h}`);
+    assert.ok(beats.y >= m.head.y + m.head.h, 'under the heading');
+    // The landscape keeps to the right column: beside the beats, under the HUD, on the stage.
+    const b = shown(plotRect(at(m)), m);
+    assert.ok(b.x0 >= beats.x + beats.w && b.x1 <= vw && b.y0 >= m.hud.y + m.hud.h && b.y1 <= stageH, JSON.stringify(b));
+  }
+});
+
 test('plot never collapses on a stage too short for everything', () => {
   const b = shown(plotRect(at(L844)), L844);
   assert.ok(b.y1 - b.y0 >= 0.2 * 390 / 1.08 - 1 && b.y0 >= 64);
