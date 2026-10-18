@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { jumpMode, railScrollFor, currentSection, anchorAt, placeToRestore } from '../js/ui/scroll.js';
+import { jumpMode, railScrollFor, currentSection, anchorAt, placeToRestore, offsetFor, resizeRefreshes } from '../js/ui/scroll.js';
 test('adjacent jumps animate, far jumps cut', () => {
   assert.equal(jumpMode(0, 1), 'animate'); assert.equal(jumpMode(4, 3), 'animate');
   assert.equal(jumpMode(0, 2), 'cut'); assert.equal(jumpMode(6, 0), 'cut');
@@ -44,7 +44,12 @@ import { createScroll, scrubFor, groundFill } from '../js/ui/scroll.js';
 const IDS = ['top', 'encoder', 'training', 'work', 'route', 'about', 'contact'];
 
 function fakePage({ innerHeight = 900 } = {}) {
-  const win = { scrollY: 0, innerHeight, scrollTo: ({ top }) => { win.scrollY = top; } };
+  const listeners = {};
+  const win = {
+    scrollY: 0, innerHeight, innerWidth: 1440, scrollTo: ({ top }) => { win.scrollY = top; },
+    addEventListener: (type, fn) => { (listeners[type] ??= []).push(fn); },
+    fire: (type) => (listeners[type] ?? []).forEach((fn) => fn({ type })),
+  };
   const anims = [];
   const el = (id, top = 0, height = 0) => {
     const node = {
@@ -174,7 +179,7 @@ test('anchor() and toAnchor() put the page back in the same section at the same 
   page.win.scrollTo({ top: 0 });
   assert.equal(scroll.toAnchor({ id: 'training', fraction: 0.25 }), true);
   assert.equal(page.win.scrollY, 2 * 2 * 900 + 450);
-  assert.equal(scroll.toAnchor({ id: 'route', fraction: 0 }), true);  // a hash URL: the section's start
+  assert.equal(scroll.toAnchor({ id: 'route', fraction: 0 }), true);  // a saved place at the section's start
   assert.equal(page.win.scrollY, 4 * 2 * 900);
   assert.equal(scroll.toAnchor({ id: 'gone', fraction: 0.5 }), false);
   assert.equal(page.win.scrollY, 4 * 2 * 900);
@@ -187,7 +192,7 @@ test('a reload restores the tab\'s saved place (its own pagehide wrote it last),
   const tab = { id: 'encoder', fraction: 0.2 };
   assert.deepEqual(placeToRestore({ visit: 'reload', entry, tab, hashId: 'route', ids }), tab);
   assert.deepEqual(placeToRestore({ visit: 'reload', entry, tab: null, hashId: 'route', ids }), entry);
-  assert.deepEqual(placeToRestore({ visit: 'reload', entry: { id: 'gone', fraction: 0.5 }, tab: 'garbage', hashId: 'route', ids }), { id: 'route', fraction: 0 });
+  assert.deepEqual(placeToRestore({ visit: 'reload', entry: { id: 'gone', fraction: 0.5 }, tab: 'garbage', hashId: 'route', ids }), { id: 'route', fraction: 0, land: true });
   assert.deepEqual(placeToRestore({ visit: 'reload', entry: { id: 'training', fraction: NaN }, tab: null, hashId: '', ids }), null);
 });
 test('a back/forward visit restores only its own entry\'s place, never the tab\'s newest one', () => {
@@ -195,12 +200,12 @@ test('a back/forward visit restores only its own entry\'s place, never the tab\'
   const tab = { id: 'encoder', fraction: 0.2 };
   assert.deepEqual(placeToRestore({ visit: 'back_forward', entry: { id: 'route', fraction: 0.1 }, tab, hashId: '', ids }), { id: 'route', fraction: 0.1 });
   assert.equal(placeToRestore({ visit: 'back_forward', entry: null, tab, hashId: '', ids }), null);
-  assert.deepEqual(placeToRestore({ visit: 'back_forward', entry: null, tab, hashId: 'route', ids }), { id: 'route', fraction: 0 });
+  assert.deepEqual(placeToRestore({ visit: 'back_forward', entry: null, tab, hashId: 'route', ids }), { id: 'route', fraction: 0, land: true });
 });
-test('a fresh visit ignores saved places and lands at the #hash section\'s start', () => {
+test('a fresh visit ignores saved places and lands where a jump to the #hash section lands', () => {
   const ids = ['top', 'route'];
   const saved = { id: 'route', fraction: 0.7 };
-  assert.deepEqual(placeToRestore({ visit: 'navigate', entry: saved, tab: saved, hashId: 'route', ids }), { id: 'route', fraction: 0 });
+  assert.deepEqual(placeToRestore({ visit: 'navigate', entry: saved, tab: saved, hashId: 'route', ids }), { id: 'route', fraction: 0, land: true });
   assert.equal(placeToRestore({ visit: 'navigate', entry: saved, tab: saved, hashId: '', ids }), null);
   assert.equal(placeToRestore({ visit: undefined, entry: null, tab: null, hashId: 'nowhere', ids }), null);
 });
@@ -358,4 +363,231 @@ test('while the page is locked, glides, scrollTo and cuts still move the page (f
   assert.ok(scroll.lenis.calls.every((c) => c.force === true), JSON.stringify(scroll.lenis.calls));
   scroll.unlock();
   assert.equal(scroll.lenis.stopped, false);
+});
+
+// ---------------------------------------------------------------- final review (fix wave F1)
+
+/** A ScrollTrigger stand-in with the refresh event (keepPlace listens to it). */
+function fakeTrigger({ isTouch = 0 } = {}) {
+  const on = {};
+  return {
+    isTouch,
+    update() {},
+    addEventListener: (type, fn) => { (on[type] ??= []).push(fn); },
+    refresh: () => (on.refresh ?? []).forEach((fn) => fn()),
+  };
+}
+
+/** Lays the fake page's sections out again: each `screens` viewports of `innerHeight` px tall. */
+function relayout(page, { innerWidth = page.win.innerWidth, innerHeight, screens = 2 }) {
+  page.win.innerWidth = innerWidth;
+  page.win.innerHeight = innerHeight;
+  page.sections.forEach((sec, i) => {
+    sec.getBoundingClientRect = () => ({ top: i * screens * innerHeight - page.win.scrollY, height: screens * innerHeight });
+  });
+}
+
+// C1 / E4 (Ruling R75): the Route's start shows nothing yet, so a jump to it lands at its landing point.
+test('a section with a landing point is reached there by a cut or a glide, and a #hash place lands there too', async (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const scroll = createScroll({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} }, reduced: false });
+  const routeTop = 4 * 2 * 900;
+  scroll.setLanding('route', () => routeTop + 180);
+  const seen = [];
+  scroll.on('jump', (e) => seen.push(e));
+  await scroll.jumpTo('route');                                       // from the hero: a cut
+  assert.equal(page.win.scrollY, routeTop + 180);
+  assert.deepEqual(seen.at(-1), { mode: 'cut', targetIndex: 4 });
+  page.win.scrollTo({ top: 3 * 2 * 900 + 100 });                      // in #work: a glide
+  await scroll.jumpTo('route');
+  assert.equal(page.win.scrollY, routeTop + 180);
+  assert.deepEqual(seen.at(-1), { mode: 'animate', targetIndex: 4 });
+  page.win.scrollTo({ top: 0 });
+  assert.equal(scroll.toAnchor({ id: 'route', fraction: 0, land: true }), true);   // a #route visit
+  assert.equal(page.win.scrollY, routeTop + 180);
+  assert.equal(scroll.toAnchor({ id: 'route', fraction: 0 }), true);  // a saved place keeps its own fraction
+  assert.equal(page.win.scrollY, routeTop);
+  scroll.setLanding('route', null);
+  page.win.scrollTo({ top: 0 });
+  await scroll.jumpTo('route');                                       // removed: the section's top again
+  assert.equal(page.win.scrollY, routeTop);
+});
+
+// E1: Lenis clamps to the page height it measured last, which the stages outgrow at boot for 250 ms.
+class LimitedLenis extends FakeLenis {
+  constructor() { super(); this.limit = 1000; this.resizes = 0; }
+  resize() { this.resizes++; this.limit = 99999; }
+  scrollTo(y) { super.scrollTo(Math.min(y, this.limit)); }
+}
+test('a scroll past the limit Lenis last measured re-measures it first, so a deep link near the end lands', async (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const scroll = createScroll({ Lenis: LimitedLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} }, reduced: false });
+  scroll.scrollTo(500);
+  assert.equal(scroll.lenis.resizes, 0, 'inside the limit: nothing to re-measure');
+  assert.equal(scroll.toAnchor({ id: 'contact', fraction: 0 }), true);   // a #contact visit, a reload at Contact
+  assert.equal(page.win.scrollY, 6 * 2 * 900);
+  assert.equal(scroll.lenis.resizes, 1);
+  scroll.lenis.limit = 1000;                                          // stale again
+  page.win.scrollTo({ top: 5 * 2 * 900 });
+  await scroll.jumpTo('contact');                                     // adjacent: a glide
+  assert.equal(page.win.scrollY, 6 * 2 * 900);
+  assert.equal(scroll.lenis.resizes, 2);
+});
+
+// Lenis skips a scroll to the place it believes the page is at; a ScrollTrigger refresh can move the page natively.
+class TrackingLenis extends FakeLenis {
+  constructor() { super(); this.limit = 99999; this.targetScroll = window.scrollY; this.isScrolling = false; this.resizes = 0; }
+  resize() { this.resizes++; this.targetScroll = window.scrollY; }
+  scrollTo(y) {
+    if (Math.round(y) === this.targetScroll) return;                 // Lenis 1.3: "if (target === this.targetScroll) return"
+    this.targetScroll = Math.round(y);
+    super.scrollTo(y);
+  }
+}
+test('a page moved behind Lenis\'s back is re-read before a scroll, so a scroll back to Lenis\'s old place still runs', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const scroll = createScroll({ Lenis: TrackingLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} }, reduced: false });
+  scroll.scrollTo(3916, { immediate: true });
+  assert.equal(scroll.lenis.resizes, 0);
+  page.win.scrollTo({ top: 0 });                                       // a refresh measuring from the top, natively
+  scroll.scrollTo(3916, { immediate: true });
+  assert.equal(page.win.scrollY, 3916);
+  assert.equal(scroll.lenis.resizes, 1);
+  scroll.lenis.isScrolling = 'smooth';                                 // mid-glide Lenis's target is ahead on purpose
+  scroll.lenis.targetScroll = 5000;
+  scroll.scrollTo(4200, { immediate: true });
+  assert.equal(scroll.lenis.resizes, 1);
+});
+
+test('inside a held stage the anchor carries the stage\'s progress; offsetFor prefers it while the stage holds', () => {
+  const tops = [0, 900, 3600];
+  const heights = [900, 2700, 900];
+  const ranges = [0, 1800, 0];
+  assert.deepEqual(anchorAt(tops, heights, 900 + 450, ranges), { index: 1, fraction: 450 / 2700, progress: 0.25 });
+  assert.deepEqual(anchorAt(tops, heights, 900 + 2000, ranges), { index: 1, fraction: 2000 / 2700 }, 'past the hold: the stage scrolls out');
+  assert.deepEqual(anchorAt(tops, heights, 300, ranges), { index: 0, fraction: 1 / 3 });
+  assert.equal(offsetFor({ fraction: 450 / 2700, progress: 0.25 }, 2100, 1500), 375, 'the progress, through the new hold');
+  assert.equal(offsetFor({ fraction: 0.5, progress: 0.25 }, 2000, 0), 1000, 'no hold (native scroll): the fraction');
+  assert.equal(offsetFor({ fraction: 0.5 }, 2000, 1500), 1000);
+  assert.equal(offsetFor({ fraction: 2 }, 2000, 0), 2000);
+});
+
+test('resizeRefreshes: any size change, except a touch-only URL-bar height change under 25%', () => {
+  const a = { w: 390, h: 844 };
+  assert.equal(resizeRefreshes(a, { w: 390, h: 844 }, false), false);
+  assert.equal(resizeRefreshes(a, { w: 390, h: 800 }, false), true);
+  assert.equal(resizeRefreshes(a, { w: 390, h: 760 }, true), false, 'the URL bar');
+  assert.equal(resizeRefreshes(a, { w: 844, h: 390 }, true), true, 'a rotation');
+  assert.equal(resizeRefreshes(a, { w: 390, h: 500 }, true), true, 'the keyboard, say: over 25%');
+});
+
+// C2: rotating a phone or resizing a window keeps the reader's place.
+test('after a resize the first refresh puts the reader back in the same section at the same place', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const st = fakeTrigger();
+  createScroll({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: st, reduced: false });
+  st.refresh();                                                       // the boot refresh: the layout places read against
+  page.win.scrollTo({ top: 2 * 1800 + 450 });                         // a quarter of the way into #training
+  page.win.fire('scroll');
+  relayout(page, { innerWidth: 844, innerHeight: 390 });              // the phone turns: every section is 780 px now
+  page.win.fire('resize');
+  page.win.scrollTo({ top: 3 * 1800 }); page.win.fire('scroll');      // a clamp or scroll anchoring, in the new layout
+  st.refresh();
+  assert.equal(page.win.scrollY, 2 * 780 + 195, 'a quarter of the way into the new #training');
+  page.win.scrollTo({ top: 5 * 780 }); page.win.fire('scroll');       // read against the new layout from here on
+  relayout(page, { innerWidth: 390, innerHeight: 844 });
+  page.win.fire('resize');
+  st.refresh();
+  assert.equal(page.win.scrollY, 5 * 1688, 'back at the start of #about');
+});
+
+test('a held stage keeps its progress through a resize; a refresh without a resize moves nothing; a jump is left alone', async (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  page.doc.documentElement.classList = { contains: (c) => c === 'js-scroll' };
+  const pin = page.sections[3];                                       // #work: 2 screens tall, its stage one screen
+  pin.classList = { contains: (c) => c === 'pin' };
+  pin.querySelector = () => ({ getBoundingClientRect: () => ({ height: page.win.innerHeight }) });
+  const st = fakeTrigger();
+  const scroll = createScroll({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: st, reduced: false });
+  st.refresh();
+  page.win.scrollTo({ top: 3 * 1800 + 450 }); page.win.fire('scroll');   // half way through the rail's hold
+  assert.deepEqual(scroll.anchor(), { id: 'work', fraction: 0.25, progress: 0.5 });
+  relayout(page, { innerWidth: 844, innerHeight: 390, screens: 3 });     // a wider rail: three screens tall now
+  page.win.fire('resize');
+  st.refresh();
+  assert.equal(page.win.scrollY, 3 * 1170 + 0.5 * 780, 'half way through the new hold');
+  page.win.scrollTo({ top: 1234 }); page.win.fire('scroll');
+  st.refresh();                                                          // fonts, a late library: no resize
+  assert.equal(page.win.scrollY, 1234);
+  page.win.scrollTo({ top: 0 }); page.win.fire('scroll');
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  for (const node of [page.doc.querySelector('main'), page.doc.getElementById('scene')]) {
+    node.animate = () => ({ finished: gate, cancel() {} });
+  }
+  const jump = scroll.jumpTo('contact');                                 // a cut, still fading out …
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  relayout(page, { innerWidth: 390, innerHeight: 844, screens: 2 });
+  page.win.fire('resize');
+  page.win.scrollTo({ top: 777 });
+  st.refresh();                                                          // … when the resize refresh lands
+  assert.equal(page.win.scrollY, 777, 'no restore under a running jump');
+  release();
+  await jump;
+  assert.equal(page.win.scrollY, 6 * 1688, 'the jump measured its own target');
+});
+
+test('a touch-only URL-bar resize is not a resize ScrollTrigger refreshes for: scrolling keeps reading', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const st = fakeTrigger({ isTouch: 1 });
+  createScroll({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: st, reduced: false });
+  relayout(page, { innerWidth: 390, innerHeight: 844 });
+  st.refresh();
+  page.win.innerHeight = 780;                                           // the URL bar shows; the layout stays
+  page.win.fire('resize');
+  page.win.scrollTo({ top: 3000 }); page.win.fire('scroll');
+  st.refresh();
+  assert.equal(page.win.scrollY, 3000);
+});
+
+test('a live reduced-motion switch holds the place for the refresh that follows it', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const st = fakeTrigger();
+  const scroll = createScroll({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: st, reduced: false });
+  st.refresh();
+  page.win.scrollTo({ top: 2 * 1800 + 900 }); page.win.fire('scroll');
+  scroll.setReduced(true);
+  page.win.scrollTo({ top: 0 });                                        // gsap.matchMedia's refresh measures from the top
+  st.refresh();
+  assert.equal(page.win.scrollY, 2 * 1800 + 900);
+});
+
+test('the scroll lock keeps the scrollbar\'s gutter while it hides the scrollbar, or pads the page by its width', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const html = page.doc.documentElement;
+  html.style.setProperty = (k, v) => { html.style[k] = v; };
+  html.style.removeProperty = (k) => { delete html.style[k]; };
+  // A classic 15 px scrollbar, in a browser that does not keep the gutter: hiding it widens the page.
+  let keepsGutter = false;
+  Object.defineProperty(page.doc.body, 'clientWidth', { get: () => (html.style.overflow === 'hidden' && !keepsGutter ? 1440 : 1425) });
+  const scroll = createScroll({ reduced: false });
+  scroll.lock();
+  assert.deepEqual([html.style.overflow, html.style.scrollbarGutter, html.style.paddingRight], ['hidden', 'stable', '15px']);
+  assert.equal(html.style['--lock-gap'], '15px', 'the fixed header takes the same gap');
+  scroll.unlock();
+  assert.deepEqual([html.style.overflow, html.style.scrollbarGutter, html.style.paddingRight], ['', '', '']);
+  assert.equal(html.style['--lock-gap'], undefined);
+  // One that keeps it (or overlay scrollbars): nothing to pad.
+  keepsGutter = true;
+  scroll.lock();
+  assert.deepEqual([html.style.scrollbarGutter, html.style.paddingRight], ['stable', '']);
+  scroll.unlock();
 });

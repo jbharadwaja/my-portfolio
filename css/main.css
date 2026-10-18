@@ -265,6 +265,10 @@ main, .site-footer { position: relative; z-index: 1; }
   clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
 }
 
+/* The scroll lock (scroll.js) where a browser drops a classic scrollbar's gutter: the page is padded by the
+   scrollbar's width and the fixed header keeps its right edge with it. */
+.site-header { right: var(--lock-gap, 0px); }
+
 /* components */
 .panel {
   position: relative;
