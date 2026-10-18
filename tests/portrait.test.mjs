@@ -190,3 +190,28 @@ test('the hero tightens on short laptop screens and is unchanged from 900 px tal
     assert.ok(Number(short) < most, `${text}: tighter below`);
   }
 });
+
+// Final review (experience M4): in the bottom layout the portrait was held in viewport space while the hero scrolled,
+// so at 390 × 844 its empty slot scrolled up as a blank band and the face ended up under the meta rows and the panels.
+// It now rides with its slot: held where portraitLayout put it until the slot reaches it (a short stage frames it
+// higher), then moving with the page, and held again just above the viewport once the slot has left it.
+import { slotFollow } from '../js/sections/hero.js';
+test('the bottom-layout portrait rides with its slot, never down and never further than just above the viewport', () => {
+  // 390 × 844: the rect is the slot itself
+  const tall = { x: 16, y: 352, w: 358, h: 439 };
+  assert.equal(slotFollow(tall, 352, 0), 0);
+  assert.equal(slotFollow(tall, 352, 300), -300);
+  assert.equal(slotFollow(tall, 352, 791), -791, 'the slot has just left the viewport');
+  assert.equal(slotFollow(tall, 352, 1400), -791, 'held with its bottom edge at the viewport top');
+  assert.equal(slotFollow(tall, 352, -40), 0, 'an overscroll bounce above the top moves nothing');
+  // 844 × 390: the rect starts at the copy's top (112), above the slot (432), and ends at the stage's bottom
+  const short = { x: 28, y: 112, w: 788, h: 278 };
+  assert.equal(slotFollow(short, 432, 200), 0, 'held until the slot reaches it');
+  assert.equal(slotFollow(short, 432, 320), 0);
+  assert.equal(slotFollow(short, 432, 400), -80);
+  assert.equal(slotFollow(short, 432, 5000), -390, 'held just above the viewport');
+  for (let s = 0; s < 1500; s += 7) {
+    const dy = slotFollow(tall, 352, s);
+    assert.ok(dy <= 0 && dy >= slotFollow(tall, 352, s + 7), `monotonic at ${s}`);
+  }
+});

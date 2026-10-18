@@ -61,6 +61,17 @@ export function portraitLayout({ vw, vh, h1Right, slotRect = null, copyTop = 0 }
 }
 
 /**
+ * How far the bottom layout's portrait has moved up with its slot at `scrollY` (CSS px, ≤ 0): `rect` is where
+ * portraitLayout framed it at scroll 0 and `slotY` the slot's top there. The portrait is held until the slot has
+ * scrolled up to it (on a short stage the rect sits higher than the slot), then rides with the slot, and once the slot
+ * has left the viewport it is held just above it (its bottom edge at the top), where the Hero → Encoder morph takes it.
+ */
+export function slotFollow(rect, slotY, scrollY) {
+  const y = Math.max(Math.min(rect.y, slotY - scrollY), -rect.h);
+  return Math.min(0, y - rect.y);
+}
+
+/**
  * The no-WebGL portrait's box (spec §8.3): an image of `aspect` (width / height) contained in the portrait's `rect`
  * as the engine frames a box (framing.js, with its slack), centred. Every field is a whole pixel.
  */
@@ -100,9 +111,11 @@ async function loadPortrait(url, width) {
 const sameRect = (a, b) => a === b || (Boolean(a && b) && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
 
 /**
- * The portrait's rect and the hero's keep-out rects, measured from the DOM. The pose reads `rect` every frame, so it
- * is cached here and re-measured only on resize, late fonts and the veil lift. The stage height is 100svh (the
- * sticky stages' height), which mobile toolbars showing or hiding do not change.
+ * The portrait's rect and the hero's keep-out rects, measured from the DOM as laid out at scroll 0. They are cached
+ * here and re-measured only on resize, late fonts and the veil lift. The stage height is 100svh (the sticky stages'
+ * height), which mobile toolbars showing or hiding do not change. What the engine reads every frame is `follow()`'s
+ * copy: in the bottom layout the rect and both keep-outs move up with the slot as the hero scrolls (slotFollow); in
+ * the strip layout they are held.
  */
 function createLayout({ section, h1, copy, slot, header }) {
   const probe = document.createElement('div');
@@ -112,6 +125,10 @@ function createLayout({ section, h1, copy, slot, header }) {
   const rect = { x: 0, y: 0, w: 0, h: 0 };
   let mode = '';
   let safe = null;
+  let slotY = NaN;                     // the slot's top at scroll 0 while the portrait is framed into it, else NaN
+  // The copies the engine keeps and reads every frame (an empty keep-out is off), moved in place by follow().
+  const shown = { x: 0, y: 0, w: 0, h: 0 };
+  const shownSafe = [{ x: 0, y: 0, w: 0, h: 0 }, { x: 0, y: 0, w: 0, h: 0 }];
 
   /** Returns { changed } (anything the engine reads) and { moved } (the slot came or went: the page height changed). */
   function measure() {
@@ -135,7 +152,9 @@ function createLayout({ section, h1, copy, slot, header }) {
     const band = headerBottom > 0 ? { x: 0, y: 0, w: vw, h: headerBottom } : null;
     let nextSafe = [c.h > 0 ? c : null, band];
     const s = bottom && slot ? at0(slot.getBoundingClientRect()) : null;
+    slotY = NaN;
     if (s && s.w > 0 && s.h > 0) {
+      slotY = s.y;
       // On a short stage the slot runs past the fold, and the portrait is framed where the slot sits once it has
       // scrolled fully onto the stage (portraitLayout), no higher than the copy's top.
       next = portraitLayout({ vw, vh, h1Right, slotRect: s, copyTop: c.y });
@@ -168,7 +187,20 @@ function createLayout({ section, h1, copy, slot, header }) {
     return { changed, moved };
   }
 
-  return { rect, measure, get mode() { return mode; }, get safe() { return safe; } };
+  /** The rect and keep-outs as they sit at `scrollY` (written into `shown` and `shownSafe`); returns `shown`. */
+  function follow(scrollY) {
+    const dy = Number.isNaN(slotY) ? 0 : slotFollow(rect, slotY, scrollY);
+    Object.assign(shown, rect);
+    shown.y += dy;
+    shownSafe.forEach((out, i) => {
+      const r = safe?.[i];
+      if (r) Object.assign(out, r, { y: r.y + dy });
+      else Object.assign(out, { x: 0, y: 0, w: 0, h: 0 });
+    });
+    return shown;
+  }
+
+  return { rect, measure, follow, shownSafe, get mode() { return mode; }, get safe() { return safe; } };
 }
 
 /**
@@ -256,11 +288,13 @@ export function init(ctx) {
 
   const layout = createLayout({ section, h1, copy, slot, header });
   // Formation 0 (the noise the portrait denoises from) is framed into the same rect, so the face resolves in place.
-  const pose = { roll: 0, rect: () => layout.rect };
+  // The camera reads it as it updates, before the frame's uniforms (the keep-outs) are written: one follow() serves both.
+  const pose = { roll: 0, rect: () => layout.follow(window.scrollY) };
   let engine = null;
   let halftone = null;                 // the no-WebGL portrait while it is mounted
   const frameEngine = () => {
-    engine.setSafeRects({ 0: layout.safe, 1: layout.safe });
+    layout.follow(window.scrollY);
+    engine.setSafeRects({ 0: layout.shownSafe, 1: layout.shownSafe });
     engine.setPose(0, pose);   // re-runs each built formation's density estimate at the new framing
     engine.setPose(1, pose);
   };
