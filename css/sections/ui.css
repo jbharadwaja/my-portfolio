@@ -1,1 +1,97 @@
 /* UI chrome shared across sections (HUD, console, rail controls): styles filled in by its own task. */
+
+/* ---- custom cursor: mouse only, from the first move (html.cursor-on); hidden while the console is open */
+:root.cursor-on:not(.console-shown),
+:root.cursor-on:not(.console-shown) * { cursor: none !important; }
+:root.cursor-on:not(.console-shown) :is(input[type="text"], textarea) { cursor: text !important; }
+
+.cursor {
+  --cursor-fg: var(--chrome-fg);       /* ink on paper, mist on night (spec §2.1) */
+  --cursor-bg: var(--bg);
+  display: none;
+  position: fixed; inset: 0 auto auto 0; z-index: 150;
+  pointer-events: none;
+}
+:root[data-ground="night"] .cursor { --cursor-bg: var(--bg-dark); }
+:root.cursor-on .cursor { display: block; }
+:root.console-shown .cursor, .cursor.is-out { visibility: hidden; }
+
+.cursor-dot, .cursor-ring {
+  position: fixed; top: 0; left: 0;
+  translate: -50% -50%;                /* centred on the point cursor.js moves it to */
+  border-radius: 50%;
+  will-change: transform;
+}
+.cursor-dot { width: 8px; height: 8px; background: var(--cursor-fg); transition: background-color 200ms; }
+.cursor-ring {
+  display: grid; place-items: center;
+  width: 28px; height: 28px;
+  border: 1px solid var(--cursor-fg);
+  transition: width 200ms var(--ease-flood), height 200ms var(--ease-flood), border-color 200ms, background-color 200ms, opacity 150ms;
+}
+.cursor-label {
+  font-size: var(--fs-mono-small); letter-spacing: .04em; line-height: 1;
+  color: var(--cursor-bg);             /* paper on the ink disc, 18:1 */
+  opacity: 0; transition: opacity 150ms;
+}
+.cursor.is-link .cursor-ring, .cursor.is-drag .cursor-ring { width: 48px; height: 48px; }
+.cursor.is-drag .cursor-ring { background: var(--cursor-fg); }
+.cursor.is-drag .cursor-label { opacity: 1; }
+
+/* Over the Route map while the reticle is on: a crosshair in place of the dot and ring (the readout is route.js's). */
+.cursor.is-cross .cursor-ring { opacity: 0; }
+.cursor.is-cross .cursor-dot { width: 25px; height: 25px; border-radius: 0; background: transparent; }
+.cursor.is-cross .cursor-dot::before, .cursor.is-cross .cursor-dot::after {
+  content: ""; position: absolute; background: var(--cursor-fg);
+}
+.cursor.is-cross .cursor-dot::before { left: 0; right: 0; top: 12px; height: 1px; }
+.cursor.is-cross .cursor-dot::after { top: 0; bottom: 0; left: 12px; width: 1px; }
+
+/* Links that are inline boxes take no translate: while the cursor is on they become inline-blocks, so they can lean
+   toward it (each is one short line, so nothing reflows). */
+:root.cursor-on :is(.nav-links, .sheet-links, .socials, .signoff-links) a { display: inline-block; }
+
+/* ---- ~ console: a night panel dropped from the top over the dimmed page; the log scrolls, the page does not */
+.console {
+  position: fixed; inset: 0; z-index: 80;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  background: rgb(10 10 10 / .32);
+  font: 500 var(--fs-label)/1.55 var(--font-mono);
+  font-stretch: 100%;
+  color: var(--fg-on-dark);
+}
+.console-log, .console > .console-prompt, .console-input { background: var(--c-night); }
+.console-log {
+  grid-column: 1 / -1;
+  height: 48vh; height: min(48svh, 460px);
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 20px var(--gutter) 8px;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.console-echo { color: var(--fg-on-dark-muted); }
+.console-prompt { color: var(--accent); }                /* orange on night: 5.76:1 */
+.console > .console-prompt, .console-input { padding-block: 12px 14px; border-bottom: 2px solid var(--accent); }
+.console > .console-prompt { padding-left: var(--gutter); }
+.console-input {
+  min-width: 0; padding-inline: 1ch var(--gutter);
+  border-width: 0 0 2px; border-radius: 0;
+  font: inherit; letter-spacing: inherit;
+  color: var(--fg-on-dark); caret-color: var(--accent);
+  outline: none;                       /* focus never leaves it while open; the caret marks it */
+}
+.console-log a { text-decoration-color: var(--fg-on-dark-muted); }
+.console :focus-visible { outline-color: var(--c-mist); }
+.console-curve { margin-block: 4px; white-space: pre; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .console:not([hidden]) { animation: console-dim 200ms ease-out; }
+  .console:not([hidden]) > * { animation: console-drop 260ms var(--ease-flood); }
+}
+@keyframes console-dim { from { background-color: transparent; } }
+@keyframes console-drop { from { opacity: 0; translate: 0 -16px; } }
+
+@media (max-width: 767.98px) {
+  .console-log { height: 40vh; height: 40svh; padding-top: 16px; }   /* the input stays above an on-screen keyboard */
+}
