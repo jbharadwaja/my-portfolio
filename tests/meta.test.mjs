@@ -126,6 +126,14 @@ test('404 uses the spec tokens: paper ground, ink type, orange never as text', (
   assert.doesNotMatch(css.replace(/--c-signal[^;]*;/g, ''), /(?:^|[;{\s])color:[^;]*(?:accent|signal)/);
 });
 
+test('404: the way back is a full-size tap target that keeps its place (padding cancelled by margin, >= 24 px, WCAG 2.5.8)', () => {
+  const css = nf.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const rule = css.match(/(^|\n)a \{([^}]*)\}/)[2];
+  assert.match(rule, /display: inline-block;/);
+  const pad = Number(rule.match(/padding-block: (\d+)px;/)?.[1]);
+  assert.ok(pad >= 12, `padding-block ${pad}px: the 13 px label line grows to at least 24 px plus air`);
+  assert.match(rule, new RegExp(`margin-block: -${pad}px;`), 'the padding does not move the link');
+});
 // README
 test('README documents local dev, tests, debug flags, asset tools and deploy', () => {
   const md = read('../README.md');
