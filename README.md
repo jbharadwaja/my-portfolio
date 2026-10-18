@@ -59,13 +59,14 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `common` | the seeded random generator, sampling, and the shared formation helpers (dust, shuffle, noise, galaxy) |
 | `console` | the ~ console's commands, completion and edit distance, focus and keys (fake DOM); the cursor's maths |
 | `content` | the page copy in `index.html`: sections, cards (charts, links), route stops, the About photo, CV links |
+| `cv` | the CV link state: the LinkedIn fallback that ships and the publish state, written to every CV link |
 | `density` | the particle density estimate: alpha and point size per tier |
 | `framing` | camera framing: distance, shift and pose blending |
 | `geo` | the world-map dot lattice, its projection and the latitude/longitude readout |
-| `halftone` | the About photo's halftone reveal |
+| `halftone` | the halftone reveal (the About photo, and the no-WebGL hero portrait): dots, healing, the touch sweep |
 | `head` | `<head>`: import map, fonts, preloads, the inline boot script, the veil markup and its critical CSS |
-| `landscape` | the training run: the loss landscape, the resampled descent, HUD values, the no-JS curve, stage layout |
-| `meta` | SEO meta and JSON-LD, module preloads, `404.html`, `og.png`, `.gitignore` and this README |
+| `landscape` | the training run: the loss landscape, the resampled descent, HUD values, the no-JS curve and HUD line, stage layout |
+| `meta` | SEO meta and JSON-LD, module preloads, `404.html`, `og.png`, `.gitignore` and this README (this table too) |
 | `morph` | formation pair changes: hand-offs, and the dip on far jumps |
 | `name` | the sign-off name formation and its layout rects |
 | `nav` | the section HUD's resting state |
@@ -73,13 +74,13 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `portrait` | the hero: image weights, the portrait formation, its layout and the entrance |
 | `rail` | the experiments rail: geometry, clusters, charts and count-ups |
 | `resolver` | which formation pair the scroll shows, the entrance, dips and the night ramp |
-| `route` | the world map and route formation, the Route timeline, the night ground and the reticle readout |
+| `route` | the world map and route formation, the Route timeline, the night ground, the reticle readout, the no-WebGL map |
 | `scaffold` | the section list, the section stylesheets and `init` exports, and how `main.js` loads them |
-| `scroll` | scroll maths (jumps, rail centring, current section, restoring a place) and the scroll module itself |
+| `scroll` | scroll maths (jumps, rail centring, current section, restoring a place) and the scroll module itself (Lenis on and off) |
 | `sections` | the section loader: every import at once, inits one after another in page order, failures logged |
 | `split` | metric parsing and formatting for the count-ups |
 | `tier` | device tier choice, the DPR budget, resize filtering and adaptive quality |
-| `veil` | the loading veil's progress and the boot script's never-hang lift |
+| `veil` | the loading veil's progress, the boot script's never-hang lift and banner, and the wait for the font sheets |
 
 ## Debug flags
 

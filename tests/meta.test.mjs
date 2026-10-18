@@ -132,6 +132,13 @@ test('README documents local dev, tests, debug flags, asset tools and deploy', (
   for (const needle of ['python3 -m http.server', 'npm test', '?debug', '?nowebgl', '?simulate=cdnfail', '?simulate=hang',
     'cutout.swift', 'bake-worldmap.mjs', 'GitHub Pages', '404.html', '.nojekyll']) assert.ok(md.includes(needle), needle);
 });
+test('README Tests table lists every suite in tests/, and only those', () => {
+  const md = read('../README.md');
+  const section = md.slice(md.indexOf('## Tests'), md.indexOf('## Debug flags'));
+  const listed = [...section.matchAll(/^\| `([\w-]+)` \|/gm)].map((m) => m[1]).sort();
+  const suites = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.test.mjs')).map((f) => f.slice(0, -'.test.mjs'.length)).sort();
+  assert.deepEqual(listed, suites);
+});
 test('README layout names the off-page strings module and the ~ console', () => {
   const md = read('../README.md');
   const layout = md.slice(md.indexOf('## Layout'), md.indexOf('## Local development'));
