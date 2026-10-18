@@ -30,6 +30,7 @@ const REDUCED = '(prefers-reduced-motion: reduce)';
 const LATE_FADE_MS = 400;              // a late engine's canvas fades in (spec §6.1)
 const LATE_BUILD_WAIT_MS = 1500;       // ...once the formations on screen are built, or after this long at most
 const HERO_FADE_MS = 300;              // without gsap's ticker, the canvas fades as the hero leaves or returns (R68)
+const FONT_REFRESH_MS = 150;           // after a late font's relayouts, ScrollTrigger re-measures (debounced)
 const FAILING_GSAP = 'https://cdn.jsdelivr.net/npm/gsap@0.0.0-nope/index.js';   // ?simulate=cdnfail
 
 /** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries (spec §4.3). */
@@ -447,6 +448,13 @@ if (libs) {
     console.error(err);
   }
   laidOut.then(() => ScrollTrigger.refresh());
+  // Fonts that arrive late (a stalled font sheet, past the cap) refit the hero name and re-wrap the copy (hero.js,
+  // split.js), which moves every section below: the triggers re-measure once those relayouts have run.
+  let fontTimer = 0;
+  document.fonts?.addEventListener('loadingdone', () => {
+    clearTimeout(fontTimer);
+    fontTimer = setTimeout(() => ScrollTrigger.refresh(), FONT_REFRESH_MS);
+  });
 }
 
 await fonts;
