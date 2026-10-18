@@ -1,19 +1,23 @@
 // Formation 3 — the loss landscape of the training run (spec §2.4, §4.2 row 3). Pure and Node-testable.
-// f(x, y) is a bowl with two gaussian wells and gentle ripples on x, y ∈ [−3, 3]. A fixed-step gradient descent
-// from START is the training run: epoch e puts the ball at P(e) and the HUD's losses are f(P(e)) rescaled.
-// The formation is the surface seen from above at an angle: a regular grid, extra particles on six contour bands
-// (so the surface reads as contour lines), and faint dust.
+// f(x, y) is a bowl with two gaussian wells and gentle ripples on x, y ∈ [−3, 3]. The training run is a dense
+// fixed-step gradient descent from START, resampled into epochs: epoch e puts the ball at P(e) and the HUD's losses
+// are f(P(e)) rescaled. The formation is the surface seen from above at an angle: a regular grid, extra particles on
+// six contour bands (so the surface reads as contour lines), and faint dust.
 import { makeFormation, fillDust, shuffle } from './common.js';
 
 const EXTENT = 3;                      // x, y ∈ [−EXTENT, EXTENT]
 const GRID_CELLS = 200;                // the grid gridMin() searches: 200 × 200 samples, edges included
 const GRAD_H = 1e-4;                   // central-difference step of the numeric gradient
 export const EPOCHS = 100;
-// Committed start and step (spec §2.4): a classic training curve (Ruling R59). From high on the far rim the run comes
-// down between the two wells — the loss falls fast, then more slowly across the shoulder — drops into the deeper
-// well by epoch 22 and settles there without a visible bounce: train reads 0.180 from then on.
-export const START = [-1.8, 2.9];
-export const STEP = 0.37;
+// Committed constants (spec §2.4 revised, Ruling R62): DENSE_STEPS small steps of STEP from START, resampled so that
+// epoch e sits at dense index ∝ (1 − e^(−e/TAU)). The run starts on the far flank of the deeper well and comes down
+// toward the viewer into it: train falls fast, and after epoch 5 every drop is smaller than the one before (no cliff);
+// ≈ 0.30 by epoch 25, ≈ 0.20 by 60, still easing down at 100 (0.190), with the ball creeping on to the end. On this
+// landscape a start farther out crosses flat ground before the well's wall, and the curve takes an S shape.
+export const START = [0.9, 1.4];
+export const STEP = 3e-4;
+export const DENSE_STEPS = 2500;
+export const TAU = 28;
 
 const LOSS = { start: 1.2, min: 0.18 };   // f(P[0]) → 1.200, gridMin() → 0.180
 const VAL = { base: 1.04, gain: 0.08 };   // val(e) = train(e) · (1.04 + 0.08 · e/100)
@@ -73,17 +77,35 @@ function normalised(f) {
 }
 
 let path = null;
-/** P[0..100]: [x, y, f(x, y)] by fixed-step gradient descent from START (numeric gradient, h = 1e-4). Computed once. */
+/**
+ * P[0..100]: [x, y, f(x, y)] per epoch (computed once). DENSE_STEPS fixed steps of gradient descent from START
+ * (numeric gradient, h = 1e-4), resampled on an exponential-progress schedule: epoch e lies at dense index
+ * DENSE_STEPS · (1 − e^(−e/TAU)) / (1 − e^(−100/TAU)), between two steps by lerp. P[0] is START, P[100] the last step.
+ */
 export function descentPath() {
   if (path) return path;
+  const xs = new Float64Array(DENSE_STEPS + 1);
+  const ys = new Float64Array(DENSE_STEPS + 1);
   let [x, y] = START;
-  path = [[x, y, landscapeF(x, y)]];
-  for (let k = 0; k < EPOCHS; k++) {
+  xs[0] = x;
+  ys[0] = y;
+  for (let k = 1; k <= DENSE_STEPS; k++) {
     const gx = (landscapeF(x + GRAD_H, y) - landscapeF(x - GRAD_H, y)) / (2 * GRAD_H);
     const gy = (landscapeF(x, y + GRAD_H) - landscapeF(x, y - GRAD_H)) / (2 * GRAD_H);
     x -= STEP * gx;
     y -= STEP * gy;
-    path.push([x, y, landscapeF(x, y)]);
+    xs[k] = x;
+    ys[k] = y;
+  }
+  const whole = 1 - Math.exp(-EPOCHS / TAU);
+  path = [];
+  for (let e = 0; e <= EPOCHS; e++) {
+    const at = (DENSE_STEPS * (1 - Math.exp(-e / TAU))) / whole;
+    const k = Math.min(DENSE_STEPS - 1, Math.floor(at));
+    const s = at - k;
+    const px = xs[k] + (xs[k + 1] - xs[k]) * s;
+    const py = ys[k] + (ys[k + 1] - ys[k]) * s;
+    path.push([px, py, landscapeF(px, py)]);
   }
   return path;
 }
@@ -101,8 +123,8 @@ export function pathAt(e, out = [0, 0, 0]) {
 const at = [0, 0, 0];
 /**
  * The HUD's losses at epoch e: train = f(P(e)) rescaled so f(P[0]) → 1.200 and gridMin() → 0.180; val per
- * spec §2.4. The deep well's floor dips a hair (≈ 3e-4) below the grid minimum between grid points, where the settled
- * run lies: train holds at 0.180 there instead of reading under it.
+ * spec §2.4. Train never reads under 0.180: the deep well's floor dips a hair (≈ 3e-4) below the grid minimum, between
+ * grid points.
  */
 export function epochValues(e) {
   const t = clamp(e, 0, EPOCHS);

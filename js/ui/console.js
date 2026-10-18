@@ -2,7 +2,7 @@
 // the page's own DOM at boot, so it can never disagree with the page; `resume` follows the CV link as the DOM has it
 // when the command runs. The parser, completion, the "did you mean" distance and the ASCII loss curve are pure and
 // Node-testable; createConsole touches the DOM only when it is called.
-import { railScrollFor } from './scroll.js';
+import { railPositionFor } from '../sections/experiments.js';
 import { HELP, WHOAMI, CONSOLE } from '../content.js';
 
 const GUESS_MAX = 2;                   // "did you mean" only within this edit distance
@@ -11,6 +11,8 @@ const SKILL_W = 12;                    // skills' name column
 const MAILTO_DELAY_MS = 800;
 const TRAIN_MS = 2000;                 // the loss curve draws over ~2 s
 const CURVE = { cols: 36, rows: 7 };
+const PAGE = 0.875;                    // PageUp/PageDown move the log by this share of its height, as a browser pages
+const MODIFIERS = new Set(['Alt', 'AltGraph', 'CapsLock', 'Control', 'Fn', 'Meta', 'Shift']);
 
 const ARG = / <[^>]+>$/;
 /** The commands as typed: HELP's keys without their argument ('open <n>' → 'open'). */
@@ -165,36 +167,6 @@ export function readConsoleContext(doc) {
   };
 }
 
-/**
- * Where `open <n>` takes the page: the scroll that centres rail card `index` (spec §5.4 railScrollFor), over the rail
- * trigger's range (#work 'top top' to 'bottom bottom') and the rail's travel (the first card's centre to the last's).
- * Without the rail (no scroll libraries), the card's own place under the header. Null when there is no such card.
- */
-function railTarget(doc, index) {
-  const section = doc.getElementById('work');
-  const viewport = section?.querySelector('.rail-viewport');
-  const cards = viewport ? [...viewport.querySelectorAll('.card')] : [];
-  const card = cards[index];
-  if (!card) return null;
-  const pageTop = (el) => el.getBoundingClientRect().top + window.scrollY;
-  if (!section.classList.contains('rail-on')) {
-    return { card, y: pageTop(card) - (doc.querySelector('.site-header')?.offsetHeight ?? 0) };
-  }
-  const start = pageTop(section);
-  const centre = (el) => el.offsetLeft + el.offsetWidth / 2;
-  return {
-    card,
-    y: railScrollFor({
-      stStart: start,
-      stEnd: start + section.offsetHeight - window.innerHeight,
-      cardLeft: viewport.getBoundingClientRect().left + card.offsetLeft,
-      cardWidth: card.offsetWidth,
-      innerWidth: doc.documentElement.clientWidth,
-      railTravel: centre(cards[cards.length - 1]) - centre(cards[0]),
-    }),
-  };
-}
-
 const isEditable = (el) => Boolean(el?.closest?.('input, textarea, select')) || Boolean(el?.isContentEditable);
 
 // ---------------------------------------------------------------- the dialog
@@ -203,7 +175,10 @@ const isEditable = (el) => Boolean(el?.closest?.('input, textarea, select')) || 
  * Wires the console dialog `root` (its .console-log and .console-input) and the footer's .console-open button:
  * ` or ~ opens it (not while typing in a field or with another dialog open), Esc, `exit` or a click on the dimmed
  * page closes it. While open, the page scroll is locked through `scroll`, the custom cursor hides (html.console-shown)
- * and keys stay in the input: Tab completes, ↑/↓ walk the history. On close, focus returns where it was.
+ * and keys stay in the input: Tab completes, ↑/↓ walk the history, PageUp/PageDown scroll the log. A key pressed
+ * elsewhere (focus strayed to the page: a click on the log) goes to the input, except a Ctrl/Meta shortcut, a bare
+ * modifier or any key while log text is selected, so the selection can be copied. On close, focus returns where it
+ * was, or leaves the hidden input.
  */
 export function createConsole({ root, scroll, ctx }) {
   const doc = root.ownerDocument;
@@ -228,6 +203,14 @@ export function createConsole({ root, scroll, ctx }) {
   const otherDialogOpen = () => [...doc.querySelectorAll('[role="dialog"][aria-modal="true"]')]
     .some((dialog) => dialog !== root && !dialog.hidden);
   const toEnd = () => { log.scrollTop = log.scrollHeight; };
+  const selectingLog = () => {
+    const selection = doc.getSelection();
+    return Boolean(selection && !selection.isCollapsed
+      && (log.contains(selection.anchorNode) || log.contains(selection.focusNode)));
+  };
+  // A key pressed with focus outside the console goes to its input, unless it is a Ctrl/Meta shortcut, a bare modifier
+  // or the reader is selecting log text (to copy it).
+  const takesStrayKey = (e) => !e.ctrlKey && !e.metaKey && !MODIFIERS.has(e.key) && !selectingLog();
 
   function line(className) {
     const row = doc.createElement('div');
@@ -281,6 +264,8 @@ export function createConsole({ root, scroll, ctx }) {
     const back = returnTo;
     returnTo = null;
     if (returnFocus && back && back !== doc.body && back.isConnected) back.focus({ preventScroll: true });
+    // Otherwise off the hidden input now: left there until the browser's next focus fixup, it would swallow a ~.
+    else if (root.contains(doc.activeElement)) doc.activeElement.blur();
   }
 
   function train() {
@@ -314,11 +299,12 @@ export function createConsole({ root, scroll, ctx }) {
     frame = requestAnimationFrame(step);
   }
 
-  // `open <n>`: close, then jump to that card's place on the rail; focus lands on it once the page is there.
+  // `open <n>`: close, then jump to that card's place on the rail; focus lands on it once the page is there. The
+  // place is measured after the close, with the page's scrollbar back.
   function jumpToCard(index) {
     close({ returnFocus: false });
-    const target = railTarget(doc, index);
-    if (target) scroll.jumpTo(target.y).then(() => target.card.focus({ preventScroll: true }));
+    const card = doc.querySelectorAll('#work .card')[index];
+    if (card) scroll.jumpTo(railPositionFor(card)).then(() => card.focus({ preventScroll: true }));
   }
 
   function perform(action) {
@@ -390,7 +376,10 @@ export function createConsole({ root, scroll, ctx }) {
     } else if (e.key === 'Tab' && e.target !== input) {
       e.preventDefault();              // never out of the console: back to the input
       input.focus({ preventScroll: true });
-    } else if (!root.contains(e.target)) {
+    } else if ((e.key === 'PageUp' || e.key === 'PageDown') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      log.scrollBy({ top: (e.key === 'PageUp' ? -PAGE : PAGE) * log.clientHeight });
+    } else if (!root.contains(e.target) && takesStrayKey(e)) {
       input.focus({ preventScroll: true });   // focus strayed (a click on the log text): the key goes to the input
     }
   });

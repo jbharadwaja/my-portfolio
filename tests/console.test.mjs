@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runCommand, complete, levenshtein, projectLine, lossCurve } from '../js/ui/console.js';
-import { ringFactor, isDrag, magnetPull } from '../js/ui/cursor.js';
+import { runCommand, complete, levenshtein, projectLine, lossCurve, createConsole } from '../js/ui/console.js';
+import { ringFactor, isDrag, magnetPull, watchesReticle } from '../js/ui/cursor.js';
 const card = { index: 'EXP_01', title: 'Movie review sentiment', metric: 'F1 0.90', verdict: 'BEAT TARGET' };
 const ctx = { cards: Array(8).fill(card), skills: [], journey: [], contact: [] };
 test('whoami', () => assert.deepEqual(runCommand('whoami', ctx).lines, ['julian bharadwaja — data scientist · ml engineer · data analyst — tustin, ca']));
@@ -71,4 +71,162 @@ test('the train curve is ASCII only, drawn left to right', () => {
   const stars = (lines) => lines.join('').split('*').length - 1;
   assert.equal(stars(start), 0);
   assert.ok(stars(lossCurve(0.5)) > 0 && stars(lossCurve(0.5)) < stars(end));
+});
+
+// ---------------------------------------------------------------- the dialog, on a small fake DOM
+
+/** Just enough of an element for createConsole: a tree, class names, focus, listeners, a scroll box. */
+class FakeElement {
+  constructor(doc, tag, className = '') {
+    Object.assign(this, { ownerDocument: doc, tagName: tag.toUpperCase(), className, parentNode: null, children: [] });
+    Object.assign(this, { hidden: false, value: '', textContent: '', attributes: {}, listeners: {} });
+    Object.assign(this, { scrollTop: 0, scrollHeight: 0, clientHeight: 0, isContentEditable: false, isConnected: true });
+  }
+  get classList() {
+    const names = () => this.className.split(' ').filter(Boolean);
+    return {
+      contains: (name) => names().includes(name),
+      add: (name) => { if (!names().includes(name)) this.className = [...names(), name].join(' '); },
+      remove: (name) => { this.className = names().filter((n) => n !== name).join(' '); },
+    };
+  }
+  append(...nodes) {
+    for (const node of nodes) {
+      if (!(node instanceof FakeElement)) continue;   // text: the tests read no output
+      node.parentNode = this;
+      this.children.push(node);
+    }
+  }
+  before(node) {
+    node.parentNode = this.parentNode;
+    this.parentNode.children.splice(this.parentNode.children.indexOf(this), 0, node);
+  }
+  replaceChildren() { this.children = []; }
+  cloneNode() { return new FakeElement(this.ownerDocument, this.tagName, this.className); }
+  setAttribute(name, value) { this.attributes[name] = String(value); }
+  getAttribute(name) { return this.attributes[name] ?? null; }
+  contains(node) {
+    for (let n = node; n; n = n.parentNode) if (n === this) return true;
+    return false;
+  }
+  /** Only the selector lists the console uses: tag names ('input, textarea, select'). */
+  closest(selector) {
+    const tags = selector.split(',').map((s) => s.trim().toUpperCase());
+    for (let n = this; n; n = n.parentNode) if (tags.includes(n.tagName)) return n;
+    return null;
+  }
+  /** Only class selectors ('.console-log'). */
+  querySelector(selector) {
+    for (const child of this.children) {
+      if (child.classList.contains(selector.slice(1))) return child;
+      const found = child.querySelector(selector);
+      if (found) return found;
+    }
+    return null;
+  }
+  addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); }
+  focus() { this.ownerDocument.activeElement = this; }
+  blur() { if (this.ownerDocument.activeElement === this) this.ownerDocument.activeElement = this.ownerDocument.body; }
+  scrollBy({ top = 0 }) { this.scrollTop += top; }
+  setSelectionRange() {}
+}
+
+/** A page with the console dialog (#console: .console-log, .console-input) closed, and focus on <body>. */
+function consolePage() {
+  globalThis.matchMedia ??= () => ({ matches: false });
+  const doc = {
+    listeners: {},
+    selection: { isCollapsed: true, anchorNode: null, focusNode: null },
+    addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); },
+    createElement(tag) { return new FakeElement(this, tag); },
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getSelection() { return this.selection; },
+  };
+  doc.documentElement = new FakeElement(doc, 'html');
+  doc.body = new FakeElement(doc, 'body');
+  doc.documentElement.append(doc.body);
+  doc.activeElement = doc.body;
+  const root = new FakeElement(doc, 'div', 'console');
+  root.hidden = true;
+  const log = new FakeElement(doc, 'div', 'console-log');
+  log.clientHeight = 400;
+  const input = new FakeElement(doc, 'input', 'console-input');
+  root.append(log, input);
+  doc.body.append(root);
+  const scroll = { lock() {}, unlock() {}, jumpTo: () => Promise.resolve() };
+  const api = createConsole({ root, scroll, ctx: { cards: [], skills: [], journey: [], contact: [] } });
+  /** A keydown on `target` (the focused element by default), bubbling up to the document: whether it was prevented. */
+  const press = (key, { target = doc.activeElement, ...mods } = {}) => {
+    let prevented = false;
+    const e = {
+      key, target, repeat: false, isComposing: false, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods,
+      preventDefault: () => { prevented = true; },
+    };
+    for (let n = target; n; n = n.parentNode) for (const fn of n.listeners.keydown ?? []) fn(e);
+    for (const fn of doc.listeners.keydown ?? []) fn(e);
+    return prevented;
+  };
+  return { doc, root, log, input, api, press };
+}
+
+test('Esc on a console opened from the page leaves focus off its hidden input, so ~ at once reopens it', () => {
+  const { doc, root, input, press } = consolePage();
+  press('~');
+  assert.equal(root.hidden, false);
+  assert.equal(doc.activeElement, input);
+  press('Escape');
+  assert.equal(root.hidden, true);
+  assert.notEqual(doc.activeElement, input, 'focus is not left on the hidden input');
+  press('~');                          // the same frame: no focus fixup by the browser in between
+  assert.equal(root.hidden, false, '~ reopens it');
+});
+
+test('keys pressed outside the input go to it, but not Ctrl/Meta combos, bare modifiers or keys over a log selection', () => {
+  const { doc, log, input, api, press } = consolePage();
+  api.open();
+  const strayed = () => doc.body.focus();   // a click on the log text: focus on <body>
+  for (const [key, mods] of [['c', { metaKey: true }], ['c', { ctrlKey: true }], ['Meta'], ['Control'], ['Shift'], ['Alt']]) {
+    strayed();
+    press(key, mods);
+    assert.equal(doc.activeElement, doc.body, `${key} ${JSON.stringify(mods ?? {})} keeps focus (and the selection) where it is`);
+  }
+  strayed();
+  const line = log.children[0];
+  doc.selection = { isCollapsed: false, anchorNode: line, focusNode: line };
+  press('c');
+  assert.equal(doc.activeElement, doc.body, 'a key over a selection in the log leaves it alone');
+  doc.selection = { isCollapsed: true, anchorNode: line, focusNode: line };
+  press('c');
+  assert.equal(doc.activeElement, input, 'a key with nothing selected goes to the input');
+});
+
+test('PageUp and PageDown scroll the log by most of its height', () => {
+  const { log, api, press } = consolePage();
+  api.open();
+  log.scrollTop = 1000;
+  assert.equal(press('PageUp'), true);
+  assert.ok(log.scrollTop < 1000 && log.scrollTop >= 1000 - 400, `PageUp: ${log.scrollTop}`);
+  const up = log.scrollTop;
+  assert.equal(press('PageDown'), true);
+  assert.equal(log.scrollTop, 1000, `PageDown: ${log.scrollTop}`);
+  assert.ok(1000 - up > 0.5 * 400);
+});
+
+// The cursor's frame loop keeps running for a resting pointer only while route.js draws the reticle there.
+test('the cursor watches a stage only while its reticle is on, not every stage with a readout', () => {
+  // The readout inside a stage with these classes; closest() handles compound class selectors ('.stage.reticle-on').
+  const readoutIn = (stageClasses) => {
+    const stage = { classList: new Set(stageClasses.split(' ')), parentNode: null };
+    const node = { classList: new Set(['reticle-readout']), parentNode: stage };
+    node.closest = (selector) => {
+      const want = selector.split('.').filter(Boolean);
+      for (let n = node; n; n = n.parentNode) if (want.every((c) => n.classList.has(c))) return n;
+      return null;
+    };
+    return node;
+  };
+  assert.equal(watchesReticle(readoutIn('stage')), false, 'the Route stage, its readout in place, the reticle off');
+  assert.equal(watchesReticle(readoutIn('stage reticle-on')), true);
+  assert.equal(watchesReticle(null), false);
 });

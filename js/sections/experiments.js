@@ -68,6 +68,20 @@ export function shouldCount(rect, vw) {
   return rect.left < ENTER_X * vw && rect.right > 0;
 }
 
+// The live rail's card → page y, set by init once the rail's trigger exists.
+let centreOnRail = null;
+
+/**
+ * The page y that brings rail card `card` to the centre (spec §5.4 railScrollFor over the rail trigger's range and
+ * the rail's travel), measured when called: the rail's own keyboard focus and the console's `open <n>` both go there.
+ * Without the live rail (no scroll libraries), the card's own place under the header.
+ */
+export function railPositionFor(card) {
+  if (centreOnRail) return centreOnRail(card);
+  const header = document.querySelector('.site-header')?.offsetHeight ?? 0;
+  return card.getBoundingClientRect().top + window.scrollY - header;
+}
+
 // ---------------------------------------------------------------- charts (pure)
 
 const decimalsOf = (text) => {
@@ -75,8 +89,9 @@ const decimalsOf = (text) => {
   return dot < 0 ? 0 : text.length - dot - 1;
 };
 
-// A data-series string's tokens: its strings (labels, flags) or its numbers, as written. Each entry holds one number.
-const SERIES_TOKEN = /"(?:[^"\\]|\\.)*"|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+// A data-series string's tokens: its strings (labels, flags) or its numbers, as written (plain decimals: an exponent
+// would read as decimals). Each entry holds one number.
+const SERIES_TOKEN = /"(?:[^"\\]|\\.)*"|(-?\d+(?:\.\d+)?)/g;
 const writtenNumbers = (json) => [...json.matchAll(SERIES_TOKEN)].map((m) => m[1]).filter(Boolean);
 
 /**
@@ -235,6 +250,14 @@ export async function init(ctx) {
   });
   const st = tween.scrollTrigger;
   const railX = () => gsap.getProperty(rail, 'x');
+  centreOnRail = (card) => railScrollFor({
+    stStart: st.start,
+    stEnd: st.end,
+    cardLeft: viewport.getBoundingClientRect().left + card.offsetLeft,
+    cardWidth: card.offsetWidth,
+    innerWidth: document.documentElement.clientWidth,
+    railTravel: travel,
+  });
 
   // Count-ups (spec §3.3): once per card, the first time it enters (Ruling R33). A card enters sideways through
   // the rail (containerAnimation) — except the ones already in view at rail x 0, which enter upward with the stage:
@@ -282,14 +305,6 @@ export async function init(ctx) {
 
   // ---- keyboard: focus brings its card to the centre through page scroll; ←/→ step between cards
 
-  const scrollFor = (i) => railScrollFor({
-    stStart: st.start,
-    stEnd: st.end,
-    cardLeft: layout.origin + cards[i].offsetLeft,
-    cardWidth: cards[i].offsetWidth,
-    innerWidth: layout.vw,
-    railTravel: travel,
-  });
   // Keyboard focus only: a mouse press focuses its card too, and that must neither glide the rail under a drag nor
   // keep the cluster lit once the pointer has left (the hover already lit it).
   const fromKeyboard = (el) => {
@@ -302,7 +317,7 @@ export async function init(ctx) {
   rail.addEventListener('focusin', (e) => {
     const i = cards.indexOf(e.target.closest('.card'));
     focusCard = i >= 0 && fromKeyboard(e.target) ? i : -1;
-    if (focusCard >= 0) scroll.scrollTo(scrollFor(focusCard));
+    if (focusCard >= 0) scroll.scrollTo(railPositionFor(cards[focusCard]));
   });
   rail.addEventListener('focusout', () => { focusCard = -1; });
   rail.addEventListener('keydown', (e) => {

@@ -19,6 +19,7 @@ function fakeImporter(delays, { events, fail = {} } = {}) {
           if (fail[name] === 'init') throw new Error(`${name}: init failed`);
           await tick(1);
           ctx.inited.push(name);
+          events.push(`done ${name}`);
         },
       };
     });
@@ -32,8 +33,9 @@ test('starts every import before the first init, then inits in page order whatev
   const importer = fakeImporter({ a: 30, b: 20, c: 10, d: 0 }, { events });
   await loadSections(['a', 'b', 'c', 'd'], importer, ctx, () => assert.fail('nothing fails'));
   assert.deepEqual(events.slice(0, 4), ['import a', 'import b', 'import c', 'import d']);
-  assert.deepEqual(events.slice(4), ['init a', 'init b', 'init c', 'init d']);
-  assert.deepEqual(ctx.inited, ['a', 'b', 'c', 'd'], 'each init finishes before the next one starts');
+  assert.deepEqual(events.slice(4), ['init a', 'done a', 'init b', 'done b', 'init c', 'done c', 'init d', 'done d'],
+    'each init finishes before the next one starts');
+  assert.deepEqual(ctx.inited, ['a', 'b', 'c', 'd']);
 });
 
 test('a section failing to import or to initialise is logged by name; the rest still initialise in order', async () => {

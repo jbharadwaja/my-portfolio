@@ -79,10 +79,10 @@
   border-width: 0 0 2px; border-radius: 0;
   font: inherit; letter-spacing: inherit;
   color: var(--fg-on-dark); caret-color: var(--accent);
-  outline: none;                       /* focus never leaves it while open; the caret marks it */
 }
 .console-log a { text-decoration-color: var(--fg-on-dark-muted); }
 .console :focus-visible { outline-color: var(--c-mist); }
+.console-input:focus-visible { outline-offset: -4px; }   /* the 2 px mist ring (spec §8.2), inside the orange rule */
 .console-curve { margin-block: 4px; white-space: pre; }
 
 @media (prefers-reduced-motion: no-preference) {

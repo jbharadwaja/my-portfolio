@@ -14,24 +14,75 @@ test('hud format', () => assert.match(formatHud(42.7), /^epoch 042 \/ 100 · tra
 test('beats', () => assert.deepEqual([0, 24.9, 25, 50, 99, 100].map(beatIndex), [0, 0, 1, 2, 3, 3]));
 
 // Beyond the brief's five: the formation builder, the path's mapping into the formation, the loss curve and the plot rect.
-import { buildLandscape, landscapeToLocal, surfaceSamples, START, STEP } from '../js/engine/formations/landscape.js';
+import { readFileSync } from 'node:fs';
+import { buildLandscape, landscapeToLocal, surfaceSamples, pathAt, START, STEP, TAU, DENSE_STEPS } from '../js/engine/formations/landscape.js';
 import { mulberry32 } from '../js/engine/formations/common.js';
 import { curvePoints, plotRect, framedSurface, fitFrame, wantsSide } from '../js/sections/training.js';
 
 const inBand = (meta) => Math.abs((6 * meta) % 1 - 0.5) < 0.08;
 
-test('the descent starts at START, takes fixed steps and z is the height', () => {
+test('the descent starts at START, stays on the surface inside ±3, and z is the height', () => {
   assert.deepEqual(P[0].slice(0, 2), START);
-  assert.ok(STEP > 0);
   for (const [x, y, z] of P) {
     assert.ok(Math.abs(x) <= 3 && Math.abs(y) <= 3);
     assert.ok(Math.abs(z - landscapeF(x, y)) < 1e-12);
   }
-  for (let k = 1; k <= 100; k++) assert.ok(P[k][2] < P[k - 1][2], `the loss falls at every step (step ${k})`);
+  for (let k = 1; k <= 100; k++) assert.ok(P[k][2] < P[k - 1][2], `the loss falls every epoch (epoch ${k})`);
+});
+
+// Spec §2.4 (revised, Ruling R62): a dense fixed-step descent, resampled into 101 epochs on an exponential-progress
+// schedule, so the loss decays like a real run's and the ball keeps moving, slowing, to the end.
+test('P is the dense fixed-step descent from START, resampled at index(e) ∝ (1 − e^(−e/τ)) / (1 − e^(−100/τ))', () => {
+  assert.ok(DENSE_STEPS >= 2000, `${DENSE_STEPS} dense steps`);
+  assert.ok(STEP > 0 && Math.abs(TAU - 28) <= 1, `STEP ${STEP}, τ ${TAU}`);
+  const h = 1e-4;
+  const dense = [START.slice()];
+  for (let k = 0; k < DENSE_STEPS; k++) {
+    const [x, y] = dense[k];
+    const gx = (landscapeF(x + h, y) - landscapeF(x - h, y)) / (2 * h);
+    const gy = (landscapeF(x, y + h) - landscapeF(x, y - h)) / (2 * h);
+    dense.push([x - STEP * gx, y - STEP * gy]);
+  }
+  for (let e = 0; e <= 100; e++) {
+    const at = (DENSE_STEPS * (1 - Math.exp(-e / TAU))) / (1 - Math.exp(-100 / TAU));
+    const k = Math.min(DENSE_STEPS - 1, Math.floor(at));
+    const s = at - k;
+    for (const i of [0, 1]) assert.ok(Math.abs(P[e][i] - (dense[k][i] + (dense[k + 1][i] - dense[k][i]) * s)) < 1e-9, `epoch ${e}`);
+  }
+});
+
+const trains = Array.from({ length: 101 }, (_, e) => epochValues(e).train);
+
+test('train never rises from one epoch to the next', () => {
+  for (let e = 1; e <= 100; e++) assert.ok(trains[e] <= trains[e - 1], `epoch ${e}: ${trains[e]} after ${trains[e - 1]}`);
+});
+
+test('no cliff: after epoch 5 no one-epoch drop is more than twice the epoch before\'s', () => {
+  for (let e = 6; e <= 100; e++) {
+    const drop = trains[e - 1] - trains[e];
+    const before = trains[e - 2] - trains[e - 1];
+    assert.ok(drop <= 2 * before + 1e-6, `epoch ${e}: a drop of ${drop.toFixed(4)} after ${before.toFixed(4)}`);
+  }
+});
+
+test('the ball keeps moving, slowing, through the last beats: P(40), P(60) and P(80) differ', () => {
+  const [p40, p60, p80] = [40, 60, 80].map((e) => pathAt(e, [0, 0, 0]));
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  assert.ok(dist(p40, p60) > 0.01 && dist(p60, p80) > 0.01, `moves ${dist(p40, p60).toFixed(4)}, then ${dist(p60, p80).toFixed(4)}`);
+  assert.ok(dist(p60, p80) < dist(p40, p60), 'and slows');
+});
+
+// The no-JS page shows the HUD's sample line (epoch 042) over the run's own curve, drawn to epoch 42 every second epoch.
+test('the no-JS loss curve in index.html is the run to epoch 42, one point every second epoch', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const shown = (series) => html.match(new RegExp(`<polyline class="${series}" points="([^"]*)"`))[1];
+  const drawn = (loss) => Array.from({ length: 22 }, (_, i) => `${4 * i},${(80 * (1 - loss(2 * i) / 1.3)).toFixed(1)}`).join(' ');
+  assert.equal(shown('train'), drawn((e) => epochValues(e).train));
+  assert.equal(shown('val'), drawn((e) => epochValues(e).val));
 });
 
 test('fractional epochs sit between their neighbours and clamp to 0..100', () => {
-  const [a, b, c] = [12, 12.5, 13].map((e) => epochValues(e).train);   // on the way down (from epoch ~22 it holds)
+  const [a, b, c] = [12, 12.5, 13].map((e) => epochValues(e).train);   // on the way down
   assert.ok(a > b && b > c);
   assert.deepEqual(epochValues(-5), epochValues(0));
   assert.deepEqual(epochValues(130), epochValues(100));
@@ -204,8 +255,8 @@ test('plot never collapses on a stage too short for everything', () => {
   assert.ok(b.y1 - b.y0 >= 0.2 * 390 / 1.08 - 1 && b.y0 >= 64);
 });
 
-// A classic training curve (Ruling R59): a fast early drop, then a plateau into the deeper well.
-test('the loss drops fast, then plateaus: ≤ 0.60 by epoch 25, ≤ 0.30 by epoch 60', () => {
+// A classic training curve (Rulings R59, R62): a fast early drop, then a long, slowing tail into the deeper well.
+test('the loss drops fast, then slows: ≤ 0.60 by epoch 25, ≤ 0.30 by epoch 60', () => {
   assert.ok(epochValues(25).train <= 0.6, `epoch 25: ${epochValues(25).train.toFixed(3)}`);
   assert.ok(epochValues(60).train <= 0.3, `epoch 60: ${epochValues(60).train.toFixed(3)}`);
 });

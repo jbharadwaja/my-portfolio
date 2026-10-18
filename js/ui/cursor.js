@@ -36,6 +36,16 @@ export function magnetPull(dx, dy, w, h) {
 
 const MAGNETIC = 'a[href], button:not(:disabled)';
 const RAIL = '#work.rail-on .rail-viewport';
+const RETICLE = '.stage.reticle-on';
+
+/**
+ * Whether the cursor keeps redrawing for a pointer resting on `target`: only over a stage whose reticle is on, where
+ * route.js prints the readout beside the pointer on its frames. Elsewhere (the Route stage with the reticle off
+ * included) the loop sleeps until the pointer moves or the page scrolls.
+ */
+export function watchesReticle(target) {
+  return Boolean(target?.closest?.(RETICLE));
+}
 
 /**
  * Adds the cursor to `root` (the page's body) and follows the mouse. Returns { destroy } (removes it and every listener).
@@ -90,19 +100,17 @@ export function createCursor({ root }) {
   }
 
   // The ring's state from what is under the pointer. The crosshair needs the readout route.js prints on its frames,
-  // so this runs every frame while the pointer is over a stage with a readout.
+  // so this runs every frame while the pointer is over a stage with the reticle on (watchesReticle).
   function classify() {
     if (html.classList.contains('console-shown')) target = null;   // hidden: nothing under it leans or lights
     const link = target?.closest?.(MAGNETIC) ?? null;
-    const stage = target?.closest?.('.stage.reticle-on');
+    const stage = target?.closest?.(RETICLE);
     const cross = Boolean(stage?.querySelector('.reticle-readout')?.textContent);
     setMagnet(cross ? null : link);
     el.classList.toggle('is-cross', cross);
     el.classList.toggle('is-link', !cross && Boolean(link));
     el.classList.toggle('is-drag', !cross && !link && Boolean(target?.closest?.(RAIL)));
   }
-
-  const watching = () => Boolean(target?.closest?.('.stage')?.querySelector('.reticle-readout'));
 
   function tick(now) {
     frame = 0;
@@ -132,7 +140,7 @@ export function createCursor({ root }) {
       node.style.translate = `${m.x.toFixed(2)}px ${m.y.toFixed(2)}px`;
       busy ||= !settled;
     }
-    if (busy || watching()) frame = requestAnimationFrame(tick);
+    if (busy || watchesReticle(target)) frame = requestAnimationFrame(tick);
     else last = 0;
   }
 
