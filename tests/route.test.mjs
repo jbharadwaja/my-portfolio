@@ -160,3 +160,18 @@ test('the fallback map can frame a focus box of the lattice into the region', ()
   near(fit.x + 90 * fit.cell, 10);     // the focus starts at the region's left
   near(fit.y + 20 * fit.cell, 100 + (200 - 10 * 10) / 2);
 });
+
+// Where the live map and the 2D map frame the route: the whole stage from 768 px wide and on a stage under 560 px tall
+// (route.css's short-stage block puts the cards in a bottom sheet under a head at the header's foot, leaving no room
+// between the two for the route box: 21 px at 667 × 375); below 768 px on a taller stage, the route box between the
+// head and the sheet.
+import * as fallbackMap from '../js/ui/fallback-map.js';
+test('the map frames the whole stage from 768 px wide and on short stages, and the route box between head and sheet otherwise', () => {
+  assert.equal(fallbackMap.FULL_STAGE, '(min-width: 768px), (max-height: 559.98px)');
+  const css = readFileSync(new URL('../css/sections/route.css', import.meta.url), 'utf8');
+  for (const q of fallbackMap.FULL_STAGE.split(', ')) assert.ok(css.includes(`@media ${q} {`), `route.css lays the stage out at ${q}`);
+  for (const file of ['../js/sections/route.js', '../js/ui/fallback-map.js']) {
+    const src = readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.match(src, /matchMedia\(FULL_STAGE\)/, `${file} frames the map by FULL_STAGE`);
+  }
+});

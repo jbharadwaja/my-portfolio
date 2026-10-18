@@ -13,7 +13,7 @@ import { cellToLonLat, formatLatLon } from '../engine/geo.js';
 import { limitRate } from '../engine/resolver.js';
 import { mulberry32 } from '../engine/formations/common.js';
 import { MAP_BOX, buildWorldMap, routeAllocation, routeAlpha } from '../engine/formations/worldmap.js';
-import { routeBox, narrowRegion } from '../ui/fallback-map.js';
+import { routeBox, narrowRegion, FULL_STAGE } from '../ui/fallback-map.js';
 import { holdReveal } from '../ui/split.js';
 import { veil } from '../ui/veil.js';
 
@@ -33,7 +33,7 @@ const LEGS = 3;                        // AIT → Tokyo → Seoul → Tustin: ca
 const DT_MAX = 1 / 30;                 // every integrator's clamped dt (spec §4.7)
 const SHOW_FROM = 0.9;                 // the Route DOM fades in over uNight 0.9 → 1 and out again before 0.9
 const GROUND = { on: 0.7, off: 0.3 };  // <html data-ground="night"> from uNight ≥ 0.7 until ≤ 0.3 (Ruling R59)
-const WIDE = '(min-width: 768px)';     // left panel at ≥ 768 px; below, a bottom sheet and the route box framed
+const WIDE = '(min-width: 768px)';     // left panel at ≥ 768 px; below, a bottom sheet (the map: FULL_STAGE)
 const FINE = '(pointer: fine)';
 const READOUT_OFFSET = 18;             // px from the pointer to the readout chip
 const RESIZE_DEBOUNCE_MS = 150;
@@ -230,7 +230,7 @@ export async function init(ctx) {
   }).catch((err) => console.error('Route map setup failed.', err));
 }
 
-/** Formation 5 and its pose: roll 0; the full stage at ≥ 768 px, the route box between head and sheet below. */
+/** Formation 5 and its pose: roll 0; the whole stage within FULL_STAGE, else the route box between head and sheet. */
 function initMap(ctx, engine, { stage, head, deck }) {
   const { N, name } = ctx.tier;
   engine.registerFormation(K, () => buildWorldMap(N, { tierName: name, rng: mulberry32(SEED) }));
@@ -239,12 +239,12 @@ function initMap(ctx, engine, { stage, head, deck }) {
   engine.state.uniforms.uMapStack = stackMax;
   engine.state.uniforms.uRouteAlpha = routeAlpha(R, pu.uSize.value * pu.uSizeScale.value);
 
-  const wide = matchMedia(WIDE);
+  const full = matchMedia(FULL_STAGE);
   const box = routeBox();
   const rect = { x: 0, y: 0, w: 0, h: 0 };
   const pose = { roll: 0, rect: () => rect, lookAt: [0, 0, 0], box: null };
   const measure = () => {
-    if (wide.matches) {
+    if (full.matches) {
       const vh = stage.getBoundingClientRect().height || innerHeight;
       Object.assign(rect, { x: 0, y: 0, w: document.documentElement.clientWidth, h: vh });
       pose.lookAt = [0, 0, 0];

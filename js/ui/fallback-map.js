@@ -7,8 +7,13 @@ import { decodeRuns } from '../engine/geo.js';
 import { MAP_BOX, routeLegs } from '../engine/formations/worldmap.js';
 import { FRAME_SLACK } from '../engine/framing.js';
 
-const WIDE = '(min-width: 768px)';     // the live stage below 768 px frames the route between the head and the sheet
-const MAP_GAP = 12;                    // px between the route box's rect and the head or the sheet (< 768 px)
+/**
+ * Where the map is framed on the whole stage: from 768 px wide, and on a stage under 560 px tall (a phone on its side),
+ * where css/sections/route.css puts the cards in a bottom sheet right under the head and leaves no room between the two
+ * for the route box. Elsewhere (below 768 px on a taller stage) the route box is framed between the head and the sheet.
+ */
+export const FULL_STAGE = '(min-width: 768px), (max-height: 559.98px)';
+const MAP_GAP = 12;                    // px between the route box's rect and the head or the sheet (narrowRegion)
 
 /**
  * The 2D fallback map's placement (spec §8.3): the lattice's `focus` box (in cells; the whole lattice by default)
@@ -49,7 +54,7 @@ function routeFocus() {
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
-/** Below 768 px the map frames the route between the head and the card sheet, in the stage's CSS px. */
+/** Outside FULL_STAGE the map frames the route between the head and the card sheet, in the stage's CSS px. */
 export function narrowRegion(stage, head, deck) {
   const s = stage.getBoundingClientRect();
   const vw = document.documentElement.clientWidth;
@@ -132,10 +137,10 @@ export function mountFallbackMap(section) {
   canvas.className = 'route-map';
   canvas.setAttribute('aria-hidden', 'true');
   stage.prepend(canvas);
-  const wide = matchMedia(WIDE);
+  const full = matchMedia(FULL_STAGE);
   const draw = () => {
-    // The live stage below 768 px frames the route between the head and the sheet, as the engine does (route.js).
-    const narrow = !wide.matches && section.classList.contains('route-live') && head && deck;
+    // Outside FULL_STAGE the live stage frames the route between the head and the sheet, as the engine does (route.js).
+    const narrow = !full.matches && section.classList.contains('route-live') && head && deck;
     drawFallbackMap(canvas, narrow ? { region: narrowRegion(stage, head, deck), focus: routeFocus() } : {});
   };
   const observer = new ResizeObserver(draw);
