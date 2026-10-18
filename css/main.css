@@ -246,8 +246,10 @@ main, .site-footer { position: relative; z-index: 1; }
 }
 .no-js .hud { display: none; }
 .js:not(.veil-done) .hud { opacity: 0; }
-/* It rests while the hero is current (nav.js hudResting): there it would cover the hero copy (Ruling R50). */
-.hud.is-resting { opacity: 0; }
+/* It rests while the hero is current (nav.js hudResting): there it would cover the hero copy (Ruling R50). It hides
+   at once (the entered state's transition applies, and this one lists no opacity): a fade-out left the chip
+   part-opaque over the hero panels on an upward flick. Leaving the hero, it fades in over the .hud rule's 600 ms. */
+.hud.is-resting { opacity: 0; transition: color 200ms, background-color 200ms, border-color 200ms; }
 /* Hidden below 768 px (spec §2.1) and on stages under 560 px tall, a phone on its side, where no layout keeps the
    bottom-left corner free for it (Ruling R57). */
 @media (max-width: 767.98px), (max-height: 559.98px) { .hud { display: none; } }

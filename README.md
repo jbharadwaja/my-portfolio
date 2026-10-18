@@ -70,7 +70,7 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `meta` | SEO meta and JSON-LD, module preloads, `404.html`, `og.png`, `.gitignore` and this README (this table too) |
 | `morph` | formation pair changes: hand-offs (a stand-in's too), the dip on far jumps, and a dip that turns round |
 | `name` | the sign-off name formation and its layout rects |
-| `nav` | the section HUD's resting state |
+| `nav` | the section HUD's resting state: hidden at once in the hero, fading back in after it |
 | `network` | the encoder's network formation and its active layer |
 | `portrait` | the hero: image weights, the portrait formation, its layout and the entrance |
 | `rail` | the experiments rail: geometry, clusters, charts and count-ups |
