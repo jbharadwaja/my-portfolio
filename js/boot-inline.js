@@ -1,15 +1,38 @@
 /* Latent Space boot (spec 6.1). Reference copy: index.html carries these exact bytes inline, first in <head>. */
 (function (w, d) {
-  var h = d.documentElement, named = [], failed = {}, closed = false;
+  var h = d.documentElement, named = [], failed = {}, closed = false, waiting = false;
   h.classList.remove('no-js');
   h.classList.add('js', 'preload');
 
   var V = w.__veil = {
     lifted: false,
+    /* a tab opened in the background runs no frames: the lift (and the veil's CSS backstop) waits for the visitor,
+       until their second frame, when gsap's ticker has caught up with the time spent hidden, so the entrance plays
+       from its start in front of them. The page's transitions come on a frame after the lift, even if window load
+       never fires */
     lift: function () {
       if (V.lifted) return;
+      if (d.hidden) {
+        if (!waiting) {
+          waiting = true;
+          h.classList.add('veil-wait');
+          d.addEventListener('visibilitychange', function shown() {
+            if (d.hidden) return;
+            d.removeEventListener('visibilitychange', shown);
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () {
+                waiting = false;
+                h.classList.remove('veil-wait');
+                V.lift();
+              });
+            });
+          });
+        }
+        return;
+      }
       V.lifted = true;
       h.classList.add('veil-done');
+      requestAnimationFrame(function () { h.classList.remove('preload'); });
       paint();
       d.dispatchEvent(new Event('veil:lift'));
     },
@@ -17,6 +40,8 @@
     banner: function (url) { name(url, false); },
     /* one still in flight when the veil lifts: named as still loading, never as failed */
     slow: function (url) { name(url, true); },
+    /* whether a script, preload or stylesheet at this URL failed to load (veil.js stops waiting for a font sheet) */
+    failed: function (url) { return failed[String(url)] === 1; },
     /* a URL named earlier arrived after all (an import past the cap): it leaves the banner, hidden once empty */
     clear: function (url) {
       for (var i = 0; i < named.length; i++) {
@@ -87,14 +112,20 @@
   }
 
   setTimeout(cap, 8000);
+  /* a failed script or preload lifts the veil at once; a failed stylesheet (fonts blocked) is only named, and the
+     meter carries on without it. main.js failing (its module graph) leaves nothing to run the page: it shows as
+     the no-JS page, whose header and links need no script */
   w.addEventListener('error', function (e) {
-    var t = e && e.target;
-    if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
-      var url = t.src || t.href;
-      failed[url] = 1;
-      V.banner(url);
-      V.lift();
+    var t = e && e.target, url;
+    if (!t || (t.tagName !== 'SCRIPT' && t.tagName !== 'LINK')) return;
+    url = t.src || t.href;
+    failed[url] = 1;
+    V.banner(url);
+    if (t.tagName === 'SCRIPT' && /\/js\/main\.js$/.test(url)) {
+      h.classList.remove('js', 'preload');
+      h.classList.add('no-js', 'js-failed');
     }
+    if (t.tagName === 'SCRIPT' || !/(^|\s)stylesheet(\s|$)/i.test(t.rel || '')) V.lift();
   }, true);
   d.addEventListener('click', function (e) {
     var t = e && e.target;

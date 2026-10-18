@@ -1,7 +1,8 @@
 // Loading veil: the denoising meter (spec 6.1).
 // Imports nothing from the CDN, so the meter runs while the libraries download. The maths is pure and
 // Node-testable; the DOM driver starts only when a document exists. The inline boot script (index.html,
-// js/boot-inline.js) owns window.__veil — lift(), banner(url), clear(url), lifted — and the 8 s cap.
+// js/boot-inline.js) owns window.__veil — lift(), banner(url), slow(url), clear(url), failed(url), lifted — and the
+// 8 s cap.
 
 export const WEIGHTS = { fonts: 0.15, three: 0.4 / 3, gsap: 0.4 / 3, lenis: 0.4 / 3, portrait: 0.20, compile: 0.20, formations: 0.05 };
 
@@ -68,12 +69,13 @@ const sheetPending = (link) => !link.sheet || link.media === 'print';
 /**
  * Resolves once `doc`'s Google Fonts stylesheets apply (fontFacesDeclared, testable on a stand-in document): at once
  * when none is pending, else when each pending one has loaded (its onload attribute, registered at parse time, has
- * flipped it to all by then) or failed, or when `whenLifted` calls back. A style flush then registers the faces before
+ * flipped it to all by then) or failed, or when `whenLifted` calls back. A sheet that failed before anyone asked
+ * (`hasFailed(href)`, the boot script's record) is not waited for. A style flush then registers the faces before
  * anyone asks for them. Never rejects.
  */
-export function fontSheetsApplied(doc, whenLifted) {
+export function fontSheetsApplied(doc, whenLifted, hasFailed = () => false) {
   return new Promise((resolve) => {
-    const pending = [...doc.querySelectorAll(FONT_SHEETS)].filter(sheetPending);
+    const pending = [...doc.querySelectorAll(FONT_SHEETS)].filter((link) => sheetPending(link) && !hasFailed(link.href));
     let left = pending.length;
     const applied = () => {
       void doc.defaultView?.getComputedStyle(doc.documentElement).fontFamily;
@@ -102,8 +104,16 @@ export function fontSheetsApplied(doc, whenLifted) {
  */
 export function fontFacesDeclared() {
   if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return Promise.resolve();
-  declared ??= fontSheetsApplied(document, onLift);
+  declared ??= fontSheetsApplied(document, onLift, sheetFailed);
   return declared;
+}
+
+const sheetFailed = (href) => Boolean(bootApi()?.failed?.(href));
+
+/** Whether every font stylesheet failed (blocked, not slow): the fonts stage is then weighted away. */
+export function fontSheetsFailed(doc, hasFailed) {
+  const links = [...doc.querySelectorAll(FONT_SHEETS)];
+  return links.length > 0 && links.every((link) => hasFailed(link.href));
 }
 
 /** The fonts settled: the faces declared (fontFacesDeclared), then document.fonts.ready. Never rejects. */
@@ -178,6 +188,11 @@ function trackFonts() {
   let done = 0;
   const tick = () => veil.report('fonts', ++done / FONTS.length);
   fontFacesDeclared().then(() => {
+    if (fontSheetsFailed(document, sheetFailed)) {
+      veil.dropKey('fonts');           // nothing will arrive: the meter re-weights the other stages (spec §6.1)
+      showText();
+      return;
+    }
     const loads = FONTS.map(load);
     loads.forEach((p) => p.then(tick, tick));
     loads[FONTS.length - 1].then(showText, showText);   // Geist Mono gates the veil text
