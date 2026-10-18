@@ -136,7 +136,7 @@ export function epochValues(e) {
   return { train, val: train * (VAL.base + (VAL.gain * t) / EPOCHS) };
 }
 
-/** `epoch 042 / 100 · train 0.512 · val 0.538 · lr 3e-3` — ⌊e⌋ zero-padded to three digits, losses to three decimals. */
+/** `epoch 042 / 100 · train 0.217 · val 0.233 · lr 3e-3` — ⌊e⌋ zero-padded to three digits, losses to three decimals. */
 export function formatHud(e) {
   const t = clamp(e, 0, EPOCHS);
   const { train, val } = epochValues(t);

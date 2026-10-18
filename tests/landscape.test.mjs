@@ -81,6 +81,11 @@ test('the no-JS loss curve in index.html is the run to epoch 42, one point every
   assert.equal(shown('val'), drawn((e) => epochValues(e).val));
 });
 
+test('the no-JS HUD sample line is the run at epoch 42 (Ruling R67)', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.equal(html.match(/<p class="train-readout mono">([^<]*)<\/p>/)[1], formatHud(42));
+});
+
 test('fractional epochs sit between their neighbours and clamp to 0..100', () => {
   const [a, b, c] = [12, 12.5, 13].map((e) => epochValues(e).train);   // on the way down
   assert.ok(a > b && b > c);
