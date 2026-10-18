@@ -163,8 +163,7 @@ test('from 1024 px up, in a landscape window, the copy column leaves the portrai
   const m = mainCss.slice(at, mainCss.indexOf('}', mainCss.indexOf('{', at) + 1) + 1)
     .match(/\.hero-copy\s*\{\s*width:\s*min\(([\d.]+)vw,\s*([\d.]+)vw\s*-\s*([\d.]+)px\);/);
   assert.ok(m, 'its .hero-copy width is min(Avw, Bvw - Cpx)');
-  assert.match(mainCss.slice(mainCss.indexOf('@media (min-width: 1024px) {')), /^@media \(min-width: 1024px\) \{\s*\.hero-copy \{ width: 55vw; \}/,
-    'any other window from 1024 px up keeps the 55vw column');
+  assert.match(mainCss, /@media \(min-width: 1024px\) \{\s*\.hero-copy \{ width: 55vw; \}/, 'any other window from 1024 px up keeps the 55vw column');
   const [a, b, c] = m.slice(1).map(Number);
   const column = (vw) => Math.min((a * vw) / 100, (b * vw) / 100 - c);
   const gutter = (vw) => Math.min(48, Math.max(16, (3.3333 * vw) / 100));
@@ -173,4 +172,21 @@ test('from 1024 px up, in a landscape window, the copy column leaves the portrai
     assert.equal(portraitLayout({ vw, vh: 768, h1Right }).mode, 'strip', `vw ${vw}`);
   }
   assert.ok(Math.abs(column(1440) - 792) < 1e-9, 'from ~1143 px up the column is 55vw, as before (792 px at 1440)');
+});
+
+// Final review (experience M6): at 1366 × 768 the hero ran 898 px tall, so the CTA ended at 778 px and the scroll cue
+// (at the hero's foot) at 870 px, both under the fold. From 1024 px wide the hero's vertical rhythm tightens with the
+// stage height: each spacing is min(usual, short + --hero-tall × slope), --hero-tall being how far the stage is above
+// 768 px (0–132 px). From 900 px tall up it must change nothing (the 1440 × 900 composition stays as it was).
+test('the hero tightens on short laptop screens and is unchanged from 900 px tall up', () => {
+  const at = mainCss.indexOf('--hero-tall: clamp(');
+  assert.ok(at >= 0, 'a --hero-tall measure');
+  assert.match(mainCss, /--hero-tall: clamp\(0px, 100svh - 768px, 132px\)/);
+  const pairs = [...mainCss.matchAll(/min\((clamp\([^()]*\)|[\d.]+px),\s*calc\(([\d.]+)px \+ var\(--hero-tall\) \* ([\d.]+)\)\)/g)];
+  assert.ok(pairs.length >= 8, `${pairs.length} tightened spacings`);
+  for (const [text, usual, short, slope] of pairs) {
+    const most = Number((usual.match(/([\d.]+)px\)$/) ?? usual.match(/^([\d.]+)px$/))[1]);
+    assert.ok(Number(short) + 132 * Number(slope) >= most - 1e-9, `${text}: the usual value from 900 px tall up`);
+    assert.ok(Number(short) < most, `${text}: tighter below`);
+  }
 });

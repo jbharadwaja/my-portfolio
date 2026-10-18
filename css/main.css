@@ -419,6 +419,27 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
   background: var(--bg); box-shadow: 0 0 4px 4px var(--bg);
   transform: translateX(-50%);
 }
+/* Short laptop screens, from 1024 px wide (the strip layout): the hero's vertical rhythm tightens with the stage
+   height, linearly from its usual values on a 900 px stage to the ones marked "short" on a 768 px one and below, so
+   at 1366 × 768 the CTA and the scroll cue (at the hero's foot) are on the first screen. --hero-tall is how far the
+   stage is above 768 px, up to 132 px; each spacing is that "short" value plus --hero-tall × a slope, never above its
+   usual one. Fluid in the stage height, like the rail's short stages: no height breakpoint joins 1280 / 1024 / 768. */
+@media (min-width: 1024px) {
+  #top {
+    --hero-tall: clamp(0px, 100vh - 768px, 132px);   /* a var() of an unknown unit would void every size that uses it */
+    padding-top: calc(var(--header-h) + min(clamp(48px, 4vw, 56px), calc(24px + var(--hero-tall) * .2425)));   /* short: +24 */
+    padding-bottom: min(clamp(80px, 6vw, 88px), calc(56px + var(--hero-tall) * .2425));                       /* short: 56 */
+  }
+  @supports (height: 1svh) { #top { --hero-tall: clamp(0px, 100svh - 768px, 132px); } }
+  .hero-name, .hero-role { margin-top: min(clamp(16px, 1.5vw, 20px), calc(12px + var(--hero-tall) * .0607)); }  /* short: 12 */
+  .hero-meta {
+    gap: min(8px, calc(6px + var(--hero-tall) * .0152));                                                       /* short: 6 */
+    margin-top: min(clamp(20px, 1.8vw, 24px), calc(16px + var(--hero-tall) * .0607));                          /* short: 16 */
+  }
+  .hero-panels, .hero-actions { margin-top: min(clamp(24px, 2vw, 28px), calc(18px + var(--hero-tall) * .0758)); } /* short: 18 */
+  #top .panel-title { margin-bottom: min(14px, calc(10px + var(--hero-tall) * .0304)); }                      /* short: 10 */
+  .socials { margin-top: min(16px, calc(10px + var(--hero-tall) * .0455)); }                                  /* short: 10 */
+}
 
 /* no WebGL (spec §8.3: ?nowebgl, no webgl2, three failing, a context lost for good, or the engine still loading
    when the veil lifts; main.js sets .no-webgl). The canvas hides; the hero shows the cut-out as a static halftone
