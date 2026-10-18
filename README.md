@@ -104,8 +104,8 @@ files they write are committed here.
 - `tools/cutout.swift` — offline subject cut-out with Apple Vision (macOS 14+). Build once with
   `swiftc -O tools/cutout.swift -o tools/cutout`, then
   `tools/cutout photo.jpg outdir [--crop x,y,w,h] [--keep-bg] [--flatten F6F6F3]`. The cut-out PNG is encoded to
-  `assets/img/portrait-cutout.webp` with `cwebp -q 80 -alpha_q 100 -m 6 -sharp_yuv`; the flattened JPEG is the
-  no-WebP fallback; `--keep-bg` makes the uncut About photo.
+  `assets/img/portrait-cutout.webp` with `cwebp -q 80 -alpha_q 100 -m 6 -sharp_yuv`; `--keep-bg` makes the uncut
+  About photo.
 - `tools/bake-worldmap.mjs` — zero-dependency Node script that turns the `world-atlas` land TopoJSON into the dot
   lattice in `js/data/worldmap-dots.js`:
   `node tools/bake-worldmap.mjs --cols 260 --lon0 150 --latN 75 --latS -58 --module my-portfolio/js/data/worldmap-dots.js`.

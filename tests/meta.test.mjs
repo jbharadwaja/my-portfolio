@@ -153,3 +153,18 @@ test('README layout names the off-page strings module and the ~ console', () => 
   assert.match(layout, /^js\/content\.js\s/m);
   assert.match(layout, /^js\/ui\/.*~ console/m);
 });
+
+// Assets (final review: the unused cut-out JPEG is gone; every image the repository ships has a user)
+const IMG = new URL('../assets/img/', import.meta.url);
+const walk = (dir) => readdirSync(new URL(dir, import.meta.url), { withFileTypes: true })
+  .flatMap((e) => e.isDirectory() ? walk(`${dir}${e.name}/`) : [`${dir}${e.name}`]);
+test('portrait-cutout.jpg is gone, and no JPEG ships in assets/img', () => {
+  assert.ok(!existsSync(new URL('portrait-cutout.jpg', IMG)));
+  assert.deepEqual(readdirSync(IMG).filter((f) => /\.jpe?g$/i.test(f)), []);
+});
+test('every file in assets/img is used by the page, the 404 page, a script or a stylesheet', () => {
+  const sources = [html, nf, ...walk('../js/').concat(walk('../css/')).map((p) => read(p))].join('\n');
+  const files = readdirSync(IMG).filter((f) => !f.startsWith('.'));
+  assert.ok(files.length >= 4, 'the directory was read');
+  for (const f of files) assert.ok(sources.includes(`assets/img/${f}`), `${f} is referenced`);
+});
