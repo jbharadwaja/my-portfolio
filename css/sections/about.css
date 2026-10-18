@@ -1,1 +1,20 @@
-/* About section (#about): styles for this section only; filled in by its own task. */
+/* About section (#about): the halftone plate (js/ui/halftone-reveal.js) and its caption. */
+
+/* The hint names the gesture of the pointer in hand (spec §2.7), and shows only once the reveal is live
+   (about.js sets .is-live), so a page without the reveal never asks the reader to move or tap. */
+.plate-hint-touch { display: none; }
+@media (hover: none) {
+  .plate-hint-fine { display: none; }
+  .plate-hint-touch { display: inline; }
+}
+.js .plate-figure:not(.is-live) .plate-hint { visibility: hidden; }
+
+/* Ruling R54: from 768 px the fixed HUD covers the bottom-left 210 × 70 px. The plate is capped so that, with
+   About's top at the viewport's top (where a nav jump lands), the caption ends above that zone: plate height
+   <= 100svh - section padding - 108 px (caption 26 px, HUD zone 70 px, 12 px air), width = height × 4/5. */
+@media (min-width: 768px) {
+  .plate-figure { width: min(100%, 520px, max(240px, (100svh - var(--section-pad) - 108px) * 0.8)); }
+}
+@media (min-width: 1024px) {
+  .plate-figure { width: min(100%, max(240px, (100svh - var(--section-pad) - 108px) * 0.8)); }
+}
