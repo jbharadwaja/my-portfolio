@@ -1,1 +1,77 @@
-/* Experiments section (#work): styles for this section only; filled in by its own task. */
+/* Experiments section (#work): the horizontal rail (experiments.js adds .rail-on), the cards' bar charts and the touch hint. */
+
+/* The rail (spec §2.5). Card width by breakpoint, matching experiments.js railGeometry. */
+#work.rail-on {
+  --card-w: 84vw;
+  --rail-gap: max(2vw, 16px);
+  --rail-clear: 20px;                  /* under the link and the hint */
+}
+@media (min-width: 768px) { #work.rail-on { --card-w: 56vw; --rail-clear: 24px; } }
+@media (min-width: 1024px) { #work.rail-on { --card-w: 40vw; } }
+@media (min-width: 1280px) { #work.rail-on { --card-w: 32vw; } }
+
+/* The stage stacks the head, the rail, the "more" link and the touch hint. The head's row grows to 42% of the stage
+   before the last row takes what is left, so the cards fill the bottom 58% where they fit. On a stage too short for
+   all of it the rows overflow at the top (align-content: end): the head slides up under the header and the cards,
+   their stamps and links stay whole above the bottom clearance. */
+#work.rail-on .stage {
+  display: grid;
+  grid-template-rows: minmax(auto, 42%) auto auto auto minmax(var(--rail-clear), 1fr);
+  grid-template-columns: minmax(0, 1fr);   /* the rail's max-content width must not widen the stage */
+  align-content: end;
+  padding: 0;
+}
+#work.rail-on .section-head {
+  align-self: start;
+  width: fit-content;
+  padding: calc(var(--header-h) + clamp(16px, 2.5vw, 36px)) var(--gutter) clamp(16px, 2vw, 24px);
+}
+#work.rail-on .section-sub { max-width: 26em; }
+
+/* overflow-x: clip — not a scroll container, so focus cannot scroll it; the page scroll moves the rail instead.
+   The block padding leaves room for the cards' focus ring. */
+#work.rail-on .rail-viewport { margin-top: 0; padding-block: 6px; overflow-x: clip; }
+#work.rail-on .rail {
+  position: relative;                  /* the cards' offsetParent: experiments.js caches their offsetLeft */
+  display: flex;
+  gap: var(--rail-gap);
+  width: max-content;
+  padding-inline: calc(50% - var(--card-w) / 2);   /* card i is centred at rail progress i/7 */
+}
+#work.rail-on .card { flex: none; width: var(--card-w); gap: 8px; padding: 16px 18px; }
+#work.rail-on .card-metric { padding-top: 4px; }
+/* Every chart slot is as tall as the tallest (experiments.js sets --chart-h), so the metrics line up across cards. */
+#work.rail-on .card-chart { min-height: var(--chart-h, 64px); padding-top: 10px; }
+#work.rail-on .rail.is-dragging { -webkit-user-select: none; user-select: none; }
+#work.rail-on .rail-more { margin: 12px var(--gutter) 0; }
+#work.rail-on .rail-hint { margin: 10px var(--gutter) 0; color: var(--fg-muted); }
+@media (pointer: coarse) {
+  #work.rail-on .rail-hint { display: block; }
+}
+/* From 768 up the fixed HUD holds the bottom-left corner (210 × 70 px): nothing readable goes there (Ruling R54).
+   The link moves to the right and the hint centres under the centred card, both on the row under the rail. */
+@media (min-width: 768px) {
+  #work.rail-on .stage { grid-template-rows: minmax(auto, 42%) auto auto minmax(var(--rail-clear), 1fr); }
+  #work.rail-on :is(.rail-more, .rail-hint) { grid-area: 3 / 1; }   /* one cell, two alignments */
+  #work.rail-on .rail-more { justify-self: end; }
+  #work.rail-on .rail-hint { justify-self: center; margin-top: 12px; }
+}
+
+/* Two summary lines hold only at 1440 px; below it three are reserved, never clamped (Ruling R49). */
+#work.rail-on .card-summary { min-height: calc(2em * 1.45); }
+@media (max-width: 1439.98px) {
+  #work.rail-on .card-summary { min-height: calc(3em * 1.45); }
+}
+
+/* Bar charts (experiments.js drawChart): orange for the model or the chosen entry, ink for the rest, ink labels. */
+.card-bars {
+  display: block;
+  overflow: visible;
+  font-family: var(--font-mono); font-size: var(--fs-mono-small); font-weight: 500; letter-spacing: .04em;
+}
+.card-bars text { fill: var(--c-ink); dominant-baseline: central; }
+.card-bars .is-best { font-weight: 700; }
+.card-bars .bar { fill: var(--c-ink); }
+.card-bars .bar.is-accent { fill: var(--accent); }
+.card-bars .limit { stroke: var(--c-ink); stroke-width: 1; stroke-dasharray: 2 2; }
+.card-bars + .card-compare { margin-top: 8px; }
