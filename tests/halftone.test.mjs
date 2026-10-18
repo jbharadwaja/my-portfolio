@@ -203,12 +203,3 @@ test('About on touch: Reduce motion switched on after init means no auto-sweep; 
   dom.frames(20);
   assert.ok(dom.stamps > 0, 'the sweep follows the preference back');
 });
-
-// Task 19 contrast pass: About's copy scrolls through the held galaxy, whose arms reach under the muted skills and
-// certifications (ink-60, 5.12:1 on bare paper) even at the keep-out's 12%; the copy block carries its own paper.
-test('About: the copy block carries its own paper ground over the canvas (text >= 4.5:1)', () => {
-  const css = readFileSync(new URL('../css/sections/about.css', import.meta.url), 'utf8');
-  const rule = css.match(/(^|\n)\.about-text\s*\{([^}]*)\}/);
-  assert.ok(rule, 'an .about-text rule');
-  assert.match(rule[2], /background:\s*var\(--bg\);/);
-});

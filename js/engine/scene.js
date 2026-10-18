@@ -9,7 +9,7 @@ import { resolve, applyEntrance, limitRate } from './resolver.js';
 import { createMorphState, stepMorph } from './morph.js';
 import { alphaForPoints } from './density.js';
 import { createParticles } from './particles.js';
-import { sizeFactor } from './shaders.js';
+import { sizeFactor, DUST_VERTEX, DUST_FRAGMENT } from './shaders.js';
 import { veil } from '../ui/veil.js';
 
 const D = 30;                          // formation spacing along −z (spec §4.2)
@@ -50,46 +50,6 @@ const INK = srgb('#0A0A0A');
 const MIST = srgb('#E9E9E4');
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
-
-const DUST_VERTEX = /* glsl */ `
-uniform float uTime;
-uniform float uSize;
-uniform float uAlpha;
-uniform float uNight;
-uniform float uDpr;
-uniform float uBufferHeight;
-uniform float uMaxPoint;
-attribute vec2 aSeed;
-varying float vAlpha;
-varying float vSize;
-void main() {
-  float phase = aSeed.x * 6.2831853;
-  vec3 p = position + 0.12 * vec3(sin(uTime * 0.23 + phase), cos(uTime * 0.19 + phase * 1.3), sin(uTime * 0.17 + phase * 0.7));
-  vec4 mv = modelViewMatrix * vec4(p, 1.0);
-  float depth = -mv.z;
-  gl_Position = projectionMatrix * mv;
-  float px = uSize * (0.5 + aSeed.y) * projectionMatrix[1][1] * uBufferHeight * 0.5 / max(depth, 0.001);
-  vSize = clamp(px, 1.0, min(12.0 * uDpr, uMaxPoint));
-  gl_PointSize = vSize;
-  vAlpha = uAlpha * (0.4 + 0.6 * aSeed.x)
-    * min(px * px, 1.0)                              // sub-pixel dust fades out instead of sticking at 1 px
-    * smoothstep(0.6, 2.0, depth)                    // near fade
-    * smoothstep(0.0, 0.08, abs(uNight - 0.5));      // opacity dips across the ground flip
-  if (depth < 0.3) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-}`;
-
-const DUST_FRAGMENT = /* glsl */ `
-uniform vec3 uInk;
-uniform vec3 uMist;
-uniform float uNight;
-varying float vAlpha;
-varying float vSize;
-void main() {
-  float r = length(gl_PointCoord * 2.0 - 1.0);
-  if (r > 1.0) discard;
-  float a = vAlpha * (1.0 - smoothstep(1.0 - min(2.0 / vSize, 1.0), 1.0, r));   // 1 px feathered edge
-  gl_FragColor = vec4(mix(uInk, uMist, uNight) * a, a);                           // premultiplied
-}`;
 
 function createDust(count, uniforms) {
   const position = new Float32Array(count * 3);
@@ -150,6 +110,10 @@ export async function createEngine({ canvas, tier, reduced }) {
   const bufferSize = new THREE.Vector2();
   const v = new THREE.Vector3();
 
+  // The formation particles first: the dust shares their text keep-out (the same uniform objects, so what
+  // syncUniforms writes each frame reaches both). The dust is still added to the scene, and drawn, first.
+  const particles = createParticles({ THREE, tier, reduced, spacing: D });
+  const pu = particles.uniforms;
   const dustUniforms = {
     uTime: { value: 0 },
     uSize: { value: DUST.size },
@@ -160,6 +124,9 @@ export async function createEngine({ canvas, tier, reduced }) {
     uMaxPoint: { value: gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] },
     uInk: { value: new THREE.Vector3(...INK) },
     uMist: { value: new THREE.Vector3(...MIST) },
+    uMix: pu.uMix,
+    uViewport: pu.uViewport,
+    uSafe: pu.uSafe,
   };
   const dust = createDust(tier.dust, dustUniforms);
   let dustAlpha = dustUniforms.uAlpha.value;
@@ -207,8 +174,6 @@ export async function createEngine({ canvas, tier, reduced }) {
     parallax: true,
   };
 
-  const particles = createParticles({ THREE, tier, reduced, spacing: D });
-  const pu = particles.uniforms;
   pu.uMaxPoint.value = dustUniforms.uMaxPoint.value;
   scene.add(particles.points);
 

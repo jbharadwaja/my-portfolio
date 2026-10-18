@@ -43,8 +43,11 @@ test('bottom layout: hero text that can pass over the portrait carries its own p
   const rule = css.match(/\.portrait-bottom :is\(([^)]*)\)\s*\{([^}]*)\}/);
   assert.ok(rule, 'a .portrait-bottom :is(...) ground rule');
   const items = rule[1].split(',').map((s) => s.trim());
-  for (const s of ['.hero-meta li > span', '.cv-inline', '.socials a', '.scroll-cue']) assert.ok(items.includes(s), s);
+  for (const s of ['.hero-meta li > span', '.cv-inline', '.socials a']) assert.ok(items.includes(s), s);
   assert.match(rule[2], /background:\s*var\(--bg\);/);
+  // The scroll cue carries its ground in every layout (Task 19 review: the dust drifts behind it in the strip one too).
+  const cue = css.match(/(^|\n)\.scroll-cue\s*\{([^}]*)\}/);
+  assert.ok(items.includes('.scroll-cue') || /background:\s*var\(--bg\);/.test(cue?.[2] ?? ''), '.scroll-cue');
 });
 test('the denoise HUD carries its own paper ground in every layout (the entrance cloud swirls behind it)', () => {
   const css = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');

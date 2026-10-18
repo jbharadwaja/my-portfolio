@@ -1,7 +1,8 @@
 // GLSL for the formation particles (spec §4.3, §4.5, §4.6). Two attribute slots (aFrom, aTo: xyz + meta) are
 // read through each formation's own rules (placement at −k·D, cluster offsets, route reveal, network pulse,
 // reticle), blended per particle with a staggered t, swirled by curl noise on the way, then shaded as ink on
-// paper (MultiplyBlending) or mist on night (AdditiveBlending). Colours are raw sRGB uniforms.
+// paper (MultiplyBlending) or mist on night (AdditiveBlending). Colours are raw sRGB uniforms. The dust tunnel's
+// GLSL is here too: it shares the particles' text keep-out (KEEP_OUT_GLSL).
 
 /** Lattice of the world-map formation (spec §4.2 row 5), for the reticle's row/column test. */
 const MAP_COLS = 260;
@@ -16,6 +17,26 @@ export function sizeFactor(k, meta) {
   if (k === 1) return 0.7 + 0.6 * meta;
   return 1;
 }
+
+/**
+ * The text keep-out (spec §4.5), shared by the formation particles and the dust tunnel: uSafe holds two NDC rects
+ * per side of the pair (scene.js syncUniforms), and keepAt(ndc, t) is the alpha factor at a point for a pair at
+ * mix t. The dust takes it too, so a drifting speck never darkens the text a formation keeps clear.
+ */
+export const KEEP_OUT_GLSL = /* glsl */ `
+uniform vec2 uViewport;
+uniform vec4 uSafe[4];   // two keep-out rects per side of the pair: from a, from b, to a, to b
+
+// 1 outside the rect (NDC x0, y0, x1, y1), 0.12 inside, with a 32 px feather.
+float keepOut(vec4 r, vec2 ndc) {
+  vec2 outside = max(abs(ndc - 0.5 * (r.xy + r.zw)) - 0.5 * (r.zw - r.xy), 0.0) * 0.5 * uViewport;
+  return mix(0.12, 1.0, smoothstep(0.0, 32.0, length(outside)));
+}
+
+// The from side's two rects, lerped to the to side's by t.
+float keepAt(vec2 ndc, float t) {
+  return mix(min(keepOut(uSafe[0], ndc), keepOut(uSafe[1], ndc)), min(keepOut(uSafe[2], ndc), keepOut(uSafe[3], ndc)), t);
+}`;
 
 export const PARTICLE_VERTEX = /* glsl */ `
 #define PI 3.141592653589793
@@ -43,8 +64,6 @@ uniform float uOpacity;
 uniform float uReduced;
 uniform float uPush;
 uniform vec2 uMouse;
-uniform vec2 uViewport;
-uniform vec4 uSafe[4];   // two keep-out rects per side of the pair: from a, from b, to a, to b
 uniform float uPulse;
 uniform float uHoverCluster;
 uniform float uClusterX[8];
@@ -56,6 +75,7 @@ uniform float uRouteAlpha;
 uniform vec3 uInk;
 uniform vec3 uMist;
 uniform vec3 uSignal;
+${KEEP_OUT_GLSL}
 
 attribute vec4 aFrom;
 attribute vec4 aTo;
@@ -177,12 +197,6 @@ vec3 curl(vec3 p) {
   return vec3(g3.y - g2.z, g1.z - g3.x, g2.x - g1.y);
 }
 
-// 1 outside the rect (NDC x0, y0, x1, y1), 0.12 inside, with a 32 px feather.
-float keepOut(vec4 r, vec2 ndc) {
-  vec2 outside = max(abs(ndc - 0.5 * (r.xy + r.zw)) - 0.5 * (r.zw - r.xy), 0.0) * 0.5 * uViewport;
-  return mix(0.12, 1.0, smoothstep(0.0, 32.0, length(outside)));
-}
-
 void main() {
   Shape a = shape(uFrom, aFrom);
   Shape b = shape(uTo, aTo);
@@ -206,7 +220,7 @@ void main() {
   gl_Position = projectionMatrix * mv;
 
   vec2 ndc = gl_Position.xy / gl_Position.w;
-  float keep = mix(min(keepOut(uSafe[0], ndc), keepOut(uSafe[1], ndc)), min(keepOut(uSafe[2], ndc), keepOut(uSafe[3], ndc)), t);
+  float keep = keepAt(ndc, t);
 
   // Cursor repulsion, stateless in screen space: pushed away from the lagged mouse (aspect-corrected). The push
   // grows from 0 at the cursor and falls off by smoothstep, so the particles thin out like displaced liquid
@@ -238,6 +252,52 @@ void main() {
   vSquare = step(0.5, mix(a.square, b.square, t));
 
   if (depth < 0.3) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+}`;
+
+// The dust tunnel (spec §4.4; scene.js createDust): drifting specks around the camera path, faded by size and
+// nearness, dipped across the ground flip, and kept off the text like the formations (KEEP_OUT_GLSL), so a speck
+// passing behind muted copy never takes it under 4.5:1.
+export const DUST_VERTEX = /* glsl */ `
+uniform float uTime;
+uniform float uSize;
+uniform float uAlpha;
+uniform float uNight;
+uniform float uDpr;
+uniform float uBufferHeight;
+uniform float uMaxPoint;
+uniform float uMix;
+${KEEP_OUT_GLSL}
+attribute vec2 aSeed;
+varying float vAlpha;
+varying float vSize;
+void main() {
+  float phase = aSeed.x * 6.2831853;
+  vec3 p = position + 0.12 * vec3(sin(uTime * 0.23 + phase), cos(uTime * 0.19 + phase * 1.3), sin(uTime * 0.17 + phase * 0.7));
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  float depth = -mv.z;
+  gl_Position = projectionMatrix * mv;
+  float keep = keepAt(gl_Position.xy / gl_Position.w, uMix);
+  float px = uSize * (0.5 + aSeed.y) * projectionMatrix[1][1] * uBufferHeight * 0.5 / max(depth, 0.001);
+  vSize = clamp(px, 1.0, min(12.0 * uDpr, uMaxPoint));
+  gl_PointSize = vSize;
+  vAlpha = uAlpha * (0.4 + 0.6 * aSeed.x) * keep
+    * min(px * px, 1.0)                              // sub-pixel dust fades out instead of sticking at 1 px
+    * smoothstep(0.6, 2.0, depth)                    // near fade
+    * smoothstep(0.0, 0.08, abs(uNight - 0.5));      // opacity dips across the ground flip
+  if (depth < 0.3) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+}`;
+
+export const DUST_FRAGMENT = /* glsl */ `
+uniform vec3 uInk;
+uniform vec3 uMist;
+uniform float uNight;
+varying float vAlpha;
+varying float vSize;
+void main() {
+  float r = length(gl_PointCoord * 2.0 - 1.0);
+  if (r > 1.0) discard;
+  float a = vAlpha * (1.0 - smoothstep(1.0 - min(2.0 / vSize, 1.0), 1.0, r));   // 1 px feathered edge
+  gl_FragColor = vec4(mix(uInk, uMist, uNight) * a, a);                           // premultiplied
 }`;
 
 export const PARTICLE_FRAGMENT = /* glsl */ `

@@ -37,6 +37,11 @@
 }
 #work.rail-on h2 { font-size: min(var(--fs-h2), calc(42px + var(--tall) * .1875)); }                   /* short: 42 */
 #work.rail-on .section-sub { max-width: 26em; font-size: min(var(--fs-lead), calc(14px + var(--tall) * .05)); } /* short: 14 */
+/* The cluster blobs ride the rail behind the fixed head, and a blob's core still darkens the paper under the muted
+   subtitle (ink-60: 5.12:1 on bare paper) below 4.5:1 at the keep-out's 12% (3.77:1 per pixel at 1440 x 900, Task 19
+   review). So the subtitle carries its own paper ground, as the About copy does; the small feather lets the haze
+   the keep-out leaves fade out at its edges. Backgrounds paint before inline content, so it never covers the h2. */
+#work .section-sub { background: var(--bg); box-shadow: 0 0 16px 4px var(--bg); }
 
 /* overflow-x: clip — not a scroll container, so focus cannot scroll it; the page scroll moves the rail instead.
    The block padding leaves room for the cards' focus ring. */

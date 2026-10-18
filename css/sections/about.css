@@ -28,3 +28,7 @@
    fade out at its edges (with the keep-out's 32 px feather) instead of stopping at a hard line; it stays inside the
    column gap, and paints under every text (backgrounds paint before inline content). */
 .about-text { background: var(--bg); box-shadow: 0 0 24px 8px var(--bg); }
+/* The caption sits just under the plate, where the galaxy's dense core spreads out from behind the photo: at the
+   keep-out's 12% it still took the muted caption (ink-60) to 4.0:1 per pixel at 1024 x 768. So it carries its own
+   paper too, hugging its text (fit-content wraps as before), feathered like the hero's text grounds. */
+.plate-caption { width: fit-content; background: var(--bg); box-shadow: 0 0 4px 4px var(--bg); }

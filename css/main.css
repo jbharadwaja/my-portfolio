@@ -396,9 +396,9 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
 }
 .portrait-bottom .hero-copy { background: linear-gradient(to bottom, var(--bg) 0 calc(var(--slot-top, 0px) - 20px), transparent var(--slot-top, 0px)); }
 /* Text below the slot that scrolls over the held portrait outside the opaque panels (the meta rows, the CV link,
-   the socials, the scroll cue) carries its own paper ground, feathered like the engine's keep-out. It travels with
-   the text, so what is directly behind the text is always paper (spec §3.1: text ≥ 4.5:1). */
-.portrait-bottom :is(.hero-meta li > span, .cv-inline, .socials a, .scroll-cue) {
+   the socials) carries its own paper ground, feathered like the engine's keep-out. It travels with the text, so
+   what is directly behind the text is always paper (spec §3.1: text ≥ 4.5:1). The scroll cue has its own below. */
+.portrait-bottom :is(.hero-meta li > span, .cv-inline, .socials a) {
   background: var(--bg);
   box-shadow: 0 0 4px 4px var(--bg);
 }
@@ -408,9 +408,12 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
   position: absolute; top: calc(var(--header-h) + 24px); right: var(--gutter); color: var(--fg-muted);
   background: var(--bg); box-shadow: 0 0 4px 4px var(--bg);
 }
+/* The scroll cue sits outside the copy's keep-out in every layout (bottom centre: over the portrait in the bottom
+   layout, in the dust tunnel's path in the strip one), so it carries the same feathered paper ground (spec §3.1). */
 .scroll-cue {
   position: absolute; bottom: 28px; left: 50%;
   white-space: pre; color: var(--fg-muted);
+  background: var(--bg); box-shadow: 0 0 4px 4px var(--bg);
   transform: translateX(-50%);
 }
 
@@ -530,11 +533,13 @@ a.signoff-email {
 }
 .signoff-links { display: flex; flex-wrap: wrap; gap: 10px 32px; margin-top: clamp(28px, 3vw, 40px); font-size: var(--fs-label); }
 
-/* footer */
+/* footer: on the paper ground below its hairline. No text keep-out covers it and the dust tunnel drifts behind it,
+   and its muted lines (ink-60) need the bare paper to stay ≥ 4.5:1 (spec §3.1). */
 .site-footer {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 32px;
   padding: 22px var(--gutter) 26px;
   border-top: 1px solid var(--hairline);
+  background: var(--bg);
   font-size: var(--fs-mono-small); letter-spacing: .02em; color: var(--fg-muted);
 }
 .console-open { padding: 8px 12px 7px; border: 1px solid var(--fg); color: var(--fg); transition: color 150ms, background-color 150ms; }

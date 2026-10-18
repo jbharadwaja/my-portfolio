@@ -59,6 +59,7 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `common` | the seeded random generator, sampling, and the shared formation helpers (dust, shuffle, noise, galaxy) |
 | `console` | the ~ console's commands, completion and edit distance, focus and keys (fake DOM); the cursor's maths |
 | `content` | the page copy in `index.html`: sections, cards (charts, links), route stops, the About photo, CV links |
+| `contrast` | text against what is behind it: the text keep-out the particles and the dust share, and the paper grounds of muted text over the canvas |
 | `cv` | the CV link state: the LinkedIn fallback that ships and the publish state, written to every CV link |
 | `density` | the particle density estimate: alpha and point size per tier |
 | `framing` | camera framing: distance, shift and pose blending |
