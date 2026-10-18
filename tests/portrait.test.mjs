@@ -136,3 +136,82 @@ test('the halftone portrait is the image aspect contained in the portrait rect w
   const r = halftoneRect({ x: 532, y: 77, w: 444, h: 660 }, 1168 / 985);
   for (const k of ['x', 'y', 'w', 'h']) assert.ok(Number.isInteger(r[k]), k);
 });
+
+// ---------------------------------------------------------------- final review: header ground and hero spacing
+const mainCss = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');
+/** The declarations of the first rule whose selector is exactly `selector` in `css`, or null. */
+const cssRule = (css, selector) => {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return css.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]*)\\}`))?.[1] ?? null;
+};
+
+// Ruling R84: display type passing under the header ghosted through its 92% ground; the ground is opaque once scrolled.
+test('the header ground is fully opaque once the page has scrolled', () => {
+  const scrolled = cssRule(mainCss, '.site-header.is-scrolled::before');
+  assert.ok(scrolled, 'a .site-header.is-scrolled::before rule');
+  assert.match(scrolled, /opacity:\s*1;/);
+  assert.match(cssRule(mainCss, '.site-header::before'), /opacity:\s*0;/, 'no ground at the top of the page (Ruling R50)');
+});
+
+// Final review (experience I3): at 1024 × 768 the strip came out at 33.86%, a hair under spec §2.2's 34%, so an iPad on
+// its side got the bottom layout with the right 40% of the screen empty. The rule stays; in a landscape window the copy
+// column (which the name is fit to, split.js --h1-fit) gives way below ~1143 px so the strip keeps its 34% at every
+// width from 1024 up. A portrait window keeps the 55vw column (1024 × 1366 stays in the bottom layout).
+test('from 1024 px up, in a landscape window, the copy column leaves the portrait a strip of at least 34%', () => {
+  const at = mainCss.indexOf('@media (min-width: 1024px) and (min-aspect-ratio: 1/1)');
+  assert.ok(at >= 0, 'a landscape block from 1024 px up');
+  const m = mainCss.slice(at, mainCss.indexOf('}', mainCss.indexOf('{', at) + 1) + 1)
+    .match(/\.hero-copy\s*\{\s*width:\s*min\(([\d.]+)vw,\s*([\d.]+)vw\s*-\s*([\d.]+)px\);/);
+  assert.ok(m, 'its .hero-copy width is min(Avw, Bvw - Cpx)');
+  assert.match(mainCss, /@media \(min-width: 1024px\) \{\s*\.hero-copy \{ width: 55vw; \}/, 'any other window from 1024 px up keeps the 55vw column');
+  const [a, b, c] = m.slice(1).map(Number);
+  const column = (vw) => Math.min((a * vw) / 100, (b * vw) / 100 - c);
+  const gutter = (vw) => Math.min(48, Math.max(16, (3.3333 * vw) / 100));
+  for (let vw = 1024; vw <= 1920; vw += 4) {
+    const h1Right = gutter(vw) + column(vw) + 2;   // the fitted name's right edge, with 2 px to spare for rounding
+    assert.equal(portraitLayout({ vw, vh: 768, h1Right }).mode, 'strip', `vw ${vw}`);
+  }
+  assert.ok(Math.abs(column(1440) - 792) < 1e-9, 'from ~1143 px up the column is 55vw, as before (792 px at 1440)');
+});
+
+// Final review (experience M6): at 1366 × 768 the hero ran 898 px tall, so the CTA ended at 778 px and the scroll cue
+// (at the hero's foot) at 870 px, both under the fold. From 1024 px wide the hero's vertical rhythm tightens with the
+// stage height: each spacing is min(usual, short + --hero-tall × slope), --hero-tall being how far the stage is above
+// 768 px (0–132 px). From 900 px tall up it must change nothing (the 1440 × 900 composition stays as it was).
+test('the hero tightens on short laptop screens and is unchanged from 900 px tall up', () => {
+  const at = mainCss.indexOf('--hero-tall: clamp(');
+  assert.ok(at >= 0, 'a --hero-tall measure');
+  assert.match(mainCss, /--hero-tall: clamp\(0px, 100svh - 768px, 132px\)/);
+  const pairs = [...mainCss.matchAll(/min\((clamp\([^()]*\)|[\d.]+px),\s*calc\(([\d.]+)px \+ var\(--hero-tall\) \* ([\d.]+)\)\)/g)];
+  assert.ok(pairs.length >= 8, `${pairs.length} tightened spacings`);
+  for (const [text, usual, short, slope] of pairs) {
+    const most = Number((usual.match(/([\d.]+)px\)$/) ?? usual.match(/^([\d.]+)px$/))[1]);
+    assert.ok(Number(short) + 132 * Number(slope) >= most - 1e-9, `${text}: the usual value from 900 px tall up`);
+    assert.ok(Number(short) < most, `${text}: tighter below`);
+  }
+});
+
+// Final review (experience M4): in the bottom layout the portrait was held in viewport space while the hero scrolled,
+// so at 390 × 844 its empty slot scrolled up as a blank band and the face ended up under the meta rows and the panels.
+// It now rides with its slot: held where portraitLayout put it until the slot reaches it (a short stage frames it
+// higher), then moving with the page, and held again just above the viewport once the slot has left it.
+import { slotFollow } from '../js/sections/hero.js';
+test('the bottom-layout portrait rides with its slot, never down and never further than just above the viewport', () => {
+  // 390 × 844: the rect is the slot itself
+  const tall = { x: 16, y: 352, w: 358, h: 439 };
+  assert.equal(slotFollow(tall, 352, 0), 0);
+  assert.equal(slotFollow(tall, 352, 300), -300);
+  assert.equal(slotFollow(tall, 352, 791), -791, 'the slot has just left the viewport');
+  assert.equal(slotFollow(tall, 352, 1400), -791, 'held with its bottom edge at the viewport top');
+  assert.equal(slotFollow(tall, 352, -40), 0, 'an overscroll bounce above the top moves nothing');
+  // 844 × 390: the rect starts at the copy's top (112), above the slot (432), and ends at the stage's bottom
+  const short = { x: 28, y: 112, w: 788, h: 278 };
+  assert.equal(slotFollow(short, 432, 200), 0, 'held until the slot reaches it');
+  assert.equal(slotFollow(short, 432, 320), 0);
+  assert.equal(slotFollow(short, 432, 400), -80);
+  assert.equal(slotFollow(short, 432, 5000), -390, 'held just above the viewport');
+  for (let s = 0; s < 1500; s += 7) {
+    const dy = slotFollow(tall, 352, s);
+    assert.ok(dy <= 0 && dy >= slotFollow(tall, 352, s + 7), `monotonic at ${s}`);
+  }
+});

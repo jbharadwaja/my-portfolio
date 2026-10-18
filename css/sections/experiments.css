@@ -86,6 +86,34 @@
   #work.rail-on .card-summary { min-height: calc(3em * 1.45); }
 }
 
+/* A phone on its side (a stage under 560 px tall, Ruling R57's query): in one column the card is taller than the stage
+   leaves it under the fixed header (at 844 × 390 its index, title and chips sat under the header for the whole rail).
+   The card is wide there, so its text runs in two columns, nothing hidden: index, title, chips and summary on the
+   left; on the right the metric, the chart (with its compared-with line) and, at the foot, the verdict stamp and the
+   link. experiments.js draws each chart at its slot's width, so the bars follow the narrower column. */
+@media (max-height: 559.98px) {
+  #work.rail-on .card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-areas:
+      "index metric"
+      "title chart"
+      "chips chart"
+      "summary chart"
+      "summary foot";
+    column-gap: 16px;
+    align-items: start;
+  }
+  #work.rail-on .card-index { grid-area: index; }
+  #work.rail-on .card-title { grid-area: title; }
+  #work.rail-on .chips { grid-area: chips; }
+  #work.rail-on .card-summary { grid-area: summary; }
+  #work.rail-on .card-metric { grid-area: metric; margin-top: 0; padding-top: 0; }
+  #work.rail-on .card-chart { grid-area: chart; }
+  #work.rail-on .card-foot { grid-area: foot; align-self: end; }
+}
+
 /* Bar charts (experiments.js drawChart): orange for the model or the chosen entry, ink for the rest, ink labels. */
 .card-bars {
   display: block;

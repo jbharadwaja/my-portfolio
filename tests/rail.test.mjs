@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { railGeometry, stageScroll, cardIndexAt, clusterWorldX, chartSpec } from '../js/sections/experiments.js';
 import { buildClusters } from '../js/engine/formations/clusters.js';
 import { mulberry32 } from '../js/engine/formations/common.js';
@@ -74,4 +75,40 @@ test('series values written with an exponent keep the decimals they stand for', 
   assert.deepEqual(small.rows.map((r) => r.text), ['0.25', '0.01', '0.50']);
   const plus = chartSpec({ series: '[["a",1.25E+1],["b",3]]' });
   assert.deepEqual(plus.rows.map((r) => r.text), ['12.5', '3.0']);
+});
+
+// ---------------------------------------------------------------- final review: a phone on its side (experience I2)
+// On a stage under 560 px tall (Ruling R57's query) the one-column card ran ~360 px tall at 844 × 390, so its index,
+// title and chips sat under the fixed header for the whole rail; and the Route's ≥ 768 left card panel rose over the
+// head. There the card's text runs in two columns (nothing hidden), and the Route's cards are the bottom sheet.
+const sheet = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+/** The body of the first `@media <query> { … }` block in `css` (one level of nested rules). */
+const mediaBlock = (css, query) => {
+  const at = css.indexOf(`@media ${query} {`);
+  if (at < 0) return null;
+  let depth = 0;
+  for (let i = css.indexOf('{', at); i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}' && --depth === 0) return css.slice(css.indexOf('{', at) + 1, i);
+  }
+  return null;
+};
+test('a phone on its side: the rail card lays its text out in two columns and hides none of it', () => {
+  const block = mediaBlock(sheet('css/sections/experiments.css'), '(max-height: 559.98px)');
+  assert.ok(block, 'a (max-height: 559.98px) block in experiments.css');
+  const card = block.match(/#work\.rail-on \.card\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(card, /display:\s*grid;/);
+  assert.match(card, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\);/);
+  const areas = card.match(/grid-template-areas:([^;]*);/)?.[1] ?? '';
+  for (const name of ['index', 'title', 'chips', 'summary', 'metric', 'chart']) assert.match(areas, new RegExp(`\\b${name}\\b`), name);
+  assert.match(areas, /"summary foot"/, 'the stamp and the link sit under the chart, beside the summary');
+  assert.doesNotMatch(block, /display:\s*none/, 'no card content is hidden');
+});
+test('a phone on its side: the Route cards are the bottom sheet, clear of the head', () => {
+  const block = mediaBlock(sheet('css/sections/route.css'), '(max-height: 559.98px)');
+  assert.ok(block, 'a (max-height: 559.98px) block in route.css');
+  const deck = block.match(/\.route-live \.route-cards\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(deck, /position:\s*absolute;/);
+  assert.match(deck, /inset:\s*auto 0 0;/);
+  assert.match(deck, /max-height:\s*40svh;/);
 });
