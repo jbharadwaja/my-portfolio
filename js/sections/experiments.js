@@ -416,19 +416,9 @@ export async function init(ctx) {
 
   // ---- layout, at every refresh
 
-  // The boxes of an element's visible text: the split reveal's one-line screen-reader copy (.sr-only) is skipped,
-  // since its unwrapped text box runs far past the column it is clipped to.
-  const range = document.createRange();
-  const textBoxes = (el) => {
-    const boxes = [];
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      if (node.parentElement.closest('.sr-only')) continue;
-      range.selectNodeContents(node);
-      boxes.push(...range.getClientRects());
-    }
-    return boxes;
-  };
+  // The head's keep-out comes from its blocks (h2, subtitle), not from the glyphs' own boxes: until a split reveal
+  // plays, its letters and words sit 0.35em low (and narrow, under --wdth), and the refresh measures before then.
+  // A block's box is its layout, which those transforms never move; the screen-reader copy inside adds nothing.
   function keepOut(boxes, stageBox) {
     const shown = boxes.filter((b) => b.width > 0 && b.height > 0);
     if (shown.length === 0) return null;
@@ -458,8 +448,8 @@ export async function init(ctx) {
     band.x = (layout.vw - band.w) / 2;
     band.y = BAND_Y * layout.stageH - band.h / 2;
     const stageBox = stage.getBoundingClientRect();
-    const headText = head ? textBoxes(head) : [];
-    layout.safe = [keepOut(headText, stageBox), keepOut(below.map((el) => el.getBoundingClientRect()), stageBox)];
+    const headBlocks = head ? [...head.children].map((el) => el.getBoundingClientRect()) : [];
+    layout.safe = [keepOut(headBlocks, stageBox), keepOut(below.map((el) => el.getBoundingClientRect()), stageBox)];
     showProgress(st.progress);
     if (engine) {
       engine.setSafeRects({ [K]: layout.safe });
