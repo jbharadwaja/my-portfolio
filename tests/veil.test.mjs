@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
-import { WEIGHTS, displayedProgress, cellsLit, stepLabel, realProgress, veil } from '../js/ui/veil.js';
+import { WEIGHTS, displayedProgress, cellsLit, stepLabel, realProgress, veil, fontSheetsApplied } from '../js/ui/veil.js';
 
 test('weights sum to 1', () => assert.ok(Math.abs(Object.values(WEIGHTS).reduce((a, b) => a + b, 0) - 1) < 1e-9));
 test('soft creep', () => assert.ok(Math.abs(displayedProgress(0, 2.5, 0) - 0.9 * (1 - Math.exp(-1))) < 1e-9));
@@ -166,6 +166,25 @@ test('boot: a second failure keeps the first URL and counts the rest', () => {
   assert.match(b.banner.textContent, /\+1 more/);
 });
 
+// Review R70: main.js names an import still in flight at the lift; if it arrives later the page upgrades after all.
+test('boot: clear(url) takes a named URL off the banner, and hides it once nothing is left', () => {
+  const b = boot();
+  const V = b.win.__veil;
+  V.banner('https://x.test/three.js');
+  V.banner('https://x.test/gsap.js');
+  V.clear('https://x.test/three.js');
+  assert.equal(b.banner.hidden, false);
+  assert.equal(b.banner.textContent, 'Could not load https://x.test/gsap.js', 'the next one is named, with no count');
+  V.clear('https://x.test/never-named.js');
+  assert.equal(b.banner.textContent, 'Could not load https://x.test/gsap.js');
+  V.clear('https://x.test/gsap.js');
+  assert.equal(b.banner.hidden, true);
+  assert.equal(b.banner.textContent, '');
+  V.banner('https://x.test/late.css');
+  assert.equal(b.banner.hidden, false, 'a later failure shows it again');
+  assert.match(b.banner.textContent, /late\.css$/);
+});
+
 test('boot: errors that are not script/link loads are ignored', () => {
   const b = boot();
   b.fireError({ tagName: 'IMG', src: 'https://x.test/p.png' });
@@ -196,4 +215,83 @@ test('boot: preload is removed one frame after the window load event', () => {
   assert.ok(b.classes.has('preload'), 'still on in the load handler itself');
   b.frames.forEach((fn) => fn());
   assert.ok(!b.classes.has('preload'));
+});
+
+// ---------------------------------------------------------------- fontSheetsApplied (Ruling R26)
+
+// A font stylesheet as the page has it: media="print" with onload="this.media='all'" (registered at parse time, so it
+// runs before any listener added later), and a `sheet` once parsed.
+function fontLink({ sheet = null, media = 'print' } = {}) {
+  const listeners = { load: [], error: [] };
+  const el = {
+    href: 'https://fonts.googleapis.com/css2?family=Archivo', sheet, media, listeners,
+    addEventListener: (type, fn) => listeners[type].push(fn),
+    /** The load event: the onload attribute flips the media, then the listeners run. */
+    load() { el.sheet ??= {}; el.media = 'all'; listeners.load.splice(0).forEach((fn) => fn()); },
+    fail() { listeners.error.splice(0).forEach((fn) => fn()); },
+  };
+  return el;
+}
+
+/** A stand-in document holding `links`; `flushes` counts the style flushes (getComputedStyle reads). */
+function fontsDoc(links) {
+  const doc = {
+    flushes: 0,
+    documentElement: {},
+    querySelectorAll: (sel) => (sel.startsWith('link[rel="stylesheet"]') ? links : []),
+  };
+  doc.defaultView = { getComputedStyle: () => { doc.flushes++; return { fontFamily: 'Archivo' }; } };
+  return doc;
+}
+
+/** Whether `p` has settled once every pending microtask and the current timers have run. */
+const settledYet = (p) => Promise.race([p.then(() => true), new Promise((r) => setTimeout(() => r(false), 0))]);
+const never = () => {};
+
+test('font sheets: none pending (loaded and flipped to all, or no font links) resolves at once, after a style flush', async () => {
+  const doc = fontsDoc([fontLink({ sheet: {}, media: 'all' }), fontLink({ sheet: {}, media: 'all' })]);
+  assert.equal(await settledYet(fontSheetsApplied(doc, never)), true);
+  assert.equal(doc.flushes, 1, 'the faces are registered before anyone asks for them');
+  assert.equal(await settledYet(fontSheetsApplied(fontsDoc([]), never)), true);
+});
+
+test('font sheets: a parsed sheet still media="print" is pending until its load event has flipped it', async () => {
+  const alone = fontLink({ sheet: {}, media: 'print' });    // `sheet` set, the onload not run yet
+  const single = fontSheetsApplied(fontsDoc([alone]), never);
+  assert.equal(await settledYet(single), false, 'a sheet in print media declares no faces the page can use');
+  alone.load();
+  assert.equal(await settledYet(single), true);
+  assert.equal(alone.media, 'all');
+
+  const parsed = fontLink({ sheet: {}, media: 'print' });
+  const loading = fontLink();                               // not even parsed yet
+  const doc = fontsDoc([parsed, loading]);
+  const p = fontSheetsApplied(doc, never);
+  parsed.load();
+  assert.equal(await settledYet(p), false, 'the other sheet is still loading');
+  loading.load();
+  assert.equal(await settledYet(p), true);
+  assert.equal(doc.flushes, 1);
+});
+
+test('font sheets: a sheet that fails counts as settled (the page keeps its fallback faces)', async () => {
+  const failing = fontLink();
+  const doc = fontsDoc([failing, fontLink({ sheet: {}, media: 'all' })]);
+  const p = fontSheetsApplied(doc, never);
+  assert.equal(await settledYet(p), false);
+  failing.fail();
+  assert.equal(await settledYet(p), true);
+});
+
+test('font sheets: the veil lifting settles it while a sheet is still pending; never rejects', async () => {
+  let lift = null;
+  const doc = fontsDoc([fontLink({ sheet: {}, media: 'print' })]);
+  const p = fontSheetsApplied(doc, (cb) => { lift = cb; });
+  assert.equal(await settledYet(p), false);
+  assert.equal(typeof lift, 'function', 'it waits on the lift only while something is pending');
+  lift();
+  assert.equal(await settledYet(p), true);
+  let asked = false;
+  await fontSheetsApplied(fontsDoc([]), () => { asked = true; });
+  assert.equal(asked, false, 'nothing pending: the lift is not waited on');
 });

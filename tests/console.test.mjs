@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { runCommand, complete, levenshtein, projectLine, lossCurve, createConsole } from '../js/ui/console.js';
 import { ringFactor, isDrag, magnetPull, watchesReticle } from '../js/ui/cursor.js';
 const card = { index: 'EXP_01', title: 'Movie review sentiment', metric: 'F1 0.90', verdict: 'BEAT TARGET' };
@@ -131,16 +132,19 @@ class FakeElement {
   setSelectionRange() {}
 }
 
-/** A page with the console dialog (#console: .console-log, .console-input) closed, and focus on <body>. */
-function consolePage() {
+/**
+ * A page with the console dialog (#console: .console-log, .console-input) closed, and focus on <body>. `cards` are
+ * the rail's cards (#work .card); `scroll.jumpTo` records its targets in `jumps`.
+ */
+function consolePage({ cards = [] } = {}) {
   globalThis.matchMedia ??= () => ({ matches: false });
   const doc = {
     listeners: {},
     selection: { isCollapsed: true, anchorNode: null, focusNode: null },
     addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); },
     createElement(tag) { return new FakeElement(this, tag); },
-    querySelector: () => null,
-    querySelectorAll: () => [],
+    querySelector: (selector) => (selector === '.site-header' ? { offsetHeight: 64 } : null),
+    querySelectorAll: (selector) => (selector === '#work .card' ? cards : []),
     getSelection() { return this.selection; },
   };
   doc.documentElement = new FakeElement(doc, 'html');
@@ -154,8 +158,10 @@ function consolePage() {
   const input = new FakeElement(doc, 'input', 'console-input');
   root.append(log, input);
   doc.body.append(root);
-  const scroll = { lock() {}, unlock() {}, jumpTo: () => Promise.resolve() };
-  const api = createConsole({ root, scroll, ctx: { cards: [], skills: [], journey: [], contact: [] } });
+  const jumps = [];
+  const scroll = { lock() {}, unlock() {}, jumpTo: (target) => { jumps.push(target); return Promise.resolve(); } };
+  const ctx = { cards: cards.map(() => card), skills: [], journey: [], contact: [] };
+  const api = createConsole({ root, scroll, ctx });
   /** A keydown on `target` (the focused element by default), bubbling up to the document: whether it was prevented. */
   const press = (key, { target = doc.activeElement, ...mods } = {}) => {
     let prevented = false;
@@ -167,7 +173,7 @@ function consolePage() {
     for (const fn of doc.listeners.keydown ?? []) fn(e);
     return prevented;
   };
-  return { doc, root, log, input, api, press };
+  return { doc, root, log, input, api, press, jumps };
 }
 
 test('Esc on a console opened from the page leaves focus off its hidden input, so ~ at once reopens it', () => {
@@ -240,4 +246,44 @@ test('~ does not open the console while the loading veil is up (html.js without 
   doc.documentElement.classList.add('veil-done');
   press('~');
   assert.equal(root.hidden, false, 'opens once the veil has lifted');
+});
+
+// Task 26 review (R69): focus must leave the hidden input even when the element it returns to does not take it.
+test('Esc leaves focus off the hidden input even when the element it returns to refuses focus', () => {
+  const { doc, root, input, press } = consolePage();
+  const button = new FakeElement(doc, 'button');
+  doc.body.append(button);
+  button.focus();
+  button.focus = () => {};             // hidden or inert by the time the console closes: it does not take focus
+  press('~');
+  assert.equal(doc.activeElement, input);
+  press('Escape');
+  assert.equal(root.hidden, true);
+  assert.notEqual(doc.activeElement, input, 'not left on the hidden input');
+  press('~');
+  assert.equal(root.hidden, false, '~ reopens it at once');
+});
+
+// R69: the rail's geometry is imported only when `open <n>` runs (a section module failing to load would otherwise
+// take main.js down), and the jump still goes to railPositionFor(card), then focuses the card.
+test('open <n> imports the rail geometry lazily, jumps to the card\'s rail place, then focuses the card', async (t) => {
+  const src = readFileSync(new URL('../js/ui/console.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /^\s*import\b[^;]*from\s*'\.\.\/sections\//m, 'no static import of a section module');
+  const saved = ['document', 'window'].map((k) => [k, Object.getOwnPropertyDescriptor(globalThis, k)]);
+  t.after(() => {
+    for (const [k, d] of saved) d ? Object.defineProperty(globalThis, k, d) : delete globalThis[k];
+  });
+  const page = consolePage({ cards: [0, 1, 2].map((i) => ({ i, getBoundingClientRect: () => ({ top: 400 + 100 * i }) })) });
+  // Without the live rail (no scroll libraries in Node), railPositionFor is the card's place under the header.
+  globalThis.document = page.doc;
+  globalThis.window = { scrollY: 120 };
+  let focused = null;
+  page.doc.querySelectorAll('#work .card')[1].focus = function () { focused = this; };
+  page.api.open();
+  page.input.value = 'open 2';
+  page.press('Enter');
+  assert.equal(page.root.hidden, true, 'the console closes first');
+  for (let i = 0; i < 5 && !focused; i++) await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(page.jumps, [500 + 120 - 64]);
+  assert.equal(focused?.i, 1, 'the card has focus once the page is there');
 });

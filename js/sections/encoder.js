@@ -160,17 +160,18 @@ function stageTop({ top, h, stageH }) {
 const hits = (x0, y0, x1, y1, r) => x0 < r.x1 && x1 > r.x0 && y0 < r.y1 && y1 > r.y0;
 
 /**
- * uPulse runs 0 → 1 over the sticky stage (spec §5.1: measured, scrub: true; 0.3 when Lenis is off), and sets
- * which layer's labels show.
+ * uPulse runs 0 → 1 over the sticky stage (spec §5.1: measured, scrub: true; 0.3 when Lenis is off — scroll.js
+ * followScrub keeps that right through a live reduced-motion switch), and sets which layer's labels show.
  */
 function createPulse({ gsap, scroll }, section, setPulse) {
   const proxy = { pulse: 0 };
-  gsap.to(proxy, {
+  const tween = gsap.to(proxy, {
     pulse: 1,
     ease: 'none',
     onUpdate: () => setPulse(proxy.pulse),
-    scrollTrigger: { trigger: section, start: 'top top', end: 'bottom bottom', scrub: scroll?.lenis ? true : 0.3 },
+    scrollTrigger: { trigger: section, start: 'top top', end: 'bottom bottom', scrub: true },
   });
+  scroll?.followScrub(tween.scrollTrigger);
 }
 
 /** The labels back in their static layer grid (no engine, or a context lost for good: spec §8.3). */

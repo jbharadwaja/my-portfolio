@@ -1,8 +1,9 @@
 // The ~ console (spec §6.4): a keyboard-driven dialog. Its projects, skills, journey and contact output is read from
 // the page's own DOM at boot, so it can never disagree with the page; `resume` follows the CV link as the DOM has it
 // when the command runs. The parser, completion, the "did you mean" distance and the ASCII loss curve are pure and
-// Node-testable; createConsole touches the DOM only when it is called.
-import { railPositionFor } from '../sections/experiments.js';
+// Node-testable; createConsole touches the DOM only when it is called. The rail's geometry (experiments.js) is
+// imported only when `open <n>` runs, so a section module that fails to load never takes the console, or main.js
+// with it, down.
 import { HELP, WHOAMI, CONSOLE } from '../content.js';
 
 const GUESS_MAX = 2;                   // "did you mean" only within this edit distance
@@ -267,8 +268,9 @@ export function createConsole({ root, scroll, ctx }) {
     const back = returnTo;
     returnTo = null;
     if (returnFocus && back && back !== doc.body && back.isConnected) back.focus({ preventScroll: true });
-    // Otherwise off the hidden input now: left there until the browser's next focus fixup, it would swallow a ~.
-    else if (root.contains(doc.activeElement)) doc.activeElement.blur();
+    // Off the hidden input in any case (nowhere to return to, or a target that did not take focus): left there until
+    // the browser's next focus fixup, it would swallow a ~.
+    if (root.contains(doc.activeElement)) doc.activeElement.blur();
   }
 
   function train() {
@@ -303,11 +305,19 @@ export function createConsole({ root, scroll, ctx }) {
   }
 
   // `open <n>`: close, then jump to that card's place on the rail; focus lands on it once the page is there. The
-  // place is measured after the close, with the page's scrollbar back.
+  // place is measured after the close, with the page's scrollbar back. Should experiments.js fail to load, the jump
+  // goes to the rail's section instead.
   function jumpToCard(index) {
     close({ returnFocus: false });
     const card = doc.querySelectorAll('#work .card')[index];
-    if (card) scroll.jumpTo(railPositionFor(card)).then(() => card.focus({ preventScroll: true }));
+    if (!card) return Promise.resolve();
+    return import('../sections/experiments.js')
+      .then(({ railPositionFor }) => railPositionFor(card), (err) => {
+        console.error(err);
+        return 'work';
+      })
+      .then((target) => scroll.jumpTo(target))
+      .then(() => card.focus({ preventScroll: true }));
   }
 
   function perform(action) {

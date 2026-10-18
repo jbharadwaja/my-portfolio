@@ -243,12 +243,13 @@ export async function init(ctx) {
       trigger: section,
       start: 'top top',
       end: 'bottom bottom',
-      scrub: scroll.lenis ? true : 0.3,   // Lenis already smooths (spec §5.1)
+      scrub: true,                     // its smoothing follows Lenis (followScrub below; spec §5.1)
       invalidateOnRefresh: true,
       onUpdate: (self) => showProgress(self.progress),
     },
   });
   const st = tween.scrollTrigger;
+  scroll.followScrub(st);
   const railX = () => gsap.getProperty(rail, 'x');
   centreOnRail = (card) => railScrollFor({
     stStart: st.start,

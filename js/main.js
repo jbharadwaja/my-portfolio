@@ -2,7 +2,8 @@
 // three, gsap, ScrollTrigger and Lenis load through await import() inside try/catch, and nothing that works without
 // them waits for them: the CV state, native scroll, nav, the hero's layout, the cursor and the ~ console are wired
 // first (Ruling R65). If gsap or Lenis fails the banner names it, scrolling stays native and .js-scroll is never set,
-// so the sections keep their no-JS lengths; the engine then renders from main.js's own rAF loop (Ruling R31).
+// so the sections keep their no-JS lengths; the engine then renders from main.js's own rAF loop (Ruling R31), its
+// canvas shown only while the hero fills the viewport (Ruling R68).
 // Without WebGL — ?nowebgl, no webgl2 context, three or the engine failing, a context lost for good — the page shows
 // its no-WebGL visuals (enterNoWebgl, spec §8.3); so does a veil lifted before the engine is ready, until it arrives
 // and fades in (spec §6.1 late ready). prefers-reduced-motion is followed live (spec §3.3, Rulings R27/R45).
@@ -10,8 +11,8 @@
 // compiled), or at the 8 s cap. The canvas first renders on the frame the veil starts fading.
 // Debug flags: ?nowebgl (the no-WebGL page), ?simulate=hang (never signals ready; the 8 s cap lifts the veil),
 //              ?simulate=cdnfail (the gsap import fails: banner naming the URL, the veil still lifts, native scroll).
-import { veil, fontFacesDeclared } from './ui/veil.js';
-import { createScroll, placeToRestore } from './ui/scroll.js';
+import { veil, fontsSettled } from './ui/veil.js';
+import { createScroll, placeToRestore, groundFill } from './ui/scroll.js';
 import { initNav } from './ui/nav.js';
 import { initHeroFit, initReveals } from './ui/split.js';
 import { pickTier, readEnv } from './engine/tier.js';
@@ -29,6 +30,7 @@ import { CV_PUBLISHED, applyCvState } from './content.js';
 const REDUCED = '(prefers-reduced-motion: reduce)';
 const LATE_FADE_MS = 400;              // a late engine's canvas fades in (spec §6.1)
 const LATE_BUILD_WAIT_MS = 1500;       // ...once the formations on screen are built, or after this long at most
+const HERO_FADE_MS = 300;              // without gsap's ticker, the canvas fades as the hero leaves or returns (R68)
 const FAILING_GSAP = 'https://cdn.jsdelivr.net/npm/gsap@0.0.0-nope/index.js';   // ?simulate=cdnfail
 
 /** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries (spec §4.3). */
@@ -76,10 +78,15 @@ function mountFallback(entry) {
  * The no-WebGL state (spec §8.3): <html class="no-webgl"> hides the canvas, every registered fallback mounts (the
  * hero's halftone portrait, the Route's 2D map; the encoder keeps its label grid) and ScrollTrigger re-measures.
  * `reason`: 'nowebgl' (the debug flag), 'webgl2' (no context), 'three' (its import failed), 'engine' (it could not
- * be created), 'contextfail' (lost for good) or 'late' (the veil lifted before the engine was ready).
+ * be created), 'contextfail' (lost for good) or 'late' (the veil lifted before the engine was ready). Already in
+ * the state, only a 'late' one takes the new reason: a late engine whose context is lost for good before it has
+ * taken over keeps the fallbacks (leaveNoWebgl then stops).
  */
 export function enterNoWebgl(reason) {
-  if (noWebgl) return;
+  if (noWebgl) {
+    if (noWebgl === 'late') noWebgl = reason;
+    return;
+  }
   noWebgl = reason;
   document.documentElement.classList.add('no-webgl');
   fallbacks.forEach(mountFallback);
@@ -108,7 +115,7 @@ async function leaveNoWebgl(engine) {
   }
   // While the canvas fades in, the body holds the current ground (the Route's night too, whose own ground just went).
   const { body, documentElement: root } = document;
-  body.style.backgroundColor = root.dataset.ground === 'night' ? 'var(--bg-dark)' : 'var(--bg)';
+  body.style.backgroundColor = groundFill(root);
   const fade = document.getElementById('scene')?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: LATE_FADE_MS, easing: 'ease-out' });
   ctx.ScrollTrigger?.refresh();
   await fade?.finished.catch(() => {});
@@ -137,12 +144,17 @@ function nameFailed(url) {
   window.__veil?.banner(url);
 }
 
-/** Imports one CDN module; on failure the banner names its URL and the error is rethrown. */
+/**
+ * Imports one CDN module; on failure the banner names its URL and the error is rethrown. One the banner named while
+ * it was still in flight (the lift) leaves it on arrival: the page upgrades after all.
+ */
 async function load(specifier) {
   const url = import.meta.resolve(simulate === 'cdnfail' && specifier === 'gsap' ? FAILING_GSAP : specifier);
   loading.add(url);
   try {
-    return await import(url);
+    const mod = await import(url);
+    if (named.delete(url)) window.__veil?.clear?.(url);
+    return mod;
   } catch (err) {
     nameFailed(url);
     throw err;
@@ -310,13 +322,47 @@ reducedQuery.addEventListener('change', followReduced);   // until gsap.matchMed
 
 // The engine loads alongside the scroll libraries and never holds them up. It renders at the end of the GSAP ticker
 // once gsap is there (spec §4.7); until then, and for good if gsap fails, from this rAF loop, with the boundaries
-// left at 0: the hero portrait stays (Ruling R31). Both pass performance.now(), so the hand-over keeps one clock.
+// left at 0: the hero portrait stays (Ruling R31; heroGate shows it only in the hero). Both pass performance.now(),
+// so the hand-over keeps one clock.
 let ownLoop = true;
+let renderUntil = Infinity;            // the loop renders until then (heroGate)
 requestAnimationFrame(function frame() {
   if (!ownLoop) return;
-  ctx.engine?.tick(performance.now());
+  const now = performance.now();
+  if (now < renderUntil) ctx.engine?.tick(now);
   requestAnimationFrame(frame);
 });
+
+/**
+ * Ruling R68: while this loop drives the engine, the canvas can only show the hero portrait, held still, which
+ * would sit behind every later section's text. So the canvas shows only while the hero still reaches the foot of the
+ * viewport (an IntersectionObserver on #top over the viewport's bottom 1%): once the next section scrolls in, it
+ * fades out and the loop stops rendering when the fade ends; back in the hero, rendering resumes and it fades in.
+ * Released (the canvas shown, the observer gone) once gsap's ticker takes over.
+ */
+function heroGate() {
+  const scene = document.getElementById('scene');
+  const hero = document.getElementById('top');
+  if (!scene || !hero || typeof IntersectionObserver !== 'function') return () => {};
+  const show = (on) => {
+    renderUntil = on ? Infinity : performance.now() + HERO_FADE_MS;
+    scene.style.transition = on
+      ? `opacity ${HERO_FADE_MS}ms ease-out`
+      : `opacity ${HERO_FADE_MS}ms ease-in, visibility 0s linear ${HERO_FADE_MS}ms`;
+    scene.style.opacity = on ? '' : '0';
+    scene.style.visibility = on ? '' : 'hidden';
+  };
+  const watch = new IntersectionObserver((entries) => show(entries[entries.length - 1].isIntersecting), {
+    rootMargin: '-99% 0px 0px 0px',   // the viewport's bottom 1%: the hero still reaches its foot
+  });
+  watch.observe(hero);
+  return () => {
+    watch.disconnect();
+    show(true);
+    setTimeout(() => { scene.style.transition = ''; }, HERO_FADE_MS);
+  };
+}
+const releaseHeroGate = heroGate();
 let engineSettled = false;
 loadEngine().then((engine) => {
   engineSettled = true;
@@ -331,7 +377,7 @@ veil.onLift(() => {
 // After the lift, by any route (the meter, the 8 s cap, an asset error), the other formations build in idle tasks.
 veil.onLift(() => ctx.engineReady.then((engine) => engine?.buildDeferred()));
 
-const fonts = fontFacesDeclared().then(() => document.fonts?.ready);
+const fonts = fontsSettled();
 let laidOut = fonts;          // with the libraries: settles once the word widths are locked (initReveals)
 restorePlace();               // on the native layout: a CDN that never answers still leaves the page where it was
 const libs = await loadScrollLibs();
@@ -355,6 +401,7 @@ if (libs) {
     return () => applyReduced(false);
   });
   ownLoop = false;
+  releaseHeroGate();
   gsap.ticker.add((time, deltaTime) => {
     for (const fn of tickers) fn(time, deltaTime);
     ctx.engine?.tick(performance.now());   // render last (spec §4.7: lenis.raf → section state → render)

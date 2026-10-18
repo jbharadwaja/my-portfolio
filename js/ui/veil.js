@@ -1,7 +1,7 @@
 // Loading veil: the denoising meter (spec 6.1).
 // Imports nothing from the CDN, so the meter runs while the libraries download. The maths is pure and
 // Node-testable; the DOM driver starts only when a document exists. The inline boot script (index.html,
-// js/boot-inline.js) owns window.__veil — lift(), banner(url), lifted — and the 8 s cap.
+// js/boot-inline.js) owns window.__veil — lift(), banner(url), clear(url), lifted — and the 8 s cap.
 
 export const WEIGHTS = { fonts: 0.15, three: 0.4 / 3, gsap: 0.4 / 3, lenis: 0.4 / 3, portrait: 0.20, compile: 0.20, formations: 0.05 };
 
@@ -61,21 +61,22 @@ function onLift(cb) {
 const FONT_SHEETS = 'link[rel="stylesheet"][href^="https://fonts.googleapis.com/"]';
 let declared = null;
 
+// A font sheet has not applied yet while it has no `sheet`, and also while it is still media="print": its `sheet`
+// exists once parsed, a task or more before the load event runs the onload that flips it to all (Ruling R26).
+const sheetPending = (link) => !link.sheet || link.media === 'print';
+
 /**
- * Resolves once the Google Fonts stylesheets apply: they load without blocking the page (Ruling R26: media="print"
- * until their onload flips them to all), so until then their @font-face rules do not exist and document.fonts.load()
- * resolves at once with nothing loaded. Also resolves when they fail, or when the veil lifts (a stalled stylesheet
- * leaves the page on its fallback faces; late fonts still fire `loadingdone`). Never rejects.
+ * Resolves once `doc`'s Google Fonts stylesheets apply (fontFacesDeclared, testable on a stand-in document): at once
+ * when none is pending, else when each pending one has loaded (its onload attribute, registered at parse time, has
+ * flipped it to all by then) or failed, or when `whenLifted` calls back. A style flush then registers the faces before
+ * anyone asks for them. Never rejects.
  */
-export function fontFacesDeclared() {
-  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return Promise.resolve();
-  declared ??= new Promise((resolve) => {
-    const pending = [...document.querySelectorAll(FONT_SHEETS)].filter((link) => !link.sheet);
+export function fontSheetsApplied(doc, whenLifted) {
+  return new Promise((resolve) => {
+    const pending = [...doc.querySelectorAll(FONT_SHEETS)].filter(sheetPending);
     let left = pending.length;
-    // The onload attribute flipped the media first (it was registered at parse time); the style flush registers the
-    // faces before anyone asks for them.
     const applied = () => {
-      void getComputedStyle(document.documentElement).fontFamily;
+      void doc.defaultView?.getComputedStyle(doc.documentElement).fontFamily;
       resolve();
     };
     const settled = () => {
@@ -89,9 +90,25 @@ export function fontFacesDeclared() {
       link.addEventListener('load', settled, { once: true });
       link.addEventListener('error', settled, { once: true });
     }
-    onLift(resolve);
+    whenLifted(resolve);
   });
+}
+
+/**
+ * Resolves once the Google Fonts stylesheets apply: they load without blocking the page (Ruling R26: media="print"
+ * until their onload flips them to all), so until then their @font-face rules do not exist and document.fonts.load()
+ * resolves at once with nothing loaded. Also resolves when they fail, or when the veil lifts (a stalled stylesheet
+ * leaves the page on its fallback faces; late fonts still fire `loadingdone`). Never rejects.
+ */
+export function fontFacesDeclared() {
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return Promise.resolve();
+  declared ??= fontSheetsApplied(document, onLift);
   return declared;
+}
+
+/** The fonts settled: the faces declared (fontFacesDeclared), then document.fonts.ready. Never rejects. */
+export function fontsSettled() {
+  return fontFacesDeclared().then(() => globalThis.document?.fonts?.ready);
 }
 
 export const veil = {

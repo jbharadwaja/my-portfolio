@@ -5,7 +5,7 @@
 <script>
 /* Latent Space boot (spec 6.1). Reference copy: index.html carries these exact bytes inline, first in <head>. */
 (function (w, d) {
-  var h = d.documentElement, failures = 0, first = '', failed = {};
+  var h = d.documentElement, named = [], failed = {};
   h.classList.remove('no-js');
   h.classList.add('js', 'preload');
 
@@ -19,8 +19,14 @@
       d.dispatchEvent(new Event('veil:lift'));
     },
     banner: function (url) {
-      failures++;
-      first = first || String(url);
+      named.push(String(url));
+      paint();
+    },
+    /* a URL named earlier arrived after all (an import past the cap): it leaves the banner, hidden once empty */
+    clear: function (url) {
+      var i = named.indexOf(String(url));
+      if (i < 0) return;
+      named.splice(i, 1);
       paint();
     }
   };
@@ -29,10 +35,10 @@
   function paint() {
     var veil = d.querySelector('.veil'), banner = d.querySelector('.banner');
     if (veil && V.lifted) veil.setAttribute('aria-label', 'Loaded');
-    if (banner && failures) {
-      banner.textContent = 'Could not load ' + first + (failures > 1 ? ' (+' + (failures - 1) + ' more)' : '');
-      banner.hidden = false;
-    }
+    if (!banner) return;
+    var n = named.length, text = n ? 'Could not load ' + named[0] + (n > 1 ? ' (+' + (n - 1) + ' more)' : '') : '';
+    if (banner.textContent !== text) banner.textContent = text;
+    banner.hidden = !n;
   }
 
   /* the 8 s cap. A stylesheet still pending by now (a stalled CDN) would keep the page unpainted, so it is

@@ -39,7 +39,7 @@ test('scroll.js imports no library (it loads in Node, so nothing touches the DOM
 });
 
 // createScroll against a minimal fake page: just what scroll.js reads (no DOM library, no network).
-import { createScroll } from '../js/ui/scroll.js';
+import { createScroll, scrubFor, groundFill } from '../js/ui/scroll.js';
 
 const IDS = ['top', 'encoder', 'training', 'work', 'route', 'about', 'contact'];
 
@@ -267,6 +267,36 @@ test('setReduced before the libraries arrive decides whether attach() creates Le
   scroll.setReduced(true);
   scroll.setReduced(false);
   assert.equal(scroll.lenis.stopped, true, 'a Lenis recreated under the lock starts stopped');
+});
+
+// Review R70: a live reduced-motion switch must also reach the scrub smoothing set when the sections were created.
+test('a followed scrub takes no smoothing with Lenis and 0.3 s on native scroll, through every switch', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const st = { durations: [], scrubDuration(v) { this.durations.push(v); } };
+  const scroll = createScroll({ reduced: true });
+  scroll.followScrub(st);
+  assert.deepEqual(st.durations, [0.3], 'native scroll before the libraries arrive');
+  scroll.setReduced(false);
+  scroll.attach({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} } });
+  assert.deepEqual(st.durations.at(-1), true, 'Lenis smooths: the trigger follows the scroll directly');
+  scroll.setReduced(true);
+  assert.deepEqual(st.durations.at(-1), 0.3, 'switched to reduce: native scroll, 0.3 s');
+  scroll.setReduced(false);
+  assert.deepEqual(st.durations.at(-1), true, 'and back');
+  const late = { durations: [], scrubDuration(v) { this.durations.push(v); } };
+  scroll.followScrub(late);
+  assert.deepEqual(late.durations, [true], 'a trigger followed while Lenis runs');
+  assert.doesNotThrow(() => scroll.followScrub(null));
+  assert.doesNotThrow(() => scroll.followScrub({}), 'a trigger without scrubDuration (an old gsap) is left as created');
+});
+
+test('scrubFor and groundFill', () => {
+  assert.equal(scrubFor(true), true);
+  assert.equal(scrubFor(false), 0.3);
+  assert.equal(groundFill({ dataset: { ground: 'night' } }), 'var(--bg-dark)');
+  assert.equal(groundFill({ dataset: { ground: 'paper' } }), 'var(--bg)');
+  assert.equal(groundFill({ dataset: {} }), 'var(--bg)');
 });
 
 test('under reduced motion set at runtime a cut fades out in 0 ms', async (t) => {

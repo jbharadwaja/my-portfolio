@@ -18,7 +18,6 @@ const CURVE = { w: 200, h: 80, top: 1.3 };   // the loss curve's viewBox; a loss
 // tall. Its top moves down in `step` px until no surface sample lands within `clear` px of the heading or the HUD.
 // The surface is fitted into it with the engine's framing slack (framing.js) in `fitSteps` steps.
 const PLOT = { share: 0.55, gap: 16, minShare: 0.2, clear: 16, step: 2, slack: 1.08, fitSteps: 6 };
-const SCRUB_NATIVE_S = 0.3;            // spec §5.1: scrub 0.3 only when Lenis is off (it already smooths)
 const RESIZE_DEBOUNCE_MS = 150;
 // The ball and its trail: one small Points draw over the landscape (spec §8.1), sized in CSS px.
 const BALL = { px: 12, trailPx: 3.5, trailAlpha: 0.85, fadeIn: [0.55, 0.95] };
@@ -208,17 +207,14 @@ export async function init(ctx) {
 
   show(0);
   const proxy = { e: 0 };
-  gsap.to(proxy, {
+  const run = gsap.to(proxy, {
     e: EPOCHS,
     ease: 'none',
     onUpdate: () => show(proxy.e),
-    scrollTrigger: {
-      trigger: section,
-      start: 'top top',
-      end: 'bottom bottom',
-      scrub: ctx.scroll?.lenis ? true : SCRUB_NATIVE_S,
-    },
+    // Spec §5.1: scrub 0.3 only when Lenis is off (it already smooths); scroll.js followScrub keeps it so.
+    scrollTrigger: { trigger: section, start: 'top top', end: 'bottom bottom', scrub: true },
   });
+  ctx.scroll?.followScrub(run.scrollTrigger);
 
   // The layout (regular or side) is the DOM's and holds without the engine; with it, each relayout also frames the
   // landscape. Re-measured on resize, refresh and late fonts.
@@ -288,16 +284,18 @@ function attachEngine({ engine, ctx, getEpoch }) {
   engine.onFrame(() => ball.update(getEpoch()));
 
   const canvas = engine.renderer.domElement;
-  const roll = ctx.reduced ? 0 : ROLL_DEG;   // the engine rolls no pose under reduced motion
   const rect = { x: 0, y: 0, w: 0, h: 0 };
-  const pose = { lookAt: [0, 0, 0], roll, rect: () => rect };
+  // The engine rolls no pose under reduced motion, deciding it live (scene.js solvePose), so the pose keeps its roll
+  // and only the framing reads the preference, at each relayout. A live switch re-frames: gsap.matchMedia refreshes
+  // every ScrollTrigger once main.js has applied it, and a refresh relayouts.
+  const pose = { lookAt: [0, 0, 0], roll: ROLL_DEG, rect: () => rect };
   return (m) => {
     const next = plotRect({
       ...m,
       vw: canvas.clientWidth || document.documentElement.clientWidth,
       vh: canvas.clientHeight || innerHeight,
       vfov: engine.camera.fov,
-      roll,
+      roll: ctx.reduced ? 0 : ROLL_DEG,
     });
     engine.setSafeRects({ [K]: [m.head, m.hud] });
     if (sameRect(next, rect)) return;

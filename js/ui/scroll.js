@@ -5,6 +5,7 @@
 const ANIMATE_MAX_S = 1;                       // adjacent jumps: an animated scroll of at most 1.0 s
 const CUT_MS = { out: 180, in: 320 };          // far jumps: fade out, jump, fade back in
 const CUT_MS_REDUCED = { out: 0, in: 120 };
+const SCRUB_NATIVE_S = 0.3;                    // spec §5.1: a scrub's smoothing on native scroll (Lenis already smooths)
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
@@ -17,6 +18,16 @@ export function jumpMode(fromIdx, toIdx) {
 export function railScrollFor({ stStart, stEnd, cardLeft, cardWidth, innerWidth, railTravel }) {
   const share = railTravel > 0 ? clamp01((cardLeft + cardWidth / 2 - innerWidth / 2) / railTravel) : 0;
   return stStart + share * (stEnd - stStart);
+}
+
+/** The ground colour the page shows now (`root` is <html>: data-ground, the Route's night), to pin on <body>. */
+export function groundFill(root) {
+  return root.dataset.ground === 'night' ? 'var(--bg-dark)' : 'var(--bg)';
+}
+
+/** The scrub smoothing a ScrollTrigger takes (spec §5.1): none while Lenis smooths the scroll, 0.3 s on native scroll. */
+export function scrubFor(lenisOn) {
+  return lenisOn ? true : SCRUB_NATIVE_S;
 }
 
 /** Index of the last section whose top is at or above y (page coordinates); 0 above the first. */
@@ -57,7 +68,8 @@ export function placeToRestore({ visit, entry, tab, hashId, ids }) {
  * lets the 8 s cap lift the veil first, and calls attach() once they resolve. That upgrades the same object in
  * place, so the handlers holding it and any lock already taken carry over. Passing the libraries here attaches at
  * once. Lenis exists only without reduced motion (gsap's ticker drives it); setReduced() follows a change of the
- * preference at runtime, destroying or creating it (Rulings R27/R45). Without Lenis every scrollTo is instant.
+ * preference at runtime, destroying or creating it (Rulings R27/R45), and the triggers handed to followScrub() take
+ * the smoothing that goes with it. Without Lenis every scrollTo is instant.
  */
 export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, reduced = false } = {}) {
   const root = document.documentElement;
@@ -67,6 +79,9 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
   let trigger = null;            // ScrollTrigger, once attached
   let locks = 0;                 // counted, so two overlays (burger sheet, console) can hold the lock at once
   const raf = (t) => lenis?.raf(t * 1000);
+  const scrubbed = new Set();    // the ScrollTriggers whose smoothing follows Lenis (followScrub)
+  const smooth = (st) => st.scrubDuration?.(scrubFor(Boolean(lenis)));
+  const smoothScrubs = () => scrubbed.forEach(smooth);
 
   function startLenis() {
     if (lenis || reduced || !libraries?.Lenis) return;
@@ -75,6 +90,7 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     libraries.gsap.ticker.add(raf, false, true);
     libraries.gsap.ticker.lagSmoothing(0);
     if (locks > 0) lenis.stop();
+    smoothScrubs();
   }
 
   function stopLenis() {
@@ -82,6 +98,7 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     libraries.gsap.ticker.remove(raf);
     lenis.destroy();
     lenis = null;
+    smoothScrubs();
   }
 
   function attach(libs) {
@@ -123,7 +140,7 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     const layers = [document.querySelector('main'), document.getElementById('scene')].filter(Boolean);
     let out = [];
     let back = [];
-    document.body.style.backgroundColor = root.dataset.ground === 'night' ? 'var(--bg-dark)' : 'var(--bg)';
+    document.body.style.backgroundColor = groundFill(root);
     try {
       out = layers.map((el) => el.animate([{ opacity: 0 }], { duration: ms.out, easing: 'ease-in', fill: 'forwards' }));
       await Promise.all(out.map((a) => a.finished));
@@ -192,6 +209,15 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     get lenis() { return lenis; },
     attach,
     setReduced,
+    /**
+     * A scrubbed ScrollTrigger (created with any scrub but a toggle) takes scrubFor's smoothing now, and again each
+     * time Lenis is created or destroyed (a live reduced-motion switch, setReduced), through its scrubDuration().
+     */
+    followScrub(st) {
+      if (!st) return;
+      scrubbed.add(st);
+      smooth(st);
+    },
     scrollTo,
     jumpTo,
     /** on('jump', fn): fn({ mode: 'cut' | 'animate', targetIndex }) on each jump (emitJump); returns its off switch. */

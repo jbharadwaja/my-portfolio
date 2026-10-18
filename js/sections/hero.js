@@ -3,7 +3,7 @@
 // entrance after it, and without WebGL the cut-out as a static halftone in the same place. portraitLayout,
 // entranceMode and halftoneRect are pure and Node-testable; init(ctx) touches the DOM and receives gsap, the scroll
 // and the engine through ctx (this module imports no CDN library).
-import { veil, fontFacesDeclared } from '../ui/veil.js';
+import { veil, fontsSettled } from '../ui/veil.js';
 import { createHalftoneReveal } from '../ui/halftone-reveal.js';
 import { FRAME_SLACK } from '../engine/framing.js';
 import { mulberry32 } from '../engine/formations/common.js';
@@ -277,7 +277,7 @@ export function init(ctx) {
   });
   // The name's width (the strip) and the copy's height (the slot's place) follow the fonts.
   document.fonts?.addEventListener('loadingdone', relayout);
-  fontFacesDeclared().then(() => document.fonts?.ready).then(relayout);
+  fontsSettled().then(relayout);
 
   ctx.fallback(() => {
     halftone = mountHalftone({ section, slot, layout });
