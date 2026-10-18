@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
-import { WEIGHTS, displayedProgress, cellsLit, stepLabel, realProgress, veil, fontSheetsApplied } from '../js/ui/veil.js';
+import { WEIGHTS, displayedProgress, cellsLit, stepLabel, realProgress, veil, fontSheetsApplied, fontSheetsFailed } from '../js/ui/veil.js';
 
 test('weights sum to 1', () => assert.ok(Math.abs(Object.values(WEIGHTS).reduce((a, b) => a + b, 0) - 1) < 1e-9));
 test('soft creep', () => assert.ok(Math.abs(displayedProgress(0, 2.5, 0) - 0.9 * (1 - Math.exp(-1))) < 1e-9));
@@ -50,11 +50,15 @@ function boot() {
   const timers = [];
   const frames = [];
   const listeners = { doc: {}, win: {} };
-  const banner = { hidden: true, textContent: '' };
+  // The banner: its text in .banner-text (the full URL as its title), and a close button.
+  const text = { textContent: '', title: '' };
+  const banner = { hidden: true, querySelector: (sel) => (sel === '.banner-text' ? text : null), text };
+  Object.defineProperty(banner, 'textContent', { get: () => text.textContent });
   const veilEl = { setAttribute: (k, v) => { attrs[k] = v; } };
   const dom = { '.veil': veilEl, '.banner': banner };
   const links = [];
   const document = {
+    hidden: false,
     documentElement: {
       classList: {
         add: (...c) => c.forEach((x) => classes.add(x)),
@@ -64,6 +68,7 @@ function boot() {
     querySelector: (sel) => dom[sel] ?? null,
     querySelectorAll: () => links,
     addEventListener: (type, fn) => { (listeners.doc[type] ||= []).push(fn); },
+    removeEventListener: (type, fn) => { listeners.doc[type] = (listeners.doc[type] || []).filter((f) => f !== fn); },
     dispatchEvent: (e) => { events.push(e.type); },
   };
   const win = {
@@ -76,8 +81,10 @@ function boot() {
   win.window = win;
   vm.runInNewContext(bootSrc, win);
   return {
-    win, classes, attrs, events, timers, frames, listeners, banner, dom, links,
+    win, document, classes, attrs, events, timers, frames, listeners, banner, dom, links,
     fireError: (target) => listeners.win.error.forEach(({ fn }) => fn({ target })),
+    fireDoc: (type, e = {}) => (listeners.doc[type] || []).slice().forEach((fn) => fn(e)),
+    runFrames: () => frames.splice(0).forEach((fn) => fn()),
   };
 }
 
@@ -151,13 +158,18 @@ test('boot: at the cap a stylesheet that already failed is not reported twice', 
   assert.ok(!/more/.test(b.banner.textContent));
 });
 
-test('boot: script and link load errors show a banner naming the URL and lift', () => {
+test('boot: script and preload errors show a banner naming the URL and lift', () => {
   const b = boot();
   assert.ok(b.listeners.win.error.every((l) => l.capture === true), 'error listener is capture-phase');
-  b.fireError({ tagName: 'LINK', href: 'https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.css' });
+  const url = 'https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.mjs';
+  b.fireError({ tagName: 'LINK', rel: 'modulepreload', href: url });
   assert.equal(b.banner.hidden, false);
-  assert.match(b.banner.textContent, /https:\/\/cdn\.jsdelivr\.net\/npm\/lenis@1\.3\.26\/dist\/lenis\.css/);
+  assert.equal(b.banner.textContent, 'Could not load cdn.jsdelivr.net/\u2026/dist/lenis.mjs', 'host and the path\'s last two parts');
+  assert.equal(b.banner.text.title, url, 'the full URL in its title');
   assert.ok(b.classes.has('veil-done'));
+  const s = boot();
+  s.fireError({ tagName: 'SCRIPT', src: 'https://x.test/a.js' });
+  assert.ok(s.classes.has('veil-done'));
 });
 
 test('boot: a second failure keeps the first URL and counts the rest', () => {
@@ -176,9 +188,9 @@ test('boot: clear(url) takes a named URL off the banner, and hides it once nothi
   V.banner('https://x.test/gsap.js');
   V.clear('https://x.test/three.js');
   assert.equal(b.banner.hidden, false);
-  assert.equal(b.banner.textContent, 'Could not load https://x.test/gsap.js', 'the next one is named, with no count');
+  assert.equal(b.banner.textContent, 'Could not load x.test/gsap.js', 'the next one is named, with no count');
   V.clear('https://x.test/never-named.js');
-  assert.equal(b.banner.textContent, 'Could not load https://x.test/gsap.js');
+  assert.equal(b.banner.textContent, 'Could not load x.test/gsap.js');
   V.clear('https://x.test/gsap.js');
   assert.equal(b.banner.hidden, true);
   assert.equal(b.banner.textContent, '');
@@ -208,6 +220,117 @@ test('boot: a failure before the body exists is painted at DOMContentLoaded', ()
   assert.equal(b.banner.hidden, false);
   assert.match(b.banner.textContent, /early\.css/);
   assert.equal(b.attrs['aria-label'], 'Loaded');
+});
+
+// ---------------------------------------------------------------- final review (fix wave F1)
+
+// R85 / readiness I1: an asset still in flight is not a failure; the banner says so, can be dismissed, names a URL
+// once, and goes when it arrives.
+test('boot: at the cap a stalled stylesheet is named as still loading, not as failed', () => {
+  const b = boot();
+  b.links.push(link('https://fonts.googleapis.com/css2?family=Archivo', null));
+  b.timers.find((x) => x.ms === 8000).fn();
+  assert.equal(b.banner.textContent, 'Still loading fonts.googleapis.com/css2 \u2014 the page works without it');
+});
+test('boot: slow(url) names an import still in flight; one that fails later is named as failed; failures come first', () => {
+  const b = boot();
+  const V = b.win.__veil;
+  V.slow('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js');
+  V.slow('https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js');
+  assert.equal(b.banner.textContent, 'Still loading cdn.jsdelivr.net/\u2026/build/three.module.js (+1 more) \u2014 the page works without it');
+  V.banner('https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js');
+  assert.equal(b.banner.textContent, 'Could not load cdn.jsdelivr.net/\u2026/gsap@3.15.0/index.js', 'a failure outranks what is still loading');
+  V.slow('https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js');
+  assert.match(b.banner.textContent, /^Could not load/, 'a failed URL never goes back to "still loading"');
+  V.clear('https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js');
+  assert.match(b.banner.textContent, /^Still loading .*three\.module\.js — the page works without it$/);
+  V.clear('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js');
+  assert.equal(b.banner.hidden, true, 'it arrived: the banner goes');
+});
+test('boot: a URL is named once, however many times it is reported (a failed preload, then its import)', () => {
+  const b = boot();
+  const url = 'https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.core.js';
+  b.fireError({ tagName: 'LINK', rel: 'modulepreload', href: url });
+  b.win.__veil.banner(url);
+  b.win.__veil.banner('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js');
+  b.win.__veil.banner('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js');
+  assert.match(b.banner.textContent, /three\.core\.js \(\+1 more\)$/);
+});
+test('boot: the banner\'s close button dismisses it; a new name shows it again', () => {
+  const b = boot();
+  b.win.__veil.slow('https://x.test/a.js');
+  assert.equal(b.banner.hidden, false);
+  b.fireDoc('click', { target: { closest: () => null } });
+  assert.equal(b.banner.hidden, false, 'a click elsewhere leaves it');
+  b.fireDoc('click', { target: { closest: (sel) => (sel === '.banner-close' ? {} : null) } });
+  assert.equal(b.banner.hidden, true);
+  b.win.__veil.slow('https://x.test/a.js');
+  assert.equal(b.banner.hidden, true, 'the same name again does not bring it back');
+  b.win.__veil.banner('https://x.test/a.js');
+  assert.equal(b.banner.hidden, false, 'but its failure does');
+  b.fireDoc('click', { target: { closest: (sel) => (sel === '.banner-close' ? {} : null) } });
+  b.win.__veil.banner('https://x.test/b.js');
+  assert.equal(b.banner.hidden, false, 'and so does a new one');
+});
+
+// C-minor M4: a blocked font stylesheet is no reason to lift the veil at once (the meter carries on without it).
+test('boot: a failed stylesheet is named but does not lift the veil; failed(url) records it', () => {
+  const b = boot();
+  const url = 'https://fonts.googleapis.com/css2?family=Archivo';
+  b.fireError({ tagName: 'LINK', rel: 'stylesheet', href: url });
+  assert.equal(b.banner.hidden, false);
+  assert.match(b.banner.textContent, /^Could not load fonts\.googleapis\.com\/css2$/);
+  assert.ok(!b.classes.has('veil-done'));
+  assert.equal(b.win.__veil.failed(url), true);
+  assert.equal(b.win.__veil.failed('https://x.test/other.css'), false);
+});
+
+// C-minor M5: main.js's module graph failing leaves the page to the no-JS layout (its header needs no script).
+test('boot: main.js failing to load turns the page into the no-JS page (js-failed) and lifts', () => {
+  const b = boot();
+  b.fireError({ tagName: 'SCRIPT', src: 'https://jbharadwaja.github.io/my-portfolio/js/main.js' });
+  assert.ok(b.classes.has('no-js') && b.classes.has('js-failed'));
+  assert.ok(!b.classes.has('js'));
+  assert.ok(b.classes.has('veil-done'));
+  const other = boot();
+  other.fireError({ tagName: 'SCRIPT', src: 'https://x.test/js/ui/veil.js' });
+  assert.ok(other.classes.has('js') && !other.classes.has('js-failed'), 'another script failing does not');
+});
+
+// C-minor M3 / readiness M2: a stylesheet that never settles keeps window load from firing; transitions still come on.
+test('boot: preload also goes one frame after the lift', () => {
+  const b = boot();
+  b.win.__veil.lift();
+  assert.ok(b.classes.has('preload'));
+  b.runFrames();
+  assert.ok(!b.classes.has('preload'));
+});
+
+// C3: a tab opened in the background runs no frames; lifting there would play the entrance unseen.
+test('boot: a lift while the tab is hidden waits for it to be shown', () => {
+  const b = boot();
+  b.document.hidden = true;
+  b.timers.find((x) => x.ms === 8000).fn();                           // the cap fires in the background tab
+  assert.equal(b.win.__veil.lifted, false);
+  assert.ok(!b.classes.has('veil-done'));
+  b.win.__veil.lift();                                                // a second route waits on the same listener
+  assert.equal((b.listeners.doc.visibilitychange || []).length, 1);
+  b.fireDoc('visibilitychange');                                      // still hidden
+  assert.equal(b.win.__veil.lifted, false);
+  assert.ok(b.classes.has('veil-wait'), 'the veil\'s CSS backstop is held meanwhile');
+  b.document.hidden = false;
+  b.fireDoc('visibilitychange');
+  assert.equal((b.listeners.doc.visibilitychange || []).length, 0, 'the listener is gone');
+  b.runFrames();
+  assert.equal(b.win.__veil.lifted, false, 'not on the first visible frame: gsap\'s ticker catches up there');
+  b.runFrames();
+  assert.equal(b.win.__veil.lifted, true);
+  assert.ok(!b.classes.has('veil-wait'));
+  assert.deepEqual(b.events, ['veil:lift']);
+});
+test('critical CSS: a background tab holds the veil\'s backstop animation while it waits (.veil-wait)', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /\.js\.veil-wait \.veil \{ animation: none; \}/);
 });
 
 test('boot: preload is removed one frame after the window load event', () => {
@@ -296,4 +419,25 @@ test('font sheets: the veil lifting settles it while a sheet is still pending; n
   let asked = false;
   await fontSheetsApplied(fontsDoc([]), () => { asked = true; });
   assert.equal(asked, false, 'nothing pending: the lift is not waited on');
+});
+
+// C-minor M4: the boot script no longer lifts the veil when a font sheet fails, so the meter must not wait for one
+// that failed before veil.js asked (it would hold the page until the 8 s cap); with every font sheet failed, the
+// fonts stage is weighted away.
+test('font sheets: one the boot script saw fail is not waited for', async () => {
+  const dead = fontLink();                                  // no sheet, still print: it looks pending
+  dead.href = 'https://fonts.googleapis.com/css2?family=Dead';
+  const doc = fontsDoc([dead]);
+  const failed = (href) => href === dead.href;
+  assert.equal(await settledYet(fontSheetsApplied(doc, never, failed)), true);
+  assert.equal(await settledYet(fontSheetsApplied(fontsDoc([fontLink()]), never, failed)), false, 'a slow one still is');
+});
+test('font sheets: fontSheetsFailed only when every font sheet failed', () => {
+  const a = fontLink();
+  const b = fontLink();
+  b.href = 'https://fonts.googleapis.com/css2?family=Other';
+  const doc = fontsDoc([a, b]);
+  assert.equal(fontSheetsFailed(doc, () => true), true);
+  assert.equal(fontSheetsFailed(doc, (href) => href === a.href), false);
+  assert.equal(fontSheetsFailed(fontsDoc([]), () => true), false, 'no font sheets: nothing failed');
 });

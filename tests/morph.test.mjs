@@ -191,3 +191,31 @@ test('a dip-out turns round when the pair comes back: no rebind, fading in from 
   assert.equal(stepMorph(h, P(3, 4, 0.02), DT, all), true);
   assert.deepEqual([h.pair, h.dip], [P(3, 4, 0.02), 'in']);
 });
+
+// Final review M1: a far (cut) jump has the canvas faded out already, so the engine rebinds at once on the frame
+// after it lands (snapMorph) instead of holding the old pair through its own dip — no ghost as the page fades in.
+import { snapMorph } from '../js/engine/morph.js';
+test('after snapMorph the next pair binds at once at full opacity, without a dip; one step only', () => {
+  const s = at(P(0, 1, 1));
+  snapMorph(s);
+  assert.equal(stepMorph(s, P(3, 4, 0.5), DT, all), true);
+  assert.deepEqual([s.pair, s.dip, s.opacity, s.held], [P(3, 4, 0.5), 'none', 1, false]);
+  assert.equal(stepMorph(s, P(0, 1, 1), DT, all), false, 'the next jump dips again');
+  assert.equal(s.dip, 'out');
+});
+test('snapMorph cuts a dip short, and binds a stand-in when the destination is not built yet', () => {
+  const built = new Set([0, 1, 5]);
+  const has = builtOnly(built);
+  const s = at(P(0, 1, 1), has);
+  for (let i = 0; i < 3; i++) stepMorph(s, P(2, 3, 0.5), DT, has);   // a dip-out under way (2, 3 unbuilt: held 0)
+  snapMorph(s);
+  assert.equal(stepMorph(s, P(5, 6, 0.4), DT, has), true);
+  assert.deepEqual([s.pair, s.held, s.dip, s.opacity], [P(5, 5, 0), true, 'none', 1]);
+  built.add(6);
+  dipOut(s, P(5, 6, 0.4), has);                                       // the stand-in ends as before
+  assert.deepEqual([s.pair, s.held], [P(5, 6, 0.4), false]);
+  const fresh = createMorphState();
+  snapMorph(fresh);
+  assert.equal(stepMorph(fresh, P(2, 3, 0.1), DT, all), true, 'a first step binds as it always did');
+  assert.deepEqual([fresh.pair, fresh.dip, fresh.opacity], [P(2, 3, 0.1), 'none', 1]);
+});

@@ -21,7 +21,6 @@ import { mulberry32 } from './engine/formations/common.js';
 import { buildNoise } from './engine/formations/noise.js';
 import { buildGalaxy } from './engine/formations/galaxy.js';
 import * as hero from './sections/hero.js';
-import { mountFallbackMap } from './sections/route.js';
 import { SECTIONS, loadSections } from './sections/index.js';   // the six sections after the hero (it inits at boot)
 import { createCursor } from './ui/cursor.js';
 import { createConsole, readConsoleContext } from './ui/console.js';
@@ -31,6 +30,7 @@ const REDUCED = '(prefers-reduced-motion: reduce)';
 const LATE_FADE_MS = 400;              // a late engine's canvas fades in (spec §6.1)
 const LATE_BUILD_WAIT_MS = 1500;       // ...once the formations on screen are built, or after this long at most
 const HERO_FADE_MS = 300;              // without gsap's ticker, the canvas fades as the hero leaves or returns (R68)
+const FONT_REFRESH_MS = 150;           // after a late font's relayouts, ScrollTrigger re-measures (debounced)
 const FAILING_GSAP = 'https://cdn.jsdelivr.net/npm/gsap@0.0.0-nope/index.js';   // ?simulate=cdnfail
 
 /** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries (spec §4.3). */
@@ -53,7 +53,7 @@ export const ctx = {
   /** Resolves to the engine once created (formations registered), or to null without WebGL or if it failed;
    *  never rejects. Section inits await this instead of reading ctx.engine, which is null until then. */
   engineReady: new Promise((resolve) => { settleEngine = resolve; }),
-  /** fn(time, deltaTime) runs every GSAP tick, after Lenis and before the render. */
+  /** fn(time, deltaTime) runs every GSAP tick, after Lenis and before the render; one that throws is dropped. */
   onTick: (fn) => { tickers.push(fn); },
   /**
    * Registers a no-WebGL visual: mount() runs whenever the page enters its no-WebGL state (at once if it is in it)
@@ -136,12 +136,12 @@ const params = new URLSearchParams(location.search);
 const simulate = params.get('simulate');
 
 const loading = new Set();             // CDN module URLs still in flight
-const named = new Set();               // URLs the banner already names
+const named = new Set();               // URLs the banner names (still loading, or failed)
 
-function nameFailed(url) {
-  if (named.has(url)) return;
+/** The banner names `url` as failed, or as still loading (`slow`); it shows each URL once (the boot script). */
+function name(url, slow) {
   named.add(url);
-  window.__veil?.banner(url);
+  window.__veil?.[slow ? 'slow' : 'banner']?.(url);
 }
 
 /**
@@ -156,15 +156,16 @@ async function load(specifier) {
     if (named.delete(url)) window.__veil?.clear?.(url);
     return mod;
   } catch (err) {
-    nameFailed(url);
+    name(url, false);
     throw err;
   } finally {
     loading.delete(url);
   }
 }
 
-// One still in flight when the veil lifts has stalled (the 8 s cap lifted it): the banner names it too (spec §6.1).
-veil.onLift(() => loading.forEach(nameFailed));
+// One still in flight when the veil lifts (the 8 s cap lifted it) is named as still loading, not as failed: the page
+// works without it, and upgrades if it arrives (spec §6.1, §8.3).
+veil.onLift(() => loading.forEach((url) => name(url, true)));
 
 async function loadScrollLibs() {
   const gsapReady = Promise.all([load('gsap'), load('gsap/ScrollTrigger')]).then((mods) => {
@@ -224,6 +225,24 @@ async function loadEngine() {
     console.warn('WebGL engine unavailable.', err);
     return without('engine');
   }
+}
+
+/**
+ * The Route's no-WebGL map (spec §8.3). Its module is imported only here, when the page needs it, so neither it nor
+ * the Route's own module sits in main.js's static graph: one of them failing to load costs the map, not the page.
+ */
+function mountRouteMap() {
+  let unmount = null;
+  let gone = false;
+  import('./ui/fallback-map.js')
+    .then(({ mountFallbackMap }) => {
+      if (!gone) unmount = mountFallbackMap(document.getElementById('route'));
+    })
+    .catch((err) => console.error('The Route\'s 2D map failed to load.', err));
+  return () => {
+    gone = true;
+    unmount?.();
+  };
 }
 
 /** Noise (0) is built before the veil lifts (the portrait, 1, is hero.js's); the galaxy (6) builds after it. */
@@ -304,7 +323,7 @@ ctx.scroll = createScroll({ reduced: ctx.reduced });
 initNav(ctx);
 initHeroFit();                // the hero name's fit needs no library
 const heroReady = hero.init(ctx);   // lays the hero out and starts decoding the portrait now; builds once the engine exists
-ctx.fallback(() => mountFallbackMap(document.getElementById('route')));
+ctx.fallback(mountRouteMap);
 // The custom cursor and the ~ console (spec §6.3–6.4). Either one failing leaves the other (and the page) working.
 for (const start of [
   () => createCursor({ root: document.body }),
@@ -363,6 +382,10 @@ function heroGate() {
   };
 }
 const releaseHeroGate = heroGate();
+// A cut jump lands with the canvas faded out: the engine rebinds there at once instead of dipping (no ghost).
+ctx.scroll.on('jump', ({ mode }) => {
+  if (mode === 'cut') ctx.engine?.cutTo();
+});
 let engineSettled = false;
 loadEngine().then((engine) => {
   engineSettled = true;
@@ -403,7 +426,15 @@ if (libs) {
   ownLoop = false;
   releaseHeroGate();
   gsap.ticker.add((time, deltaTime) => {
-    for (const fn of tickers) fn(time, deltaTime);
+    // A section's tick that throws is logged and dropped, so one bug cannot stop the render after it.
+    for (let i = 0; i < tickers.length; i++) {
+      try {
+        tickers[i](time, deltaTime);
+      } catch (err) {
+        console.error('A tick callback failed and was removed.', err);
+        tickers.splice(i--, 1);
+      }
+    }
     ctx.engine?.tick(performance.now());   // render last (spec §4.7: lenis.raf → section state → render)
   });
   createBoundaryTriggers(ScrollTrigger);
@@ -417,6 +448,13 @@ if (libs) {
     console.error(err);
   }
   laidOut.then(() => ScrollTrigger.refresh());
+  // Fonts that arrive late (a stalled font sheet, past the cap) refit the hero name and re-wrap the copy (hero.js,
+  // split.js), which moves every section below: the triggers re-measure once those relayouts have run.
+  let fontTimer = 0;
+  document.fonts?.addEventListener('loadingdone', () => {
+    clearTimeout(fontTimer);
+    fontTimer = setTimeout(() => ScrollTrigger.refresh(), FONT_REFRESH_MS);
+  });
 }
 
 await fonts;

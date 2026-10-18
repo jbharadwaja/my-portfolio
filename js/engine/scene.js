@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { computeDpr, shouldIgnoreResize, overFrameBudget } from './tier.js';
 import { frameDistance, rectShift, lerpPose } from './framing.js';
 import { resolve, applyEntrance, limitRate } from './resolver.js';
-import { createMorphState, stepMorph } from './morph.js';
+import { createMorphState, stepMorph, snapMorph } from './morph.js';
 import { alphaForPoints } from './density.js';
 import { createParticles } from './particles.js';
 import { sizeFactor, DUST_VERTEX, DUST_FRAGMENT } from './shaders.js';
@@ -549,7 +549,15 @@ export async function createEngine({ canvas, tier, reduced }) {
     if (timeMs - lastRender < renderGapMs) return;
     lastRender = timeMs;
     dustUniforms.uTime.value = elapsed;
-    for (let i = 0; i < frameCallbacks.length; i++) frameCallbacks[i](timeMs, dt);
+    // A section's callback that throws is logged and dropped: one bug must not stop every later frame's render.
+    for (let i = 0; i < frameCallbacks.length; i++) {
+      try {
+        frameCallbacks[i](timeMs, dt);
+      } catch (err) {
+        console.error('A frame callback failed and was removed.', err);
+        frameCallbacks.splice(i--, 1);
+      }
+    }
     syncUniforms();
     renderer.render(scene, camera);
     if (debugEl) updateDebug(timeMs);
@@ -656,7 +664,14 @@ export async function createEngine({ canvas, tier, reduced }) {
       }
     },
     tick,
-    /** cb(timeMs, dt) on every rendered frame, after the camera update and before the render. */
+    /**
+     * A far jump (scroll.js cut) has landed with the canvas faded out: the next tick binds the new pair at once,
+     * with no dip of its own (morph.js snapMorph), so the canvas fades back in on the destination's formation.
+     */
+    cutTo() {
+      snapMorph(morph);
+    },
+    /** cb(timeMs, dt) on every rendered frame, after the camera update and before the render; one that throws is dropped. */
     onFrame(cb) {
       frameCallbacks.push(cb);
     },

@@ -18,12 +18,11 @@ test('meta classes', () => {
 });
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} vs ${b}`);
 test('timeline', () => {
-  assert.deepEqual(routeTimeline(0), { night: 0, route: 0, card: 0, reticle: false });
-  assert.deepEqual(routeTimeline(0.08), { night: 1, route: 0, card: 0, reticle: false });
+  assert.deepEqual(routeTimeline(0), { route: 0, card: 0, reticle: false });
+  assert.deepEqual(routeTimeline(0.08), { route: 0, card: 0, reticle: false });
   const mid = routeTimeline(0.44); near(mid.route, 0.5); assert.equal(mid.card, 1); assert.equal(mid.reticle, false);
-  assert.deepEqual(routeTimeline(0.8), { night: 1, route: 1, card: 3, reticle: true }); // route clamped to exactly 1
-  near(routeTimeline(0.96).night, 0.5);
-  assert.equal(routeTimeline(1).night, 0);
+  assert.deepEqual(routeTimeline(0.8), { route: 1, card: 3, reticle: true }); // route clamped to exactly 1
+  assert.deepEqual(routeTimeline(1), { route: 1, card: 3, reticle: false });
 });
 
 // Beyond the brief: how the route and the land dots are laid out.
@@ -101,25 +100,53 @@ test('the reticle readout sits right of and below the pointer, flipped left near
   assert.deepEqual(place(400, 900 - 18 - 24), { x: 418, y: 900 - 24 });   // just fits below
 });
 
-// Spec §3.3: under reduced motion uNight is not scrubbed; a 300 ms time fade runs at the stage's edges.
-import { nightStep, mapFit } from '../js/sections/route.js';
-test('reduced motion: uNight fades to 1 over 300 ms once inside the stage, back to 0 at its edges', () => {
-  let n = 0;
-  for (let i = 0; i < 3; i++) n = nightStep(n, 0.01, true, 0.1);
-  near(n, 1);
-  near(nightStep(0, 0.5, true, 0.1), 1 / 3);
-  assert.equal(nightStep(0, 0, true, 0.1), 0, 'p = 0: the stage has not started');
-  near(nightStep(1, 1, true, 0.1), 2 / 3);
-  assert.equal(nightStep(1, 0.96, true, 0.1), 1, 'no scrubbed fade-out inside the stage');
+// Ruling R75 (spec §2.6): the night is time-driven at thresholds, with hysteresis, so no pause is half grey.
+import { nightOn, nightStep, LANDING_P } from '../js/sections/route.js';
+import { mapFit } from '../js/ui/fallback-map.js';
+test('the night comes on at p ≥ 0.02 and goes at p ≥ 0.94; on the way back it returns below 0.93 and goes below 0.01', () => {
+  // Scrolling down through the stage, from paper.
+  assert.equal(nightOn(false, 0), false);
+  assert.equal(nightOn(false, 0.019), false);
+  assert.equal(nightOn(false, 0.02), true);
+  assert.equal(nightOn(true, 0.5), true);
+  assert.equal(nightOn(true, 0.939), true);
+  assert.equal(nightOn(true, 0.94), false);
+  assert.equal(nightOn(false, 1), false);
+  // Back up from the end: the reverse thresholds, a band lower, so a scroll resting on a threshold cannot flicker.
+  assert.equal(nightOn(false, 0.935), false, 'just above the band: still paper');
+  assert.equal(nightOn(false, 0.929), true);
+  assert.equal(nightOn(true, 0.015), true, 'on until below 0.01');
+  assert.equal(nightOn(true, 0.0099), false);
+  assert.equal(nightOn(false, 0.015), false, 'and paper stays paper inside the band');
 });
-test('full motion: uNight follows the timeline at no more than 2.5 units/s', () => {
-  near(nightStep(0, 0.04, false, 0.1), 0.25);
-  near(nightStep(0, 0.02, false, 1 / 60), 2.5 / 60);
-  near(nightStep(0, 0.02, false, 0.2), 0.25);
-  near(nightStep(1, 0.96, false, 0.01), 0.975);
+test('uNight fades to its target over 450 ms (300 ms under reduced motion), whatever the scroll does meanwhile', () => {
+  near(nightStep(0, true, false, 0.1), 0.1 / 0.45);
+  let n = 0;
+  for (let i = 0; i < 27; i++) n = nightStep(n, true, false, 1 / 60);
+  near(n, 1, 'at 60 Hz: 27 frames = 450 ms');
+  near(nightStep(1, false, false, 0.225), 0.5);
+  assert.equal(nightStep(0.2, false, false, 1), 0);
+  near(nightStep(0, true, true, 0.1), 1 / 3);
+  near(nightStep(1, false, true, 0.1), 2 / 3);
+  assert.equal(nightStep(1, true, true, 0.1), 1);
+});
+test('the Route\'s landing point (nav jumps, #route) is p = 0.10: on night, the first card current', () => {
+  assert.equal(LANDING_P, 0.1);
+  assert.equal(nightOn(false, LANDING_P), true);
+  assert.equal(routeTimeline(LANDING_P).card, 0);
 });
 
 // Spec §8.3: the 2D fallback map's lattice fitted (contain) into a region, centred, optionally on a focus box.
+// main.js imports it (js/ui/fallback-map.js) only when the page needs it: the Route's modules failing to load cost the
+// map, never main.js (final review M5).
+import { readFileSync } from 'node:fs';
+test('main.js reaches the Route\'s modules only through import(), never statically', () => {
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const statics = [...main.matchAll(/^import\b[^;]*?from '([^']+)';/gms)].map((m) => m[1]);
+  assert.ok(statics.length > 5, statics.join(', '));
+  assert.ok(!statics.some((p) => /sections\/route\.js|fallback-map\.js/.test(p)), statics.join(', '));
+  assert.match(main, /import\('\.\/ui\/fallback-map\.js'\)/);
+});
 test('the fallback map fits the whole lattice into the region, centred', () => {
   assert.deepEqual(mapFit({ x: 0, y: 0, w: 1300, h: 480 }), { x: 0, y: 0, cell: 5 });
   const phone = mapFit({ x: 0, y: 0, w: 390, h: 844 });
