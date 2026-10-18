@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { imageWeights } from '../js/engine/formations/image-weights.js';
 import { buildPortrait } from '../js/engine/formations/portrait.js';
 import { mulberry32 } from '../js/engine/formations/common.js';
@@ -36,4 +37,12 @@ test('layout rects are whole pixels for a fractional name edge and viewport', ()
   const { rect } = portraitLayout({ vw: 1440, vh: 845, h1Right: 800.6 });
   for (const k of ['x', 'y', 'w', 'h']) assert.ok(Number.isInteger(rect[k]), k);
   assert.ok(Object.values(portraitLayout({ vw: 390, vh: 845, h1Right: 374 }).rect).every(Number.isInteger));
+});
+test('bottom layout: hero text that can pass over the portrait carries its own paper ground (text >= 4.5:1)', () => {
+  const css = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.portrait-bottom :is\(([^)]*)\)\s*\{([^}]*)\}/);
+  assert.ok(rule, 'a .portrait-bottom :is(...) ground rule');
+  const items = rule[1].split(',').map((s) => s.trim());
+  for (const s of ['.hero-meta li > span', '.cv-inline', '.socials a', '.scroll-cue']) assert.ok(items.includes(s), s);
+  assert.match(rule[2], /background:\s*var\(--bg\);/);
 });

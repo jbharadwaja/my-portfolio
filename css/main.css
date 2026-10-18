@@ -338,6 +338,14 @@ main > section { position: relative; }
 .socials { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; font-size: var(--fs-label); }
 /* portrait across the bottom half of the stage (hero.js, spec §2.2): the copy keeps a paper ground behind its top */
 .portrait-bottom .hero-copy { background: linear-gradient(to bottom, var(--bg) 0 45%, transparent 75%); }
+/* Text that can sit over the portrait outside that solid top and the opaque panels (the meta rows in the gradient's
+   fade on landscape screens, the CV link, the socials, the scroll cue) carries its own paper ground, feathered like
+   the engine's keep-out. It travels with the text as the copy scrolls over the held portrait, so what is directly
+   behind the text is always paper (spec §3.1: text ≥ 4.5:1). */
+.portrait-bottom :is(.hero-meta li > span, .cv-inline, .socials a, .scroll-cue) {
+  background: var(--bg);
+  box-shadow: 0 0 4px 4px var(--bg);
+}
 .hero-hud { position: absolute; top: calc(var(--header-h) + 24px); right: var(--gutter); color: var(--fg-muted); }
 .scroll-cue {
   position: absolute; bottom: 28px; left: 50%;

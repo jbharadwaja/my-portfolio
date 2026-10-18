@@ -78,7 +78,9 @@ function createLayout({ section, h1, copy }) {
     const next = portraitLayout({ vw, vh, h1Right: h1.getBoundingClientRect().right });
     // The copy where it sits while the hero is held (the hero starts the page, so its offset in the section is
     // its viewport position at the top). Under the bottom layout the portrait owns the bottom half: only copy
-    // above it keeps particles out, copy over it sits on the gradient and the opaque panels.
+    // above it keeps particles out (the whole copy block would leave the portrait at 12% alpha). Copy over the
+    // portrait, at any scroll, sits on the gradient, the opaque panels or its own paper ground (css/main.css,
+    // .portrait-bottom), which move with the text where this static rect cannot.
     const c = copy.getBoundingClientRect();
     const top = c.top - section.getBoundingClientRect().top;
     const height = next.mode === 'strip' ? c.height : Math.min(c.height, next.rect.y - top);
