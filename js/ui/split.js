@@ -162,6 +162,51 @@ export function lockWidths(el) {
   });
 }
 
+/**
+ * The margin-right each split word needs to start the next word where the plain text does: `plain` and `split` are
+ * the words' left edges on one unwrapped line, in the plain text and in the split copy. Under 0.01 px is 0.
+ */
+export function wordMargins(plain, split) {
+  return plain.map((x, i) => {
+    if (i + 1 >= plain.length) return 0;
+    const m = (plain[i + 1] - x) - (split[i + 1] - split[i]);
+    return Math.abs(m) > 0.01 ? m : 0;
+  });
+}
+
+/**
+ * Gives every `.sw` word of a word-split element the advance it has in the plain text. Separate inline-blocks lose
+ * the kerning across each word's edges (with the spaces), so the split text ran wider than the plain one (up to
+ * ~3.4 px over the About bio) and could wrap a word earlier. Measured on two unwrapped probes in the element (the
+ * plain text, and a copy of the split without its margins); reads before writes; safe to run again on resize.
+ */
+export function kernWords(el) {
+  const words = [...el.querySelectorAll('.sw')];
+  const sr = el.querySelector(':scope > .sr-only');
+  if (words.length < 2 || !sr) return;
+  const plain = probe(sr.textContent);
+  const copy = probe('');
+  for (const p of [plain, copy]) p.style.fontStretch = 'inherit';   // words keep the element's own width axis
+  for (const node of el.childNodes) if (node !== sr) copy.append(node.cloneNode(true));
+  for (const w of copy.querySelectorAll('.sw')) w.style.marginRight = '';
+  el.append(plain, copy);
+  const text = plain.firstChild;
+  const range = document.createRange();
+  let at = 0;
+  const plainLefts = words.map((w) => {
+    const i = sr.textContent.indexOf(w.textContent, at);
+    at = i + w.textContent.length;
+    range.setStart(text, i);
+    range.setEnd(text, at);
+    return range.getBoundingClientRect().left;
+  });
+  const splitLefts = [...copy.querySelectorAll('.sw')].map((w) => w.getBoundingClientRect().left);
+  plain.remove();
+  copy.remove();
+  if (plainLefts.some((x, i) => !Number.isFinite(x) || !Number.isFinite(splitLefts[i]))) return;
+  wordMargins(plainLefts, splitLefts).forEach((m, i) => { words[i].style.marginRight = m ? `${m}px` : ''; });
+}
+
 // ---------------------------------------------------------------- hero name fit
 
 const fontsReady = () => (document.fonts
@@ -266,11 +311,15 @@ export function initReveals(ctx) {
       });
     }
 
-    // The lock measures at the hero name's final font-size, so the fit runs first (it is idempotent).
+    // The lock measures at the hero name's final font-size, so the fit runs first (it is idempotent). Word-split
+    // text gets its words' plain-text advances back (kernWords), so it wraps as the unsplit text does.
     const h1 = document.querySelector('.hero-name');
     const relayout = () => {
       if (h1) fitHeroName(h1);
-      for (const { el, width } of split) if (width) lockWidths(el);
+      for (const { el, width } of split) {
+        if (width) lockWidths(el);
+        else if (el.dataset.split === 'words') kernWords(el);
+      }
     };
     ready.then(relayout);
     document.fonts?.addEventListener('loadingdone', relayout);

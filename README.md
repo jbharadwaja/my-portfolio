@@ -79,7 +79,7 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `scaffold` | the section list, the section stylesheets and `init` exports, and how `main.js` loads them |
 | `scroll` | scroll maths (jumps, rail centring, current section, restoring a place) and the scroll module itself (Lenis on and off, jumps while locked) |
 | `sections` | the section loader: every import at once, inits one after another in page order, failures logged |
-| `split` | metric parsing and formatting for the count-ups |
+| `split` | metric parsing and formatting for the count-ups, split words' plain-text advances, split text copied once |
 | `tier` | device tier choice, the DPR budget, resize filtering and adaptive quality |
 | `veil` | the loading veil's progress, the boot script's never-hang lift and banner, and the wait for the font sheets |
 
