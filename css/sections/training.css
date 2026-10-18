@@ -1,1 +1,51 @@
-/* Training section (#training): styles for this section only; filled in by its own task. */
+/* Training section (#training): the scrubbed stage — landscape in the upper 55%, HUD top-right, one beat at a time. */
+/* training.js sets .is-live once the stage scrub runs; without it the static layout (all four beats) stays. The
+   landscape is framed by training.js (plotRect) into the stage's upper 55%: clear of the heading and the HUD, above the
+   beats. On a stage too short for that, training.js sets .is-side as well (wantsSide). */
+#training.is-live .stage {
+  display: block;
+  padding: calc(var(--header-h) + 24px) var(--gutter) 0;
+}
+/* The heading's box is its text, so its keep-out rect and the HUD-beside-heading test (plotRect) use the text. */
+#training.is-live .section-head { width: fit-content; }
+/* The HUD carries its own paper ground, feathered like the hero HUD's, so particles swirling past never sit
+   behind its text (spec §3.1: text >= 4.5:1). Below 768 px it sits under the heading, full width, and the plot starts
+   below it; from 768 px it sits top-right beside the heading. */
+#training.is-live .train-hud {
+  margin-top: 20px;
+  background: var(--bg); box-shadow: 0 0 4px 4px var(--bg);
+}
+#training.is-live .loss-curve { height: 72px; }
+/* The four beats share one cell and cross-fade over 300 ms (spec §2.4); all four stay in the accessibility tree. */
+#training.is-live .beats {
+  position: absolute; left: var(--gutter); right: var(--gutter); bottom: 28px;
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  max-width: 34rem;
+}
+#training.is-live .beat { grid-area: 1 / 1; padding-bottom: 0; opacity: 0; transition: opacity 300ms; }
+/* Held, the beats sit below the landscape; as the stage scrolls away the camera flies past the landscape and it grows
+   under them, so their text carries its own paper ground, hugging the text (spec §3.1: text >= 4.5:1). */
+#training.is-live .beat > * { width: fit-content; background: var(--bg); box-shadow: 0 0 4px 4px var(--bg); }
+#training.is-live .beat.is-active { opacity: 1; }
+
+/* The side layout (a phone on its side, a very short window): two columns. The HUD top-right, as from 768 px, at
+   most half the stage wide; the beats in the left column under the heading; the landscape in the right column under
+   the HUD. */
+#training.is-live.is-side .train-hud {
+  position: absolute; top: calc(var(--header-h) + 24px); right: var(--gutter); margin: 0;
+  width: min(360px, calc(50% - var(--gutter) - 12px));
+}
+#training.is-live.is-side .beats {
+  position: relative; left: auto; right: auto; bottom: auto;
+  width: calc(50% - 12px); margin-top: 16px;
+}
+
+@media (min-width: 768px) {
+  #training.is-live .train-hud {
+    position: absolute; top: calc(var(--header-h) + 24px); right: var(--gutter); margin: 0;
+  }
+  #training.is-live .loss-curve { height: 112px; }
+  #training.is-live.is-side .loss-curve { height: 72px; }
+  /* The fixed section HUD owns the bottom-left 210 x 70 px from 768 px up (Ruling R54): the beats end above it. */
+  #training.is-live .beats { bottom: 94px; }
+}
