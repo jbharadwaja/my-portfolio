@@ -56,6 +56,7 @@ js/ui/            veil, scroll (the only door to scrolling), nav, split text, cu
 js/data/          baked world-map dot lattice
 assets/img/       portraits, icons (favicon.svg, favicon-32.png, apple-touch-icon.png), og.png (the social
                   preview, 1200 × 630)
+assets/cv/        the published CV (Julian_Bharadwaja_Resume.pdf)
 tests/            node:test suites
 .nojekyll         tells GitHub Pages to serve the files as they are
 ```
@@ -87,9 +88,9 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 |---|---|
 | `common` | the seeded random generator, sampling, and the shared formation helpers (dust, shuffle, noise, galaxy) |
 | `console` | the ~ console's commands, completion and edit distance, focus and keys (fake DOM); the cursor's maths |
-| `content` | the page copy in `index.html`: sections, cards (charts, links), route stops, the About photo, CV links |
+| `content` | the page copy in `index.html`: sections, cards (charts, links), route stops, the About photo, the published CV (links and PDF) |
 | `contrast` | text against what is behind it: the text keep-out the particles and the dust share, and the paper grounds of muted text over the canvas |
-| `cv` | the CV link state: the LinkedIn fallback that ships and the publish state, written to every CV link |
+| `cv` | the CV link state: the publish state that ships and the LinkedIn fallback, written to every CV link |
 | `density` | the particle density estimate: alpha and point size per tier |
 | `framing` | camera framing: distance, shift and pose blending |
 | `geo` | the world-map dot lattice, its projection and the latitude/longitude readout |
@@ -158,9 +159,11 @@ Notes:
 - Asset paths are relative so the `/my-portfolio/` sub-path works. `404.html` is the one file with absolute
   paths (`/my-portfolio/...`), because GitHub Pages serves it at any missing URL, however deep.
 - `.nojekyll` keeps Pages from running Jekyll over the files.
-- The CV links currently go to LinkedIn, and `assets/cv/` does not exist. To publish a PDF, add it as
-  `assets/cv/Julian_Bharadwaja_Resume.pdf` and set `CV_PUBLISHED` to `true` in `js/content.js`: every CV link
-  then downloads the file.
+- The CV is published: `assets/cv/Julian_Bharadwaja_Resume.pdf`, linked from the header (`[ CV ↓ ]`), the hero and
+  the sign-off (`Download CV`), and `CV_PUBLISHED` is `true` in `js/content.js`. The three links in `index.html` are
+  written in that state, so they work without JavaScript. To go back to the LinkedIn fallback, set `CV_PUBLISHED`
+  to `false`, point the links back at LinkedIn (the text and attributes `cvLinkAttrs(false, slot)` gives) and
+  remove the PDF.
 
 ## Credits
 

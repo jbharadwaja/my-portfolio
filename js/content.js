@@ -1,10 +1,10 @@
 // Off-page strings: what scripts print that the static page does not carry (the page's own copy lives only in
 // index.html). The ~ console's text, the cursor's rail label and the CV link in both of its
-// states (index.html ships the fallback). Pure, Node-testable: applyCvState only touches the document
-// it is given.
+// states (index.html ships the publish state: the same links cvLinkAttrs(true, slot) writes). Pure,
+// Node-testable: applyCvState only touches the document it is given.
 
-/** Whether the CV PDF is published: false keeps the LinkedIn fallback. */
-export const CV_PUBLISHED = false;
+/** Whether the CV PDF is published: true makes every CV link a download, false is the LinkedIn fallback. */
+export const CV_PUBLISHED = true;
 
 const CV_FILE = 'Julian_Bharadwaja_Resume.pdf';
 const CV = {
@@ -26,7 +26,7 @@ export function cvLinkAttrs(published, slot) {
   return { ...CV[state], text: CV_TEXT[state][slot === 'header' ? 'header' : 'inline'] };
 }
 
-/** Writes the CV state into every a[data-cv] in `doc` (its data-cv names the slot); index.html ships the fallback. */
+/** Writes the CV state into every a[data-cv] in `doc` (its data-cv names the slot); index.html ships the publish state. */
 export function applyCvState(doc, published) {
   for (const link of doc.querySelectorAll('a[data-cv]')) {
     const attrs = cvLinkAttrs(published, link.getAttribute('data-cv'));

@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { CV_PUBLISHED, cvLinkAttrs } from '../js/content.js';
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const count = (re) => (html.match(re) || []).length;
 const cards = Object.fromEntries([...html.matchAll(/<article class="card[^"]*"[\s\S]*?<\/article>/g)]
@@ -39,9 +42,52 @@ test('route stops carry coordinates', () => {
 test('about photo is a real image with alt text', () => {
   assert.match(html, /<img[^>]*src="assets\/img\/portrait-full.webp"[^>]*alt="Julian Bharadwaja at a window overlooking the Grand Canyon"/);
 });
-test('CV links ship in the LinkedIn fallback state', () => {
-  assert.equal(count(/class="js-cv[^"]*"[^>]*href="https:\/\/www.linkedin.com\/in\/julian-bharadwaja\/"/g), 3);
-  assert.doesNotMatch(html, /assets\/cv\//);
+// The CV is published: the static links are exactly what cvLinkAttrs(true, slot) writes at boot, so a visitor
+// without JavaScript and one with it get the same three downloads.
+const CV_PDF = new URL('../assets/cv/Julian_Bharadwaja_Resume.pdf', import.meta.url);
+const cvTags = [...html.matchAll(/<a\s[^>]*class="js-cv[^"]*"[^>]*>[^<]*<\/a>/g)].map((m) => m[0]);
+const tagAttr = (tag, name) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] ?? null;
+test('the build publishes the CV', () => {
+  assert.equal(CV_PUBLISHED, true);
+});
+test('the three CV links are the publish state: the PDF, a download, no target or rel', () => {
+  assert.equal(cvTags.length, 3);
+  assert.equal(count(/class="js-cv[^"]*"[^>]*href="assets\/cv\/Julian_Bharadwaja_Resume\.pdf"[^>]*download="Julian_Bharadwaja_Resume\.pdf"/g), 3);
+  for (const tag of cvTags) {
+    assert.equal(tagAttr(tag, 'target'), null, `${tag} has no target`);
+    assert.equal(tagAttr(tag, 'rel'), null, `${tag} has no rel`);
+  }
+  assert.doesNotMatch(html, /CV on LinkedIn|\[ CV ↗ \]/);
+});
+test('the static CV links equal cvLinkAttrs(true, slot): the no-JS page and the JS page agree', () => {
+  assert.deepEqual(cvTags.map((tag) => tagAttr(tag, 'data-cv')), ['header', 'hero', 'signoff']);
+  for (const tag of cvTags) {
+    const want = cvLinkAttrs(true, tagAttr(tag, 'data-cv'));
+    for (const name of ['href', 'target', 'rel', 'download']) assert.equal(tagAttr(tag, name), want[name], `${tagAttr(tag, 'data-cv')} ${name}`);
+    assert.equal(tag.match(/>([^<]*)<\/a>$/)[1], want.text);
+  }
+});
+test('assets/cv/Julian_Bharadwaja_Resume.pdf exists: the PDF Julian supplied, 50.4 KB', () => {
+  assert.ok(existsSync(CV_PDF), 'the PDF is published');
+  const bytes = readFileSync(CV_PDF);
+  assert.equal(bytes.subarray(0, 5).toString('latin1'), '%PDF-');
+  assert.ok(Math.abs(bytes.length / 1024 - 50.4) <= 1, `size ${(bytes.length / 1024).toFixed(1)} KB`);
+});
+// The published CV is the version without a phone number. Node cannot read the PDF's compressed text (its text and
+// metadata were checked by hand), so this scans the repo's own files and the PDF's uncompressed bytes for the number's tail.
+test('the phone number appears nowhere in the repo', () => {
+  const tail = /419\D{0,3}7145/;
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name === '.git' || entry.name === 'node_modules') return [];
+    const path = join(dir, entry.name);
+    return entry.isDirectory() ? walk(path) : [path];
+  });
+  const files = walk(fileURLToPath(new URL('..', import.meta.url)));
+  assert.ok(files.length > 50, 'the scan reaches the repo');
+  for (const file of files) {
+    if (/\.(webp|png|jpe?g|ico)$/i.test(file)) continue;
+    assert.doesNotMatch(readFileSync(file, 'latin1'), tail, file);
+  }
 });
 test('no reference-site leftovers', () => {
   assert.doesNotMatch(html, /02d2e3|Oswald|Space Grotesk|Antonelli/i);
@@ -132,9 +178,9 @@ test('#sheet and #console are hidden modal dialogs', () => {
     assert.match(tag, /\saria-label="[^"]+"/, `#${id} is named`);
   }
 });
-test('the CV links read [ CV ↗ ] in the header and CV on LinkedIn ↗ in the hero and the sign-off', () => {
+test('the CV links read [ CV ↓ ] in the header and Download CV in the hero and the sign-off', () => {
   const cv = [...html.matchAll(/<a class="js-cv[^"]*"[^>]*data-cv="([a-z]+)"[^>]*>([^<]*)<\/a>/g)].map((m) => [m[1], m[2]]);
-  assert.deepEqual(cv, [['header', '[ CV ↗ ]'], ['hero', 'CV on LinkedIn ↗'], ['signoff', 'CV on LinkedIn ↗']]);
+  assert.deepEqual(cv, [['header', '[ CV ↓ ]'], ['hero', 'Download CV'], ['signoff', 'Download CV']]);
 });
 
 // The eyebrow's coordinates are Tustin's, rounded as the reticle prints them over its dot (33.7458, −117.8262)
