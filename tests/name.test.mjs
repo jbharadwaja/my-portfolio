@@ -97,3 +97,74 @@ test('drawName still draws when the font face fails to load (the fallback stack 
     if (before === undefined) delete globalThis.document; else globalThis.document = before;
   }
 });
+
+// Final review (correctness M7): once the morph has begun, every tick places the word and its keep-out. That must not
+// read the layout (a rect per frame, and a forced layout after the last frame's writes): the section's page offset is
+// measured at each ScrollTrigger refresh and the tick subtracts the scroll from it, as About does.
+test('the sign-off places the word on each tick from the scroll alone; it reads the layout only on a refresh', async () => {
+  const before = { document: globalThis.document, window: globalThis.window };
+  const win = { scrollY: 0, innerHeight: 900 };
+  let reads = 0;
+  /** An element whose page box is `box` (page px): its client rect follows the scroll, and each read is counted. */
+  const el = (box, extra = {}) => ({
+    ...extra,
+    getBoundingClientRect() {
+      reads++;
+      const top = box.y - win.scrollY;
+      return { left: box.x, top, width: box.w, height: box.h, right: box.x + box.w, bottom: top + box.h };
+    },
+  });
+  const SECTION = { x: 0, y: 9000, w: 1440, h: 1100 };
+  const heading = el({ x: 48, y: 9168, w: 900, h: 140 });
+  let drawn = false;                   // the word's aspect is set once the name is drawn (the last async step)
+  const slot = el({ x: 115, y: 9500, w: 1210, h: 300 }, { style: { setProperty() { drawn = true; } }, setAttribute() {}, remove() {} });
+  const inner = { children: [heading], append(node) { this.children.push(node); }, classList: { add() {}, remove() {} } };
+  const section = el(SECTION, { querySelector: () => inner });
+  const fakeGl = () => ({
+    measureText: () => ({ actualBoundingBoxLeft: 1, actualBoundingBoxRight: 99, actualBoundingBoxAscent: 40, actualBoundingBoxDescent: 0 }),
+    fillText() {},
+    getImageData: (x, y, w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+  });
+  globalThis.window = win;
+  globalThis.document = {
+    getElementById: (id) => ({ contact: section, scene: { clientHeight: 900 } })[id] ?? null,
+    querySelector: (selector) => (selector === '.site-footer' ? el({ x: 0, y: 10100, w: 1440, h: 70 }) : null),
+    createElement: (tag) => (tag === 'div' ? slot : { width: 0, height: 0, getContext: fakeGl }),
+    fonts: { load: () => Promise.resolve() },
+  };
+  try {
+    const { init } = await import('../js/sections/signoff.js');
+    let tick = null;
+    const refreshers = [];
+    let pose = null;
+    const engine = { setSafeRects() {}, setPose(k, p) { pose = p; }, registerFormation() {} };
+    const boundaries = new Float32Array(7);
+    boundaries[6] = 1;
+    await init({
+      engineReady: Promise.resolve(engine),
+      onTick: (fn) => { tick = fn; },
+      boundaries,
+      ScrollTrigger: { addEventListener: (type, fn) => refreshers.push(fn), refresh: () => refreshers.forEach((fn) => fn()) },
+    });
+    for (let i = 0; i < 50 && !(tick && pose && drawn); i++) await new Promise((r) => setImmediate(r));
+    assert.ok(tick && pose && drawn, 'the sign-off wired its tick and its pose, and drew the name');
+    const counted = reads;
+    for (const y of [8800, 9000, 9100, 9400]) {
+      win.scrollY = y;
+      tick();
+      // held at the slot's place until the section's top reaches the viewport's top, then riding with the page
+      assert.equal(pose.rect().y, 500 + Math.min(0, SECTION.y - y), `scroll ${y}`);
+    }
+    assert.equal(reads, counted, 'no layout read on a tick');
+    win.scrollY = 9050;
+    refreshers.forEach((fn) => fn());
+    assert.ok(reads > counted, 'a refresh measures');
+    tick();
+    assert.equal(pose.rect().y, 450);
+  } finally {
+    for (const [key, value] of Object.entries(before)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  }
+});

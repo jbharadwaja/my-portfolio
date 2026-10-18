@@ -110,6 +110,7 @@ export async function init(ctx) {
     const held = { x: 0, y: 0, w: 0, h: 0 };
     const text = { x: 0, y: 0, w: 0, h: 0 };
     let rest = NaN;
+    let pageTop = 0;                   // the section's top in page px, as of the last measure
     // What the pose and the keep-out read, where the section's top is `top` (the engine ignores an empty keep-out).
     // The engine keeps the keep-out object and reads it every frame, so it is handed over once and moved in place.
     const rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -128,6 +129,7 @@ export async function init(ctx) {
      */
     function measure() {
       const top = section.getBoundingClientRect().top;
+      pageTop = top + window.scrollY;
       const rel = (el) => {
         const r = el.getBoundingClientRect();
         return { x: r.left, y: r.top - top, w: r.width, h: r.height };
@@ -145,9 +147,10 @@ export async function init(ctx) {
     }
 
     // Every frame once the morph has begun (until then neither is read). The keep-out stays on the text as it
-    // scrolls in; the word, held where it will rest, rides with the page only after the morph is done.
+    // scrolls in; the word, held where it will rest, rides with the page only after the morph is done. The section's
+    // top comes from the scroll and the offset measured at the last refresh, so a tick reads no layout.
     ctx.onTick(() => {
-      if (ctx.boundaries[LAST_BOUNDARY] > 0) place(section.getBoundingClientRect().top);
+      if (ctx.boundaries[LAST_BOUNDARY] > 0) place(pageTop - window.scrollY);
     });
     ctx.ScrollTrigger?.addEventListener('refresh', measure);
     measure();
