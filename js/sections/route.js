@@ -4,15 +4,15 @@
 // through only dims the page partially (a cut jump snaps it under its fade instead); under reduced motion it is a
 // 300 ms fade at the stage's edges instead (spec §3.3). The night chrome flips with hysteresis, and the Route DOM
 // shows only while uNight ≥ 0.9. Until the engine is there (and without it, or once its context is lost for good)
-// the stage runs on a DOM night ground; without WebGL the map is drawn on a 2D canvas (mountFallbackMap, spec §8.3).
-// routeTimeline, groundState, readoutAt, nightStep and mapFit are pure and Node-testable; init(ctx) touches the DOM
+// the stage runs on a DOM night ground; without WebGL the map is drawn on a 2D canvas (js/ui/fallback-map.js, §8.3).
+// routeTimeline, groundState, readoutAt and nightStep are pure and Node-testable; init(ctx) touches the DOM
 // and gets ScrollTrigger, the scroll and the engine through ctx (this module imports no CDN library).
 import { WORLDMAP, CITIES } from '../data/worldmap-dots.js';
-import { cellToLonLat, decodeRuns, formatLatLon } from '../engine/geo.js';
+import { cellToLonLat, formatLatLon } from '../engine/geo.js';
 import { limitRate } from '../engine/resolver.js';
 import { mulberry32 } from '../engine/formations/common.js';
-import { MAP_BOX, buildWorldMap, routeAllocation, routeAlpha, routeLegs } from '../engine/formations/worldmap.js';
-import { FRAME_SLACK } from '../engine/framing.js';
+import { MAP_BOX, buildWorldMap, routeAllocation, routeAlpha } from '../engine/formations/worldmap.js';
+import { routeBox, narrowRegion } from '../ui/fallback-map.js';
 import { holdReveal } from '../ui/split.js';
 import { veil } from '../ui/veil.js';
 
@@ -29,7 +29,6 @@ const SHOW_FROM = 0.9;                 // the Route DOM fades in over uNight 0.9
 const GROUND = { on: 0.7, off: 0.3 };  // <html data-ground="night"> from uNight ≥ 0.7 until ≤ 0.3 (Ruling R59)
 const WIDE = '(min-width: 768px)';     // left panel at ≥ 768 px; below, a bottom sheet and the route box framed
 const FINE = '(pointer: fine)';
-const MAP_GAP = 12;                    // px between the route box's rect and the head or the sheet (< 768 px)
 const READOUT_OFFSET = 18;             // px from the pointer to the readout chip
 const RESIZE_DEBOUNCE_MS = 150;
 
@@ -85,142 +84,6 @@ export function nightStep(night, p, reduced, dt) {
 export function nightTarget(p, reduced) {
   if (reduced) return p > 0 && p < 1 ? 1 : 0;
   return routeTimeline(p, timelineScratch).night;
-}
-
-/**
- * The 2D fallback map's placement (spec §8.3): the lattice's `focus` box (in cells; the whole lattice by default)
- * fitted inside `region` (CSS px) and centred. Lattice cell (c, r) spans x + c·cell … x + (c + 1)·cell.
- */
-export function mapFit(region, focus = { x: 0, y: 0, w: WORLDMAP.cols, h: WORLDMAP.rows }) {
-  const cell = Math.min(region.w / focus.w, region.h / focus.h);
-  return {
-    x: region.x + (region.w - focus.w * cell) / 2 - focus.x * cell,
-    y: region.y + (region.h - focus.h * cell) / 2 - focus.y * cell,
-    cell,
-  };
-}
-
-/** The route's bounding box on the map in world units, centre and size (≈ 50°W–92°E of centre, 14–53°N). */
-function routeBox() {
-  const legs = routeLegs(300);
-  let u0 = 1;
-  let u1 = 0;
-  let v0 = 1;
-  let v1 = 0;
-  for (let i = 0; i < legs.length; i += 3) {
-    u0 = Math.min(u0, legs[i]);
-    u1 = Math.max(u1, legs[i]);
-    v0 = Math.min(v0, legs[i + 1]);
-    v1 = Math.max(v1, legs[i + 1]);
-  }
-  return { x: ((u0 + u1) / 2 - 0.5) * MAP_BOX.w, y: (0.5 - (v0 + v1) / 2) * MAP_BOX.h, w: (u1 - u0) * MAP_BOX.w, h: (v1 - v0) * MAP_BOX.h };
-}
-
-/** The route's bounding box in lattice cells, grown by the engine's framing slack about its centre. */
-function routeFocus() {
-  const box = routeBox();
-  const cx = (box.x / MAP_BOX.w + 0.5) * WORLDMAP.cols;
-  const cy = (0.5 - box.y / MAP_BOX.h) * WORLDMAP.rows;
-  const w = (box.w / MAP_BOX.w) * WORLDMAP.cols * FRAME_SLACK;
-  const h = (box.h / MAP_BOX.h) * WORLDMAP.rows * FRAME_SLACK;
-  return { x: cx - w / 2, y: cy - h / 2, w, h };
-}
-
-/** Below 768 px the map frames the route between the head and the card sheet, in the stage's CSS px. */
-function narrowRegion(stage, head, deck) {
-  const s = stage.getBoundingClientRect();
-  const vw = document.documentElement.clientWidth;
-  const vh = s.height || innerHeight;
-  const top = head.getBoundingClientRect().bottom - s.top + MAP_GAP;
-  const bottom = deck.getBoundingClientRect().top - s.top - MAP_GAP;
-  return { x: 0, y: top, w: vw, h: Math.max(bottom - top, vh * 0.2) };
-}
-
-let landDots = null;                   // interleaved (col, row) of the land dots, decoded on first draw
-
-/**
- * Draws the no-WebGL map (spec §8.3) on a 2D canvas, sized to its CSS box: the land dots in mist and the whole
- * route in orange with its four stops, the lattice (or its `focus`, in cells) fitted into `region` (CSS px; the
- * whole canvas by default).
- */
-export function drawFallbackMap(canvas, { region = null, focus } = {}) {
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  if (!(w > 0 && h > 0)) return;
-  const dpr = Math.min(devicePixelRatio || 1, 2);
-  canvas.width = Math.round(w * dpr);
-  canvas.height = Math.round(h * dpr);
-  const g = canvas.getContext('2d');
-  if (!g) return;
-  g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const { x, y, cell } = mapFit(region ?? { x: 0, y: 0, w, h }, focus);
-  const style = getComputedStyle(canvas);
-  const mist = style.getPropertyValue('--c-mist').trim() || '#E9E9E4';
-  const signal = style.getPropertyValue('--c-signal').trim() || '#FF4D00';
-  const at = (u, v) => [x + u * WORLDMAP.cols * cell, y + v * WORLDMAP.rows * cell];
-
-  landDots ??= decodeRuns(WORLDMAP);
-  const r = Math.max(0.5, cell * 0.3);
-  g.beginPath();
-  for (let i = 0; i < landDots.length; i += 2) {
-    const cx = x + (landDots[i] + 0.5) * cell;
-    const cy = y + (landDots[i + 1] + 0.5) * cell;
-    g.moveTo(cx + r, cy);
-    g.arc(cx, cy, r, 0, 2 * Math.PI);
-  }
-  g.globalAlpha = 0.4;
-  g.fillStyle = mist;
-  g.fill();
-
-  const legs = routeLegs(600);
-  g.beginPath();
-  for (let i = 0; i < legs.length; i += 3) {
-    const [px, py] = at(legs[i], legs[i + 1]);
-    if (i === 0) g.moveTo(px, py);
-    else g.lineTo(px, py);
-  }
-  g.globalAlpha = 1;
-  g.strokeStyle = signal;
-  g.lineWidth = 2;
-  g.lineJoin = 'round';
-  g.lineCap = 'round';
-  g.stroke();
-  g.beginPath();
-  for (const { col, row } of CITIES) {
-    const cx = x + (col + 0.5) * cell;
-    const cy = y + (row + 0.5) * cell;
-    g.moveTo(cx + 3.5, cy);
-    g.arc(cx, cy, 3.5, 0, 2 * Math.PI);
-  }
-  g.fillStyle = signal;
-  g.fill();
-}
-
-/**
- * Mounts the no-WebGL map on the Route's stage (behind its panels; main.js mounts it through ctx.fallback, with or
- * without the scroll libraries) and keeps it drawn to the stage's size. Returns its unmount, or null without a stage.
- */
-export function mountFallbackMap(section) {
-  const stage = section?.querySelector('.stage');
-  if (!stage) return null;
-  const head = stage.querySelector('.route-head');
-  const deck = stage.querySelector('.route-cards');
-  const canvas = document.createElement('canvas');
-  canvas.className = 'route-map';
-  canvas.setAttribute('aria-hidden', 'true');
-  stage.prepend(canvas);
-  const wide = matchMedia(WIDE);
-  const draw = () => {
-    // The live stage below 768 px frames the route between the head and the sheet, as the engine does (initMap).
-    const narrow = !wide.matches && section.classList.contains('route-live') && head && deck;
-    drawFallbackMap(canvas, narrow ? { region: narrowRegion(stage, head, deck), focus: routeFocus() } : {});
-  };
-  const observer = new ResizeObserver(draw);
-  for (const el of [canvas, head, deck]) if (el) observer.observe(el);
-  return () => {
-    observer.disconnect();
-    canvas.remove();
-  };
 }
 
 /** The readout for lattice cell (col, row): a city's exact coordinates on its dot, otherwise the cell centre. */

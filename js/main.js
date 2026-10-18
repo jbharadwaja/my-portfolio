@@ -21,7 +21,6 @@ import { mulberry32 } from './engine/formations/common.js';
 import { buildNoise } from './engine/formations/noise.js';
 import { buildGalaxy } from './engine/formations/galaxy.js';
 import * as hero from './sections/hero.js';
-import { mountFallbackMap } from './sections/route.js';
 import { SECTIONS, loadSections } from './sections/index.js';   // the six sections after the hero (it inits at boot)
 import { createCursor } from './ui/cursor.js';
 import { createConsole, readConsoleContext } from './ui/console.js';
@@ -226,6 +225,24 @@ async function loadEngine() {
   }
 }
 
+/**
+ * The Route's no-WebGL map (spec §8.3). Its module is imported only here, when the page needs it, so neither it nor
+ * the Route's own module sits in main.js's static graph: one of them failing to load costs the map, not the page.
+ */
+function mountRouteMap() {
+  let unmount = null;
+  let gone = false;
+  import('./ui/fallback-map.js')
+    .then(({ mountFallbackMap }) => {
+      if (!gone) unmount = mountFallbackMap(document.getElementById('route'));
+    })
+    .catch((err) => console.error('The Route\'s 2D map failed to load.', err));
+  return () => {
+    gone = true;
+    unmount?.();
+  };
+}
+
 /** Noise (0) is built before the veil lifts (the portrait, 1, is hero.js's); the galaxy (6) builds after it. */
 function registerFormations(engine) {
   const { N } = ctx.tier;
@@ -304,7 +321,7 @@ ctx.scroll = createScroll({ reduced: ctx.reduced });
 initNav(ctx);
 initHeroFit();                // the hero name's fit needs no library
 const heroReady = hero.init(ctx);   // lays the hero out and starts decoding the portrait now; builds once the engine exists
-ctx.fallback(() => mountFallbackMap(document.getElementById('route')));
+ctx.fallback(mountRouteMap);
 // The custom cursor and the ~ console (spec §6.3–6.4). Either one failing leaves the other (and the page) working.
 for (const start of [
   () => createCursor({ root: document.body }),

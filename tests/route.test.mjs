@@ -102,7 +102,8 @@ test('the reticle readout sits right of and below the pointer, flipped left near
 });
 
 // Spec §3.3: under reduced motion uNight is not scrubbed; a 300 ms time fade runs at the stage's edges.
-import { nightStep, mapFit } from '../js/sections/route.js';
+import { nightStep } from '../js/sections/route.js';
+import { mapFit } from '../js/ui/fallback-map.js';
 test('reduced motion: uNight fades to 1 over 300 ms once inside the stage, back to 0 at its edges', () => {
   let n = 0;
   for (let i = 0; i < 3; i++) n = nightStep(n, 0.01, true, 0.1);
@@ -120,6 +121,16 @@ test('full motion: uNight follows the timeline at no more than 2.5 units/s', () 
 });
 
 // Spec §8.3: the 2D fallback map's lattice fitted (contain) into a region, centred, optionally on a focus box.
+// main.js imports it (js/ui/fallback-map.js) only when the page needs it: the Route's modules failing to load cost the
+// map, never main.js (final review M5).
+import { readFileSync } from 'node:fs';
+test('main.js reaches the Route\'s modules only through import(), never statically', () => {
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const statics = [...main.matchAll(/^import\b[^;]*?from '([^']+)';/gms)].map((m) => m[1]);
+  assert.ok(statics.length > 5, statics.join(', '));
+  assert.ok(!statics.some((p) => /sections\/route\.js|fallback-map\.js/.test(p)), statics.join(', '));
+  assert.match(main, /import\('\.\/ui\/fallback-map\.js'\)/);
+});
 test('the fallback map fits the whole lattice into the region, centred', () => {
   assert.deepEqual(mapFit({ x: 0, y: 0, w: 1300, h: 480 }), { x: 0, y: 0, cell: 5 });
   const phone = mapFit({ x: 0, y: 0, w: 390, h: 844 });
