@@ -172,14 +172,15 @@ main, .site-footer { position: relative; z-index: 1; }
 }
 .no-js .site-header { background: var(--bg); border-bottom: 1px solid var(--hairline); }
 /* Once the page leaves the top (nav.js sets .is-scrolled past 8 px) the header takes a ground, so its items never
-   sit on copy or particles: paper at 92% and a hairline (Ruling R50; no backdrop blur). */
+   sit on copy or particles: opaque paper and a hairline (Ruling R50; no backdrop blur). Opaque, not 92%: display
+   type scrolling under it ghosted through behind JB· and CV (Ruling R84). */
 .site-header::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: var(--bg); opacity: 0;
   transition: opacity 200ms, background-color 200ms;
 }
 .site-header.is-scrolled { border-bottom-color: var(--hairline); }
-.site-header.is-scrolled::before { opacity: .92; }
+.site-header.is-scrolled::before { opacity: 1; }
 :root[data-ground="night"] .site-header::before { background: var(--bg-dark); }
 :root[data-ground="night"] .site-header.is-scrolled { border-bottom-color: var(--c-night-2); }
 .wordmark { justify-self: start; font-size: 1rem; font-weight: 600; letter-spacing: .02em; }

@@ -136,3 +136,19 @@ test('the halftone portrait is the image aspect contained in the portrait rect w
   const r = halftoneRect({ x: 532, y: 77, w: 444, h: 660 }, 1168 / 985);
   for (const k of ['x', 'y', 'w', 'h']) assert.ok(Number.isInteger(r[k]), k);
 });
+
+// ---------------------------------------------------------------- final review: header ground and hero spacing
+const mainCss = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');
+/** The declarations of the first rule whose selector is exactly `selector` in `css`, or null. */
+const cssRule = (css, selector) => {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return css.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]*)\\}`))?.[1] ?? null;
+};
+
+// Ruling R84: display type passing under the header ghosted through its 92% ground; the ground is opaque once scrolled.
+test('the header ground is fully opaque once the page has scrolled', () => {
+  const scrolled = cssRule(mainCss, '.site-header.is-scrolled::before');
+  assert.ok(scrolled, 'a .site-header.is-scrolled::before rule');
+  assert.match(scrolled, /opacity:\s*1;/);
+  assert.match(cssRule(mainCss, '.site-header::before'), /opacity:\s*0;/, 'no ground at the top of the page (Ruling R50)');
+});
