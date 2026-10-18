@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildName } from '../js/engine/formations/name.js';
 import { mulberry32 } from '../js/engine/formations/common.js';
-import { followRect, offsetRect, unionRect } from '../js/sections/signoff.js';
+import { drawName, followRect, offsetRect, unionRect } from '../js/sections/signoff.js';
 test('particles land inside the glyph mask', () => {
   const w = 100, h = 20, d = new Uint8ClampedArray(w * h * 4);
   for (let y = 5; y < 15; y++) for (let x = 20; x < 80; x++) d.set([0, 0, 0, 255], (y * w + x) * 4);
@@ -75,4 +75,25 @@ test('offsetRect moves a rect down without touching the original', () => {
 test('unionRect bounds the rects it is given and skips empty ones', () => {
   assert.deepEqual(unionRect([{ x: 10, y: 20, w: 100, h: 30 }, null, { x: 0, y: 60, w: 50, h: 10 }, { x: 5, y: 5, w: 0, h: 9 }]), { x: 0, y: 20, w: 110, h: 50 });
   assert.equal(unionRect([null, { x: 1, y: 1, w: 0, h: 0 }]), null);
+});
+
+test('drawName still draws when the font face fails to load (the fallback stack takes over)', async () => {
+  // FontFaceSet.load rejects with a NetworkError when a declared face's file cannot be fetched.
+  const fakeGl = () => ({
+    measureText: () => ({ actualBoundingBoxLeft: 1, actualBoundingBoxRight: 99, actualBoundingBoxAscent: 40, actualBoundingBoxDescent: 0 }),
+    fillText() {},
+    getImageData: (x, y, w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+  });
+  const before = globalThis.document;
+  globalThis.document = {
+    fonts: { load: () => Promise.reject(new DOMException('A network error occurred.', 'NetworkError')) },
+    createElement: () => ({ width: 0, height: 0, getContext: fakeGl }),
+  };
+  try {
+    const image = await drawName();
+    assert.equal(image.width, 104);       // 1 + 99 glyph width, plus 2 px of clear canvas each side
+    assert.equal(image.height, 44);
+  } finally {
+    if (before === undefined) delete globalThis.document; else globalThis.document = before;
+  }
 });

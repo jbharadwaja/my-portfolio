@@ -51,8 +51,9 @@ const sameRect = (a, b) => a === b || (Boolean(a && b) && a.x === b.x && a.y ===
  * image). Drawn only once the face is in (spec §3.2); under a failed font it draws in the fallback, and the page
  * room follows whatever width that comes out at.
  */
-async function drawName() {
-  await document.fonts.load(FONT, WORD);
+export async function drawName() {
+  // FontFaceSet.load rejects (NetworkError) when a declared face's file cannot be fetched; that is not fatal here.
+  await document.fonts.load(FONT, WORD).catch(() => {});
   const canvas = document.createElement('canvas');
   const g = canvas.getContext('2d', { willReadFrequently: true });
   // Setting `font` resets the stretch, and so does resizing the canvas: both go first, in this order.
