@@ -2,7 +2,8 @@
 // pose behind the plate. The photo's <img> stays lazy and is never awaited at boot (Ruling R18): the reveal starts
 // (the image loads, is sampled and its halftone pre-rendered) once About is within 2 screens. A fine pointer wipes
 // the dots; on touch (hover: none) one slow automatic sweep plays as the plate comes into view (none under reduced
-// motion, spec §3.3) and taps wipe them too. The caption's hint shows once the reveal is live
+// motion, spec §3.3: ctx.reduced is read when the sweep would start and while it plays, so a live preference change
+// is followed) and taps wipe them too. The caption's hint shows once the reveal is live
 // (css/sections/about.css).
 import { createHalftoneReveal } from '../ui/halftone-reveal.js';
 
@@ -20,7 +21,7 @@ export async function init(ctx) {
   if (!canvas || !img) return;
 
   const touch = matchMedia('(hover: none)').matches;
-  const reveal = createHalftoneReveal({ canvas, img, interactive: true, autoSweep: touch && !ctx.reduced });
+  const reveal = createHalftoneReveal({ canvas, img, interactive: true, autoSweep: () => touch && !ctx.reduced });
   const near = new IntersectionObserver((entries) => {
     if (!entries.some((e) => e.isIntersecting)) return;
     near.disconnect();

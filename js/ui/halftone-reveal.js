@@ -140,11 +140,13 @@ function makeBrush() {
 /**
  * Mounts the reveal of `img` on `canvas` (laid over the image, same box). `interactive`: pointer moves (mouse,
  * pen) and touches on the canvas wipe the dots. `autoSweep`: one slow automatic sweep the first time the canvas is
- * well in view. Nothing loads or draws until start(), which makes the image load now (it may be lazy), samples it,
- * draws the halftone and sets the image to opacity 0 once the canvas has drawn (it stays in the accessibility
- * tree). start() resolves to true once the image is ready, false if it failed to load or to be sampled (the image is
- * then left as it is); it never rejects. stop() parks the reveal; resize() re-renders the layers for the canvas's
- * current size; destroy() also gives the image back its opacity and frees the layers.
+ * well in view; a boolean, or a function asked each time the sweep would start and on each of its frames (About
+ * passes one so the sweep follows a live reduced-motion change, spec §3.3: refused, the sweep stays pending; turned
+ * false mid-sweep, it stops there and the wipe heals). Nothing loads or draws until start(), which makes the image
+ * load now (it may be lazy), samples it, draws the halftone and sets the image to opacity 0 once the canvas has drawn
+ * (it stays in the accessibility tree). start() resolves to true once the image is ready, false if it failed to load
+ * or to be sampled (the image is then left as it is); it never rejects. stop() parks the reveal; resize() re-renders
+ * the layers for the canvas's current size; destroy() also gives the image back its opacity and frees the layers.
  */
 export function createHalftoneReveal({ canvas, img, interactive = false, autoSweep = false }) {
   let ctx = null;
@@ -186,7 +188,8 @@ export function createHalftoneReveal({ canvas, img, interactive = false, autoSwe
   let prevY = 0;
   let travel = 0;                      // path length stamped so far, in brush radii (the noise phase)
 
-  let sweepPending = autoSweep;
+  const sweepAllowed = typeof autoSweep === 'function' ? autoSweep : () => autoSweep;
+  let sweepPending = Boolean(autoSweep);
   let sweeping = false;
   let sweepStart = 0;
   const sweepAt = [0, 0];
@@ -395,7 +398,7 @@ export function createHalftoneReveal({ canvas, img, interactive = false, autoSwe
 
   function stepSweep(now) {
     const s = (now - sweepStart) / (SWEEP_S * 1000);
-    if (s >= 1) {
+    if (s >= 1 || !sweepAllowed()) {
       sweeping = false;
       hasPrev = false;
       return;
@@ -456,7 +459,7 @@ export function createHalftoneReveal({ canvas, img, interactive = false, autoSwe
     }
     const viewH = entry.rootBounds?.height || innerHeight;
     const seen = entry.intersectionRatio >= SWEEP_IN_VIEW || entry.intersectionRect.height >= SWEEP_IN_VIEW * viewH;
-    if (sweepPending && seen && W) {
+    if (sweepPending && seen && W && sweepAllowed()) {
       sweepPending = false;
       sweeping = true;
       sweepStart = performance.now();
