@@ -65,13 +65,13 @@ export function offsetFor(place, height, range) {
 const isPlace = (p, ids) => Boolean(p) && typeof p.id === 'string' && ids.includes(p.id) && Number.isFinite(p.fraction);
 
 /**
- * The place to put the page at boot (Review Focus #2). Both saved places are written on pagehide: `entry` into
- * the history entry's state, `tab` into the tab's sessionStorage. A back/forward visit restores only its own
- * entry's place, so it never lands where a newer entry was. A reload restores the tab's place first — the
- * reloaded page's own pagehide wrote it last, while Chrome drops a replaceState made in a reload's pagehide and
- * keeps the entry's older state — then the entry's. Any other visit, or no usable saved place, lands where a jump to
- * the #hash's section (`hashId`) lands (`land`: its landing point, or its start), or nowhere (null). `ids` are the
- * section ids.
+ * The place to put the page at boot, so a reload or a deep link lands on the right section. Both saved places are
+ * written on pagehide: `entry` into the history entry's state, `tab` into the tab's sessionStorage. A back/forward
+ * visit restores only its own entry's place, so it never lands where a newer entry was. A reload restores the tab's
+ * place first — the reloaded page's own pagehide wrote it last, while Chrome drops a replaceState made in a reload's
+ * pagehide and keeps the entry's older state — then the entry's. Any other visit, or no usable saved place, lands
+ * where a jump to the #hash's section (`hashId`) lands (`land`: its landing point, or its start), or nowhere (null).
+ * `ids` are the section ids.
  */
 export function placeToRestore({ visit, entry, tab, hashId, ids }) {
   if (visit === 'reload' && isPlace(tab, ids)) return tab;

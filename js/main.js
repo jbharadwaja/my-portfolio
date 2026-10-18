@@ -250,16 +250,17 @@ function registerFormations(engine) {
   const { N } = ctx.tier;
   engine.registerFormation(0, () => buildNoise(N, { rng: mulberry32(0x4a42) }));
   engine.ensure(0).catch(() => {});   // a failed build is logged by the engine; the page carries on without it
-  // Temporary: the galaxy also stands in at 2–5 and 7 so every morph can be seen; Tasks 10–15 register the real ones.
+  // The galaxy also stands in at 2–5 and 7 until their sections register their own formations, which replace it.
   for (const k of [2, 3, 4, 5, 6, 7]) engine.registerFormation(k, () => buildGalaxy(N, { rng: mulberry32(600 + k) }));
 }
 
-// Scroll restoration (Review Focus #2): the browser's own would restore into the no-JS layout and be wrong once
-// .js-scroll lengthens the stages. So the place is saved as { section id, fraction through it } on pagehide, into
-// this history entry's state (for back/forward) and the tab's sessionStorage (for a reload; which one wins is
-// scroll.js placeToRestore). It is put back at boot on the native layout, right after .js-scroll applies, and again
-// once fonts, locked word widths and the hero's layout have settled (just before the veil lifts); a #hash lands at
-// its section's start. The hero's entrance then sees where the page really is (hero.js entranceMode).
+// Scroll restoration, so a reload or a deep link lands on the right section: the browser's own would restore into the
+// no-JS layout and be wrong once .js-scroll lengthens the stages. So the place is saved as { section id, fraction
+// through it } on pagehide, into this history entry's state (for back/forward) and the tab's sessionStorage (for a
+// reload; which one wins is scroll.js placeToRestore). It is put back at boot on the native layout, right after
+// .js-scroll applies, and again once fonts, locked word widths and the hero's layout have settled (just before the
+// veil lifts); a #hash lands at its section's start. The hero's entrance then sees where the page really is (hero.js
+// entranceMode).
 const PLACE_KEY = 'latent-space:place';
 const PLACE_STATE = 'latentSpacePlace';
 try {
