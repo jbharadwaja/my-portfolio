@@ -15,6 +15,8 @@ import { buildNoise } from './engine/formations/noise.js';
 import { buildGalaxy } from './engine/formations/galaxy.js';
 import * as hero from './sections/hero.js';
 import { SECTIONS, loadSections } from './sections/index.js';   // the six sections after the hero (it inits at boot)
+import { createCursor } from './ui/cursor.js';
+import { createConsole, readConsoleContext } from './ui/console.js';
 
 /** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries (spec §4.3). */
 export const boundaries = new Float32Array(7);
@@ -207,6 +209,19 @@ if (libs) {
   laidOut.then(() => ScrollTrigger.refresh());
 } else {
   restorePlace();
+}
+
+// The custom cursor and the ~ console (spec §6.3–6.4), after the sections whose DOM they read and drive; with or
+// without the scroll libraries. Either one failing leaves the other (and the page) working.
+for (const start of [
+  () => createCursor({ root: document.body }),
+  () => createConsole({ root: document.getElementById('console'), scroll: ctx.scroll, ctx: readConsoleContext(document) }),
+]) {
+  try {
+    start();
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 // After the lift, by any route (the meter, the 8 s cap, an asset error), the other formations build in idle tasks.
