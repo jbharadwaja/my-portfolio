@@ -51,6 +51,8 @@ uniform float uClusterX[8];
 uniform float uClusterY;
 uniform float uRoute;
 uniform vec2 uReticle;
+uniform float uMapStack;
+uniform float uRouteAlpha;
 uniform vec3 uInk;
 uniform vec3 uMist;
 uniform vec3 uSignal;
@@ -100,21 +102,26 @@ Shape shape(float k, vec4 a) {
     s.signal = hot;
   } else if (id == 5) {
     if (meta >= 1.0) {
-      // Route (meta 1 + t): drawn up to uRoute in orange, with a hot head.
+      // Route (meta 1 + t): drawn up to uRoute in orange, with a hot head. uRouteAlpha makes the points that
+      // overlap along the line add up to full strength, so the additive glow stays orange (worldmap.js routeAlpha).
       float along = meta - 1.0;
       float lead = (uRoute - along) * 60.0;
       float head = exp(-lead * lead);
-      s.alpha *= step(along, uRoute) * (1.0 + head);
+      s.alpha = uRouteAlpha * step(along, uRoute) * (1.0 + head);
       s.size = 1.0 + 1.2 * head;
       s.signal = 1.0;
-    } else if (uReticle.x >= 0.0) {
-      // Reticle: the lattice row and column under the pointer brighten into squares.
-      vec2 box = uBox[5];
-      vec2 cell = floor(vec2((a.x / box.x + 0.5) * MAP_COLS, (0.5 - a.y / box.y) * MAP_ROWS));
-      float on = max(step(abs(cell.x - uReticle.x), 0.5), step(abs(cell.y - uReticle.y), 0.5));
-      s.alpha *= 1.0 + 1.5 * on;
-      s.size = 1.0 + 0.3 * on;
-      s.square = on;
+    } else {
+      // Land: the particles stacked on one dot share 0.9 of its alpha, so their additive glow does not saturate.
+      s.alpha *= 0.9 / max(uMapStack, 1.0);
+      if (uReticle.x >= 0.0) {
+        // Reticle: the lattice row and column under the pointer brighten into squares.
+        vec2 box = uBox[5];
+        vec2 cell = floor(vec2((a.x / box.x + 0.5) * MAP_COLS, (0.5 - a.y / box.y) * MAP_ROWS));
+        float on = max(step(abs(cell.x - uReticle.x), 0.5), step(abs(cell.y - uReticle.y), 0.5));
+        s.alpha *= 1.0 + 1.5 * on;
+        s.size = 1.0 + 0.3 * on;
+        s.square = on;
+      }
     }
   }
   // Per-particle size variation (0.75–1.25×) for formation particles only: dust stays at 0.6× (spec §4.2: ≤ 0.6×).

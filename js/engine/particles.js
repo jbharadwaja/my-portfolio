@@ -53,6 +53,8 @@ export function createParticles({ THREE, tier, N = tier.N, reduced, spacing = 30
     uClusterY: { value: 0 },
     uRoute: { value: 0 },
     uReticle: { value: new THREE.Vector2(-1, -1) },
+    uMapStack: { value: 1 },           // particles per world-map land dot (route.js)
+    uRouteAlpha: { value: 1 },         // alpha of one route particle (route.js)
     uReduced: { value: reduced ? 1 : 0 },
   };
 

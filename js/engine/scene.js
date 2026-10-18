@@ -200,6 +200,8 @@ export async function createEngine({ canvas, tier, reduced }) {
     pointer: { x: 0, y: 0, speed: 0, inside: false },
     /** Section-driven particle uniforms by name (uPulse, uClusterX, uRoute, …), copied into the material each frame. */
     uniforms: {},
+    /** Pointer parallax on; a section turns it off and it eases to 0 (the Route's reticle, spec §2.6). */
+    parallax: true,
   };
 
   const particles = createParticles({ THREE, tier, reduced, spacing: D });
@@ -237,7 +239,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     const { pair, pointer } = state;
     const t = reduced ? Math.round(pair.mix) : pair.mix;     // reduced motion: a cut at the dip, no dolly
     lerpPose(solvePose(pair.from, poseA), solvePose(pair.to, poseB), t, cam);
-    const follow = !reduced && pointer.inside;
+    const follow = !reduced && pointer.inside && state.parallax;
     const nx = follow ? clamp((pointer.x / size.w) * 2 - 1, -1, 1) : 0;
     const ny = follow ? clamp(1 - (pointer.y / size.h) * 2, -1, 1) : 0;
     const k = 1 - Math.exp(-dt * PARALLAX_EASE);
