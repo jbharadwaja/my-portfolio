@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { inflateSync } from 'node:zlib';
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const nf = readFileSync(new URL('../404.html', import.meta.url), 'utf8');
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -167,4 +168,67 @@ test('every file in assets/img is used by the page, the 404 page, a script or a 
   const files = readdirSync(IMG).filter((f) => !f.startsWith('.'));
   assert.ok(files.length >= 4, 'the directory was read');
   for (const f of files) assert.ok(sources.includes(`assets/img/${f}`), `${f} is referenced`);
+});
+
+// A minimal PNG reader for the icon checks: 8-bit RGB or RGBA, not interlaced (what Chrome's screenshots and our icons are)
+function readPng(buf) {
+  assert.equal(buf.subarray(1, 4).toString('latin1'), 'PNG');
+  const width = buf.readUInt32BE(16), height = buf.readUInt32BE(20), depth = buf[24], type = buf[25], interlace = buf[28];
+  assert.equal(depth, 8, '8-bit'); assert.equal(interlace, 0, 'not interlaced');
+  assert.ok(type === 2 || type === 6, `RGB or RGBA, got colour type ${type}`);
+  const bpp = type === 6 ? 4 : 3;
+  const idat = [];
+  for (let at = 8; at < buf.length;) {
+    const len = buf.readUInt32BE(at), name = buf.subarray(at + 4, at + 8).toString('latin1');
+    if (name === 'IDAT') idat.push(buf.subarray(at + 8, at + 8 + len));
+    at += 12 + len;
+  }
+  const raw = inflateSync(Buffer.concat(idat)), stride = width * bpp, px = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)], line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    for (let i = 0; i < stride; i++) {
+      const a = i >= bpp ? px[y * stride + i - bpp] : 0, b = y ? px[(y - 1) * stride + i] : 0, c = i >= bpp && y ? px[(y - 1) * stride + i - bpp] : 0;
+      const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+      const pred = [0, a, b, (a + b) >> 1, pa <= pb && pa <= pc ? a : pb <= pc ? b : c][filter];
+      px[y * stride + i] = (line[i] + pred) & 255;
+    }
+  }
+  return { width, height, type, at: (x, y) => [...px.subarray(y * stride + x * bpp, y * stride + x * bpp + bpp)] };
+}
+const png = (name) => readPng(readFileSync(new URL(name, IMG)));
+const dark = (p) => p[0] < 60 && p[1] < 60 && p[2] < 60;
+const PAPER = [0xf6, 0xf6, 0xf3];
+
+test('apple-touch-icon.png is 180 x 180, opaque (iOS paints transparency black), paper ground with the ink mark', () => {
+  const icon = png('apple-touch-icon.png');
+  assert.deepEqual([icon.width, icon.height], [180, 180]);
+  for (const [x, y] of [[0, 0], [179, 0], [0, 179], [179, 179]]) {
+    const p = icon.at(x, y);
+    assert.deepEqual(p.slice(0, 3), PAPER, `corner ${x},${y} is paper`);
+    if (icon.type === 6) assert.equal(p[3], 255, `corner ${x},${y} is opaque`);
+  }
+  let ink = 0;
+  for (let y = 0; y < 180; y++) for (let x = 0; x < 180; x++) if (dark(icon.at(x, y))) ink++;
+  assert.ok(ink > 1500 && ink < 12000, `the JB mark is drawn (${ink} ink pixels)`);
+});
+test('favicon-32.png is 32 x 32 and draws the mark on paper', () => {
+  const icon = png('favicon-32.png');
+  assert.deepEqual([icon.width, icon.height], [32, 32]);
+  let ink = 0, paper = 0;
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+    const p = icon.at(x, y);
+    if (dark(p)) ink++;
+    if (p[0] > 235 && p[1] > 235 && p[2] > 232 && (p[3] ?? 255) === 255) paper++;
+  }
+  assert.ok(ink > 40 && paper > 300, `ink ${ink}, paper ${paper}`);
+});
+test('index.html offers the SVG icon, the 32 px PNG fallback and the apple-touch-icon, with relative paths', () => {
+  assert.ok(head.includes('<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">'));
+  assert.ok(head.includes('<link rel="icon" href="assets/img/favicon-32.png" type="image/png" sizes="32x32">'));
+  assert.ok(head.includes('<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">'));
+});
+test('404.html offers the same icons, with absolute /my-portfolio/ paths', () => {
+  assert.ok(nf.includes('<link rel="icon" href="/my-portfolio/assets/img/favicon.svg" type="image/svg+xml">'));
+  assert.ok(nf.includes('<link rel="icon" href="/my-portfolio/assets/img/favicon-32.png" type="image/png" sizes="32x32">'));
+  assert.ok(nf.includes('<link rel="apple-touch-icon" href="/my-portfolio/assets/img/apple-touch-icon.png">'));
 });
