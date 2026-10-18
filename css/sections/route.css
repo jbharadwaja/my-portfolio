@@ -49,6 +49,20 @@
   .route-live .route-card { padding-inline: var(--gutter); transform: none; }
 }
 
+/* A phone on its side (a stage under 560 px tall, Ruling R57's query): the ≥ 768 px left panel, bottom-aligned at
+   88 px, rose over the head (at 844 × 390 the cards covered "Route." and its subtitle for the whole stage). There the
+   cards are the bottom sheet, as below 768 px (from 768 px wide each still hugs its own text: the tallest fits the
+   sheet), and the head starts under the header as it does from 768 px up. From 768 px wide the map fills the stage
+   and the route runs across its upper half, above the sheet. */
+@media (max-height: 559.98px) {
+  .route-live .stage { padding-top: calc(var(--header-h) + 16px); }
+  .route-live .route-cards {
+    position: absolute; inset: auto 0 0; width: auto;
+    max-height: 40svh; overflow-y: auto;
+  }
+  .route-live .route-card { padding-inline: var(--gutter); transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .route-live .route-card { transform: none; transition: none; }
 }
