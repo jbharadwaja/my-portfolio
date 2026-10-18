@@ -13,8 +13,11 @@
    About's top at the viewport's top (where a nav jump lands), the caption ends above that zone: plate height
    <= 100svh - section padding - 108 px (caption 26 px, HUD zone 70 px, 12 px air), width = height × 4/5. */
 @media (min-width: 768px) {
-  .plate-figure { width: min(100%, 520px, max(240px, (100svh - var(--section-pad) - 108px) * 0.8)); }
-}
-@media (min-width: 1024px) {
   .plate-figure { width: min(100%, max(240px, (100svh - var(--section-pad) - 108px) * 0.8)); }
+}
+/* 768–1023 px, one column: the plate comes first and holds the landing screen (Rulings R54, R61). As tall as the cap
+   allows, it ends above the HUD zone, and the copy starts a grid gap below the fold (100lvh: below it with the
+   toolbar gone too), so nothing readable sits in the HUD's corner where a nav jump lands. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .plate-figure { min-height: calc(100lvh - var(--section-pad)); }
 }

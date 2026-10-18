@@ -77,3 +77,26 @@ test('stacked land dots stay inside their lattice cell (the reticle squares whol
 test('a tier too small for the map is refused', () => {
   assert.throws(() => buildWorldMap(9000, { tierName: 'mobile', rng: mulberry32(1) }), RangeError);
 });
+
+// Ruling R59: the night chrome flips with hysteresis, so a fast flick through the Route never flips it.
+import { groundState, readoutAt } from '../js/sections/route.js';
+test('the night ground attribute turns on at uNight ≥ 0.7 and off at ≤ 0.3, and holds in between', () => {
+  assert.equal(groundState(false, 0.69), false);
+  assert.equal(groundState(false, 0.7), true);
+  assert.equal(groundState(true, 0.31), true);
+  assert.equal(groundState(true, 0.3), false);
+  assert.equal(groundState(false, 0.5), false);
+  assert.equal(groundState(true, 0.5), true);
+  assert.equal(groundState(true, 1), true);
+  assert.equal(groundState(false, 0), false);
+});
+test('the reticle readout sits right of and below the pointer, flipped left near the right edge and above near the bottom', () => {
+  const chip = { w: 140, h: 24 };
+  const view = { w: 1440, h: 900 };
+  const place = (x, y) => readoutAt(x, y, chip.w, chip.h, view.w, view.h);
+  assert.deepEqual(place(400, 300), { x: 418, y: 318 });
+  assert.deepEqual(place(1300, 300), { x: 1300 - 18 - 140, y: 318 });
+  assert.deepEqual(place(400, 870), { x: 418, y: 870 - 18 - 24 });
+  assert.deepEqual(place(1300, 870), { x: 1142, y: 828 });
+  assert.deepEqual(place(400, 900 - 18 - 24), { x: 418, y: 900 - 24 });   // just fits below
+});

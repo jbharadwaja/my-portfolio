@@ -43,3 +43,25 @@ test('luminance: transparent pixels read as paper (no dots), so a cut-out halfto
   assert.equal(dotRadius(lum[0], 8), 0);
   assert.equal(lum[1], 0);
 });
+
+// prepare() never rejects (Ruling R59): a sampling failure (a tainted canvas, no 2D context) resolves start() to false.
+import { createHalftoneReveal } from '../js/ui/halftone-reveal.js';
+test('start() resolves false, never rejects, when sampling the image throws, and leaves the image showing', async (t) => {
+  const warned = t.mock.method(console, 'warn', () => {});
+  const before = globalThis.document;
+  globalThis.document = {
+    createElement: () => ({
+      width: 0, height: 0,
+      getContext: () => ({
+        drawImage() {},
+        getImageData() { throw new DOMException('The canvas has been tainted by cross-origin data.', 'SecurityError'); },
+      }),
+    }),
+  };
+  t.after(() => { if (before === undefined) delete globalThis.document; else globalThis.document = before; });
+  const img = { loading: 'lazy', naturalWidth: 788, naturalHeight: 985, style: { opacity: '' }, decode: () => Promise.resolve() };
+  const reveal = createHalftoneReveal({ canvas: { clientWidth: 400, clientHeight: 500 }, img });
+  assert.equal(await reveal.start(), false);
+  assert.equal(img.style.opacity, '');
+  assert.equal(warned.mock.callCount(), 1);
+});

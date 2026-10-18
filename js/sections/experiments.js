@@ -60,38 +60,46 @@ export function clusterWorldX(cardCentreCss, railX, vw, halfWidthWorld) {
   return (((cardCentreCss + railX) / vw) * 2 - 1) * halfWidthWorld;
 }
 
+/**
+ * Whether a card whose box is `rect` (viewport px, `vw` wide) is on screen for its count-up: its left edge past 85%
+ * of the width, its right edge not yet gone off the left (a jump into mid-rail leaves the cards before it there).
+ */
+export function shouldCount(rect, vw) {
+  return rect.left < ENTER_X * vw && rect.right > 0;
+}
+
 // ---------------------------------------------------------------- charts (pure)
 
-const decimalsOf = (v) => {
-  const s = String(v);
-  const dot = s.indexOf('.');
-  return dot < 0 ? 0 : s.length - dot - 1;
+const decimalsOf = (text) => {
+  const dot = text.indexOf('.');
+  return dot < 0 ? 0 : text.length - dot - 1;
 };
+
+// A data-series string's tokens: its strings (labels, flags) or its numbers, as written. Each entry holds one number.
+const SERIES_TOKEN = /"(?:[^"\\]|\\.)*"|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+const writtenNumbers = (json) => [...json.matchAll(SERIES_TOKEN)].map((m) => m[1]).filter(Boolean);
 
 /**
  * What a card's chart shows, from its data-* values (spec §2.5, Ruling R37): two bars from data-metric and
  * data-compare (the model's orange, the comparison's ink), or one bar per data-series entry (the chosen one orange).
- * The better value(s) by data-better are `best`. Series values print with the series' most decimals and thousands
- * separators; the two bars print their attributes as written. Null for a card with no chart.
+ * The orange bar is the chart's one emphasis. Series values print with thousands separators and the most decimals
+ * any of them is written with in data-series (JSON.parse would turn "2.0" into 2); the two bars print their
+ * attributes as written. Null for a card with no chart.
  */
-export function chartSpec({ metric, compare, better, series, seriesLabel = '', limit }) {
+export function chartSpec({ metric, compare, series, seriesLabel = '', limit }) {
   let rows;
   if (series) {
     const entries = JSON.parse(series);
-    const decimals = Math.max(0, ...entries.map(([, value]) => decimalsOf(value)));
+    const decimals = Math.max(0, ...writtenNumbers(series).map(decimalsOf));
     const format = new Intl.NumberFormat('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-    rows = entries.map(([label, value, flag]) => ({ label, value, text: format.format(value), accent: flag === 'chosen', best: false }));
+    rows = entries.map(([label, value, flag]) => ({ label, value, text: format.format(value), accent: flag === 'chosen' }));
   } else if (metric !== undefined && compare !== undefined) {
     rows = [
-      { label: '', value: Number(metric), text: metric, accent: true, best: false },
-      { label: '', value: Number(compare), text: compare, accent: false, best: false },
+      { label: '', value: Number(metric), text: metric, accent: true },
+      { label: '', value: Number(compare), text: compare, accent: false },
     ];
   } else {
     return null;
-  }
-  if (better === 'higher' || better === 'lower') {
-    const target = (better === 'higher' ? Math.max : Math.min)(...rows.map((r) => r.value));
-    for (const r of rows) r.best = r.value === target;
   }
   const limitValue = limit === undefined ? null : Number(limit);
   return {
@@ -135,10 +143,9 @@ function drawChart(slot, spec) {
   }
   const items = spec.rows.map((r, i) => {
     const mid = top + i * row + row / 2;
-    const best = r.best ? ' is-best' : '';
-    const name = series ? svg('text', { class: `name${best}`, y: mid, 'text-anchor': 'end' }, r.label) : null;
+    const name = series ? svg('text', { class: 'name', y: mid, 'text-anchor': 'end' }, r.label) : null;
     const rect = svg('rect', { class: `bar${r.accent ? ' is-accent' : ''}`, y: mid - bar / 2, height: bar });
-    const value = svg('text', { class: `value${best}`, y: mid }, r.text);
+    const value = svg('text', { class: 'value', y: mid }, r.text);
     chart.append(...[name, rect, value].filter(Boolean));
     return { r, name, rect, value };
   });
@@ -231,7 +238,8 @@ export async function init(ctx) {
 
   // Count-ups (spec §3.3): once per card, the first time it enters (Ruling R33). A card enters sideways through
   // the rail (containerAnimation) — except the ones already in view at rail x 0, which enter upward with the stage:
-  // their sideways trigger would only fire once the rail moves, after they had been read at their final value.
+  // their sideways trigger would only fire once the rail moves, after they had been read at their final value. A
+  // jump straight into mid-rail passes the cards before it: those are off screen and keep their final value.
   const values = cards.map((card) => card.querySelector('.card-metric-value'));
   const counted = new Set();
   const enter = (i) => {
@@ -246,8 +254,9 @@ export async function init(ctx) {
       containerAnimation: tween,
       start: ENTER,
       onEnter: (self) => {
+        const seen = self.isActive;      // false when a jump has carried the card straight past (off the left)
         self.kill();
-        enter(i);
+        if (seen) enter(i);
       },
     });
   });
@@ -256,8 +265,8 @@ export async function init(ctx) {
     start: () => `top+=${viewport.offsetTop} ${ENTER_Y}`,
     onEnter: (self) => {
       self.kill();
-      const edge = ENTER_X * document.documentElement.clientWidth;
-      cards.forEach((card, i) => { if (card.getBoundingClientRect().left < edge) enter(i); });
+      const vw = document.documentElement.clientWidth;
+      cards.forEach((card, i) => { if (shouldCount(card.getBoundingClientRect(), vw)) enter(i); });
     },
   });
 
@@ -385,7 +394,7 @@ export async function init(ctx) {
   const heldX = new Float32Array(CLUSTERS);
   let placed = null;
   function placedForDensity(data) {
-    placed ??= new Float32Array(data.length);
+    if (placed?.length !== data.length) placed = new Float32Array(data.length);   // a rebuild at another N
     const canvas = engine.renderer.domElement;
     const vh = canvas.clientHeight || innerHeight;
     const fov = engine.camera.fov;
@@ -429,19 +438,25 @@ export async function init(ctx) {
     return { x: x0 - stageBox.left, y: y0 - stageBox.top, w: x1 - x0, h: y1 - y0 };
   }
 
+  // The viewport and the cards' centres at rail x 0. Also read on every resize: the cards resize with the viewport at
+  // once, while the refresh that re-measures the rest comes ~200 ms later, and the clusters would lag their cards.
+  function readCentres() {
+    layout.vw = document.documentElement.clientWidth;
+    layout.origin = viewport.getBoundingClientRect().left;
+    cards.forEach((card, i) => { layout.centres[i] = layout.origin + card.offsetLeft + card.offsetWidth / 2; });
+  }
+
   function measure() {
     // The charts first: they set the cards' height, and on a short stage that moves the head (align-content: end).
     for (const { slot, spec } of charts) drawChart(slot, spec);
     rail.style.removeProperty('--chart-h');
     const chartH = Math.max(...cards.map((card) => card.querySelector('.card-chart')?.offsetHeight ?? 0));
     rail.style.setProperty('--chart-h', `${chartH}px`);
-    layout.vw = document.documentElement.clientWidth;
+    readCentres();
     layout.stageH = stage.offsetHeight;
     layout.start = st.start;
     layout.end = st.end;
     layout.stickyEnd = st.start + section.offsetHeight - layout.stageH;
-    layout.origin = viewport.getBoundingClientRect().left;
-    cards.forEach((card, i) => { layout.centres[i] = layout.origin + card.offsetLeft + card.offsetWidth / 2; });
     const band = layout.band;
     band.w = BLOB_W * cards[0].offsetWidth;
     band.h = BAND_H * layout.stageH;
@@ -457,6 +472,7 @@ export async function init(ctx) {
     }
   }
   ScrollTrigger.addEventListener('refresh', measure);
+  addEventListener('resize', readCentres);
   measure();
 
   ctx.engineReady.then((e) => {

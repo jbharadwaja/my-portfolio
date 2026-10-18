@@ -142,9 +142,9 @@ function makeBrush() {
  * pen) and touches on the canvas wipe the dots. `autoSweep`: one slow automatic sweep the first time the canvas is
  * well in view. Nothing loads or draws until start(), which makes the image load now (it may be lazy), samples it,
  * draws the halftone and sets the image to opacity 0 once the canvas has drawn (it stays in the accessibility
- * tree). start() resolves to true once the image is ready, false if it failed to load (the image is then left as
- * it is). stop() parks the reveal; resize() re-renders the layers for the canvas's current size;
- * destroy() also gives the image back its opacity and frees the layers.
+ * tree). start() resolves to true once the image is ready, false if it failed to load or to be sampled (the image is
+ * then left as it is); it never rejects. stop() parks the reveal; resize() re-renders the layers for the canvas's
+ * current size; destroy() also gives the image back its opacity and frees the layers.
  */
 export function createHalftoneReveal({ canvas, img, interactive = false, autoSweep = false }) {
   let ctx = null;
@@ -191,19 +191,21 @@ export function createHalftoneReveal({ canvas, img, interactive = false, autoSwe
   let sweepStart = 0;
   const sweepAt = [0, 0];
 
+  // Never rejects: an image that does not load, or a sampling or drawing failure (a tainted canvas, no 2D context),
+  // resolves false. The image is hidden only once the canvas has drawn (compose), so it is still showing then.
   async function prepare() {
     const gen = generation;
     try {
       if (img.loading === 'lazy') img.loading = 'eager';
       await img.decode();
+      if (gen !== generation) return false;
+      sampleLuminance();
+      layout();
+      return true;
     } catch (err) {
-      console.warn('Halftone reveal: the image did not load; it stays as it is.', err);
+      console.warn('Halftone reveal: the image could not be prepared; it stays as it is.', err);
       return false;
     }
-    if (gen !== generation) return false;
-    sampleLuminance();
-    layout();
-    return true;
   }
 
   function sampleLuminance() {

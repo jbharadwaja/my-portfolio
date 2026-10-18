@@ -221,7 +221,9 @@ main, .site-footer { position: relative; z-index: 1; }
 .js:not(.veil-done) .hud { opacity: 0; }
 /* It rests while the hero is current (nav.js hudResting): there it would cover the hero copy (Ruling R50). */
 .hud.is-resting { opacity: 0; }
-@media (max-width: 767.98px) { .hud { display: none; } }
+/* Hidden below 768 px (spec §2.1) and on stages under 560 px tall, a phone on its side, where no layout keeps the
+   bottom-left corner free for it (Ruling R57). */
+@media (max-width: 767.98px), (max-height: 559.98px) { .hud { display: none; } }
 
 /* asset-failure banner */
 .banner {

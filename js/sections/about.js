@@ -24,7 +24,9 @@ export async function init(ctx) {
   const near = new IntersectionObserver((entries) => {
     if (!entries.some((e) => e.isIntersecting)) return;
     near.disconnect();
-    reveal.start().then((live) => figure.classList.toggle('is-live', live));
+    reveal.start()
+      .then((live) => figure.classList.toggle('is-live', live))
+      .catch((err) => console.error('About: the halftone reveal could not start.', err));
   }, { rootMargin: NEAR });
   near.observe(section);
 

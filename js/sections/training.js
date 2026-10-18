@@ -136,13 +136,13 @@ export function fitFrame(target, view) {
  * starts at the header's bottom when the HUD sits beside the heading — moved down until the surface clears the heading
  * and the HUD, at most to below them — or below the HUD when it stacks under the heading. The area keeps a fifth of the
  * stage height on a stage too short for all of it. Side layout: the right column under the HUD, down to the stage's
- * bottom.
+ * bottom (a fifth of the stage high at least, as in the regular layout).
  */
 export function plotRect(m) {
   const { vw, stageH, headerBottom, head, hud, beatsTop, side = false } = m;
   if (side) {
     const y = hud.y + hud.h + PLOT.gap;
-    return fitFrame({ x: hud.x, y, w: vw - hud.x, h: stageH - PLOT.gap - y }, m);
+    return fitFrame({ x: hud.x, y, w: vw - hud.x, h: Math.max(PLOT.minShare * stageH, stageH - PLOT.gap - y) }, m);
   }
   const lo = Math.round(stackedHud(head, hud) ? Math.max(headerBottom, hud.y + hud.h + PLOT.gap) : headerBottom);
   const bottom = Math.round(Math.max(Math.min(PLOT.share * stageH, beatsTop - PLOT.gap), lo + PLOT.minShare * stageH));
@@ -206,9 +206,6 @@ export async function init(ctx) {
     if (engine) engine.state.uniforms.uEpoch = e;
   }
 
-  // The one-at-a-time layout (css/sections/training.css) applies only once the scrub runs; until then (or if this
-  // fails) the stage keeps the static layout with all four beats.
-  section.classList.add('is-live');
   show(0);
   const proxy = { e: 0 };
   gsap.to(proxy, {
@@ -253,7 +250,16 @@ export async function init(ctx) {
     }
     frame?.({ ...m, side });
   }
-  relayout();
+
+  // The one-at-a-time layout (css/sections/training.css) goes on last, once the scrub runs, and is measured as it
+  // lands; if that fails, it comes off again and the stage keeps the static layout with all four beats.
+  section.classList.add('is-live');
+  try {
+    relayout();
+  } catch (err) {
+    section.classList.remove('is-live', 'is-side');
+    throw err;
+  }
   let resizeTimer = 0;
   addEventListener('resize', () => {
     clearTimeout(resizeTimer);
