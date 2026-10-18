@@ -91,8 +91,11 @@ class FakeLenis {
   stop() { this.stopped = true; }
   start() { this.stopped = false; }
   scrollTo(y) { window.scrollTo({ top: y }); this.handlers.forEach((fn) => fn()); }   // the immediate emit runs ScrollTrigger
+  destroy() { this.destroyed = true; }
 }
-const fakeGsap = () => ({ ticker: { add() {}, lagSmoothing() {} } });
+const fakeGsap = () => ({
+  ticker: { callbacks: new Set(), add(fn) { this.callbacks.add(fn); }, remove(fn) { this.callbacks.delete(fn); }, lagSmoothing() {} },
+});
 
 test('a ScrollTrigger callback throwing mid-cut still leaves the page visible, and the jump queue keeps working', async (t) => {
   const page = fakePage();
@@ -230,4 +233,73 @@ test('an adjacent jump emits jump { mode: "animate", targetIndex }; a throwing l
   assert.deepEqual(seen.at(-1), { mode: 'cut', targetIndex: 6 });
   assert.equal(page.win.scrollY, 6 * 2 * 900);
   assert.deepEqual(page.faded(), []);
+});
+
+// Rulings R27/R45: a change of prefers-reduced-motion re-runs the scroll setup at once (main.js, gsap.matchMedia).
+test('setReduced(true) destroys Lenis and scrolls natively; setReduced(false) creates a new one', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const gsap = fakeGsap();
+  const scroll = createScroll({ Lenis: FakeLenis, gsap, ScrollTrigger: { update() {} }, reduced: false });
+  const first = scroll.lenis;
+  assert.ok(first);
+  assert.equal(gsap.ticker.callbacks.size, 1);
+  scroll.setReduced(true);
+  assert.equal(scroll.lenis, null);
+  assert.equal(first.destroyed, true);
+  assert.equal(gsap.ticker.callbacks.size, 0, 'its raf callback left the ticker');
+  scroll.setReduced(true);                                           // idempotent
+  scroll.setReduced(false);
+  assert.ok(scroll.lenis && scroll.lenis !== first);
+  assert.equal(gsap.ticker.callbacks.size, 1);
+});
+
+test('setReduced before the libraries arrive decides whether attach() creates Lenis; a held lock reaches it', (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const scroll = createScroll({ reduced: true });
+  scroll.setReduced(false);
+  assert.equal(scroll.lenis, null, 'nothing to create yet');
+  scroll.lock();
+  scroll.attach({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} } });
+  assert.equal(scroll.lenis, FakeLenis.last);
+  assert.equal(scroll.lenis.stopped, true);
+  scroll.setReduced(true);
+  scroll.setReduced(false);
+  assert.equal(scroll.lenis.stopped, true, 'a Lenis recreated under the lock starts stopped');
+});
+
+test('under reduced motion set at runtime a cut fades out in 0 ms', async (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  const durations = [];
+  for (const node of [page.doc.querySelector('main'), page.doc.getElementById('scene')]) {
+    node.animate = (keyframes, options) => {
+      durations.push(options.duration);
+      return { finished: Promise.resolve(), cancel() {} };
+    };
+  }
+  const scroll = createScroll({ Lenis: FakeLenis, gsap: fakeGsap(), ScrollTrigger: { update() {} }, reduced: false });
+  scroll.setReduced(true);
+  await scroll.jumpTo('contact');
+  assert.deepEqual(durations.slice(0, 2), [0, 0]);
+});
+
+// Ruling R29: the libraries can arrive (and .js-scroll lengthen the stages) while a cut is fading out.
+test('a cut measures its target once faded out, so a layout change mid-jump still lands on the section', async (t) => {
+  const page = fakePage();
+  onFakePage(t, page);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  for (const node of [page.doc.querySelector('main'), page.doc.getElementById('scene')]) {
+    node.animate = () => ({ finished: gate, cancel() {} });
+  }
+  const scroll = createScroll({ reduced: false });
+  const jump = scroll.jumpTo('contact');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  // Mid-fade every section becomes three screens long.
+  page.sections.forEach((s, i) => { s.getBoundingClientRect = () => ({ top: i * 3 * 900 - page.win.scrollY, height: 3 * 900 }); });
+  release();
+  await jump;
+  assert.equal(page.win.scrollY, 6 * 3 * 900);
 });

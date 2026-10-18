@@ -123,3 +123,13 @@ test('bottom layout: the portrait slot follows the lead, is hidden outside the b
   assert.match(shown[1], /height:\s*clamp\(320px,\s*52svh,\s*560px\);/);
   assert.doesNotMatch(css, /var\(--bg\) 0 45%/, 'the 45% copy gradient is gone');
 });
+
+// Spec §8.3: the no-WebGL hero shows the cut-out as a static halftone where the portrait formation would be framed
+// (framing.js: contained, centred, with the engine's 8% slack).
+import { halftoneRect } from '../js/sections/hero.js';
+test('the halftone portrait is the image aspect contained in the portrait rect with 8% slack, centred, whole px', () => {
+  assert.deepEqual(halftoneRect({ x: 0, y: 0, w: 216, h: 108 }, 1), { x: 58, y: 4, w: 100, h: 100 });
+  assert.deepEqual(halftoneRect({ x: 40, y: 80, w: 540, h: 1080 }, 2), { x: 60, y: 495, w: 500, h: 250 });
+  const r = halftoneRect({ x: 532, y: 77, w: 444, h: 660 }, 1168 / 985);
+  for (const k of ['x', 'y', 'w', 'h']) assert.ok(Number.isInteger(r[k]), k);
+});

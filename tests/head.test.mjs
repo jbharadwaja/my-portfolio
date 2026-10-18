@@ -76,3 +76,29 @@ test('main.css switches transitions off while the page carries .preload (the vei
   const css = read('../css/main.css');
   assert.match(css, /\.preload \*:not\(\.veil\),\s*\.preload \*:not\(\.veil\)::before,\s*\.preload \*:not\(\.veil\)::after\s*\{\s*transition: none !important;/);
 });
+
+// Ruling R26: no third-party stylesheet can hold up first paint or the module scripts
+const FONT_CSS = [
+  'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Geist+Mono:wght@100..900&display=swap',
+  'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Geist+Mono:wght@100..900&text=%E2%86%92%E2%86%97%E2%86%90%E2%89%A4&display=swap',
+];
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+test('both font stylesheets load without blocking (media=print until onload) and have <noscript> copies', () => {
+  const head = html.slice(html.indexOf('<head>'), html.indexOf('</head>'));
+  for (const href of FONT_CSS) {
+    const h = esc(href.replaceAll('&', '&amp;')) + '|' + esc(href);
+    assert.match(head, new RegExp(`<link rel="stylesheet" href="(?:${h})" media="print" onload="this\\.media='all'">`), `${href} non-blocking`);
+    assert.match(head, new RegExp(`<noscript><link rel="stylesheet" href="(?:${h})"></noscript>`), `${href} noscript copy`);
+  }
+  const blocking = [...head.replace(/<noscript>[\s\S]*?<\/noscript>/g, '').matchAll(/<link rel="stylesheet" href="([^"]+)"(?![^>]*media="print")/g)].map((m) => m[1]);
+  assert.ok(blocking.every((href) => !/^https?:/.test(href)), `only own stylesheets block: ${blocking.join(', ')}`);
+});
+test('lenis.css is not linked: its rules are inlined in css/main.css', () => {
+  assert.doesNotMatch(html, /lenis\.css/);
+  const css = read('../css/main.css');
+  assert.match(css, /html\.lenis,\s*html\.lenis body \{\s*height: auto;\s*\}/);
+  assert.match(css, /\.lenis:not\(\.lenis-autoToggle\)\.lenis-stopped \{\s*overflow: clip;\s*\}/);
+  assert.match(css, /\.lenis \[data-lenis-prevent\],[\s\S]*?\{\s*overscroll-behavior: contain;\s*\}/);
+  assert.match(css, /\.lenis\.lenis-smooth iframe \{\s*pointer-events: none;\s*\}/);
+  assert.match(css, /\.lenis\.lenis-autoToggle \{[^}]*transition-behavior: allow-discrete;/);
+});

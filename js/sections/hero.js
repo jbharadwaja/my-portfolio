@@ -1,8 +1,11 @@
-// The hero (spec §2.2, §4.3, §6.1): the portrait formation and where it sits (the strip right of the name, or the
-// slot after the lead — Ruling R47), its preparation before the veil lifts (decode, build, compile) and the denoise
-// entrance after it. portraitLayout and entranceMode are pure and Node-testable; init(ctx) touches the DOM and
-// receives gsap, the scroll and the engine through ctx (this module imports no CDN library).
-import { veil } from '../ui/veil.js';
+// The hero (spec §2.2, §4.3, §6.1, §8.3): the portrait formation and where it sits (the strip right of the name, or
+// the slot after the lead — Ruling R47), its preparation before the veil lifts (decode, build, compile), the denoise
+// entrance after it, and without WebGL the cut-out as a static halftone in the same place. portraitLayout,
+// entranceMode and halftoneRect are pure and Node-testable; init(ctx) touches the DOM and receives gsap, the scroll
+// and the engine through ctx (this module imports no CDN library).
+import { veil, fontFacesDeclared } from '../ui/veil.js';
+import { createHalftoneReveal } from '../ui/halftone-reveal.js';
+import { FRAME_SLACK } from '../engine/framing.js';
 import { mulberry32 } from '../engine/formations/common.js';
 import { buildPortrait } from '../engine/formations/portrait.js';
 
@@ -55,6 +58,16 @@ export function portraitLayout({ vw, vh, h1Right, slotRect = null, copyTop = 0 }
   const slot = slotRect && slotOnStage(slotRect, vh, copyTop);
   if (slot) return { mode: 'bottom', rect: slot };
   return { mode: 'bottom', rect: roundRect({ x: 0, y: vh / 2, w: vw, h: vh / 2 }) };
+}
+
+/**
+ * The no-WebGL portrait's box (spec §8.3): an image of `aspect` (width / height) contained in the portrait's `rect`
+ * as the engine frames a box (framing.js, with its slack), centred. Every field is a whole pixel.
+ */
+export function halftoneRect(rect, aspect) {
+  const w = Math.min(rect.w / FRAME_SLACK, (rect.h / FRAME_SLACK) * aspect);
+  const h = w / aspect;
+  return roundRect({ x: rect.x + (rect.w - w) / 2, y: rect.y + (rect.h - h) / 2, w, h });
 }
 
 /** The entrance plays only if the page is in the hero when the veil lifts (not at a restored position or a #hash). */
@@ -155,14 +168,64 @@ function createLayout({ section, h1, copy, slot, header }) {
     return { changed, moved };
   }
 
-  return { rect, measure, get safe() { return safe; } };
+  return { rect, measure, get mode() { return mode; }, get safe() { return safe; } };
 }
 
 /**
- * Starts decoding the cut-out at once (it does not wait for three), and once the engine exists builds the noise
- * and portrait formations eagerly and compiles the shaders, reporting each stage to the veil. Returns a promise
- * that settles when the hero is ready to show — it never rejects, and never settles if the engine never arrives
- * (the 8 s cap lifts the veil then). When the veil lifts the entrance plays, or is skipped.
+ * The no-WebGL portrait (spec §8.3): the cut-out as a static halftone (halftone-reveal.js) over the hero where the
+ * formation would be framed — the strip, or the slot — scrolling with the page. Shown once the image has decoded.
+ * Returns { place() (after a relayout), destroy() }.
+ */
+function mountHalftone({ section, slot, layout }) {
+  const box = document.createElement('div');
+  box.className = 'hero-halftone';
+  box.setAttribute('aria-hidden', 'true');
+  const img = document.createElement('img');
+  img.alt = '';
+  img.decoding = 'async';
+  img.src = PORTRAIT_URL;
+  const canvas = document.createElement('canvas');
+  box.append(img, canvas);
+  section.append(box);
+  const reveal = createHalftoneReveal({ canvas, img, interactive: false });
+  let live = true;
+
+  function place() {
+    if (!live || !img.naturalWidth) return;
+    const { left, top } = section.getBoundingClientRect();
+    const s = slot?.getBoundingClientRect();
+    // The strip's rect is a viewport rect at scroll 0, where the section starts at its page offset.
+    const frame = layout.mode === 'bottom' && s?.height > 0
+      ? { x: s.left - left, y: s.top - top, w: s.width, h: s.height }
+      : { ...layout.rect, x: layout.rect.x - left, y: layout.rect.y - (top + scrollY) };
+    const r = halftoneRect(frame, img.naturalWidth / img.naturalHeight);
+    Object.assign(box.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
+    reveal.resize();
+  }
+
+  img.decode()
+    .then(() => {
+      place();
+      return live && reveal.start();
+    })
+    .catch((err) => console.warn('Hero: the halftone portrait could not be shown.', err));
+  return {
+    place,
+    destroy() {
+      live = false;
+      reveal.destroy();
+      box.remove();
+    },
+  };
+}
+
+/**
+ * Lays the hero out at once — the strip or the bottom layout, and with it the portrait slot, decided with or without
+ * the engine, so an engine arriving after the veil never moves the page (Ruling R53) — and starts decoding the
+ * cut-out (it does not wait for three). Once the engine exists it builds the noise and portrait formations eagerly
+ * and compiles the shaders, reporting each stage to the veil. Returns a promise that settles when the hero is ready
+ * to show — it never rejects, and never settles if the engine never arrives (the 8 s cap lifts the veil then). When
+ * the veil lifts the entrance plays, or is skipped. In the no-WebGL state (ctx.fallback) the halftone portrait shows.
  */
 export function init(ctx) {
   const section = document.getElementById('top');
@@ -190,35 +253,49 @@ export function init(ctx) {
   });
   image.catch(() => {});               // reported above; the portrait builder awaits it and fails in turn
 
+  const layout = createLayout({ section, h1, copy, slot, header });
+  // Formation 0 (the noise the portrait denoises from) is framed into the same rect, so the face resolves in place.
+  const pose = { roll: 0, rect: () => layout.rect };
+  let engine = null;
+  let halftone = null;                 // the no-WebGL portrait while it is mounted
+  const frameEngine = () => {
+    engine.setSafeRects({ 0: layout.safe, 1: layout.safe });
+    engine.setPose(0, pose);   // re-runs each built formation's density estimate at the new framing
+    engine.setPose(1, pose);
+  };
+  const relayout = () => {
+    const { changed, moved } = layout.measure();
+    if (moved) ctx.ScrollTrigger?.refresh();   // the slot came or went: every later section moved
+    halftone?.place();
+    if (changed && engine) frameEngine();
+  };
+  relayout();
+  let resizeTimer = 0;
+  addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(relayout, RESIZE_DEBOUNCE_MS);
+  });
+  // The name's width (the strip) and the copy's height (the slot's place) follow the fonts.
+  document.fonts?.addEventListener('loadingdone', relayout);
+  fontFacesDeclared().then(() => document.fonts?.ready).then(relayout);
+
+  ctx.fallback(() => {
+    halftone = mountHalftone({ section, slot, layout });
+    return () => {
+      halftone.destroy();
+      halftone = null;
+    };
+  });
+
   let prepared = false;
-  let relayout = () => {};
-  const ready = ctx.engineReady.then(async (engine) => {
-    if (!engine) {
+  const ready = ctx.engineReady.then(async (created) => {
+    if (!created) {
       veil.dropKey('formations');
       veil.dropKey('compile');
       return;
     }
-    const layout = createLayout({ section, h1, copy, slot, header });
-    // Formation 0 (the noise the portrait denoises from) is framed into the same rect, so the face resolves in place.
-    const pose = { roll: 0, rect: () => layout.rect };
-    relayout = () => {
-      const { changed, moved } = layout.measure();
-      if (moved) ctx.ScrollTrigger?.refresh();   // the slot came or went: every later section moved
-      if (!changed) return;
-      engine.setSafeRects({ 0: layout.safe, 1: layout.safe });
-      engine.setPose(0, pose);   // re-runs each built formation's density estimate at the new framing
-      engine.setPose(1, pose);
-    };
-    relayout();
-    let resizeTimer = 0;
-    addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(relayout, RESIZE_DEBOUNCE_MS);
-    });
-    // The name's width (the strip) and the copy's height (the slot's place) follow the fonts.
-    document.fonts?.addEventListener('loadingdone', relayout);
-    document.fonts?.ready.then(() => relayout());
-
+    engine = created;
+    frameEngine();
     engine.registerFormation(1, async () => buildPortrait(ctx.tier.N, { image: await image, rng: mulberry32(SEED) }));
     try {
       await Promise.all([engine.ensure(0), engine.ensure(1)]);

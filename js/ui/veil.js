@@ -58,6 +58,42 @@ function onLift(cb) {
   else liftCallbacks.push(cb);
 }
 
+const FONT_SHEETS = 'link[rel="stylesheet"][href^="https://fonts.googleapis.com/"]';
+let declared = null;
+
+/**
+ * Resolves once the Google Fonts stylesheets apply: they load without blocking the page (Ruling R26: media="print"
+ * until their onload flips them to all), so until then their @font-face rules do not exist and document.fonts.load()
+ * resolves at once with nothing loaded. Also resolves when they fail, or when the veil lifts (a stalled stylesheet
+ * leaves the page on its fallback faces; late fonts still fire `loadingdone`). Never rejects.
+ */
+export function fontFacesDeclared() {
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return Promise.resolve();
+  declared ??= new Promise((resolve) => {
+    const pending = [...document.querySelectorAll(FONT_SHEETS)].filter((link) => !link.sheet);
+    let left = pending.length;
+    // The onload attribute flipped the media first (it was registered at parse time); the style flush registers the
+    // faces before anyone asks for them.
+    const applied = () => {
+      void getComputedStyle(document.documentElement).fontFamily;
+      resolve();
+    };
+    const settled = () => {
+      if (--left === 0) applied();
+    };
+    if (left === 0) {
+      applied();
+      return;
+    }
+    for (const link of pending) {
+      link.addEventListener('load', settled, { once: true });
+      link.addEventListener('error', settled, { once: true });
+    }
+    onLift(resolve);
+  });
+  return declared;
+}
+
 export const veil = {
   /** A stage reports its fraction (default: done). Keys outside WEIGHTS are ignored. */
   report(key, fraction = 1) {
@@ -124,9 +160,11 @@ function trackFonts() {
   const showText = () => ui.el.classList.add('veil-text');
   let done = 0;
   const tick = () => veil.report('fonts', ++done / FONTS.length);
-  const loads = FONTS.map(load);
-  loads.forEach((p) => p.then(tick, tick));
-  loads[FONTS.length - 1].then(showText, showText);   // Geist Mono gates the veil text
+  fontFacesDeclared().then(() => {
+    const loads = FONTS.map(load);
+    loads.forEach((p) => p.then(tick, tick));
+    loads[FONTS.length - 1].then(showText, showText);   // Geist Mono gates the veil text
+  });
   setTimeout(showText, TEXT_MS);
 }
 

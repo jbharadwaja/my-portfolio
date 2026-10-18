@@ -2,8 +2,8 @@
 // the activation pulse (uPulse) scrubbed over the sticky stage, and the 19 DOM labels pinned to the projected nodes
 // every rendered frame (a label that would cover the text block or the HUD's corner fades out until it clears).
 // activeLayer is pure and Node-testable; init(ctx) touches the DOM and receives gsap, ScrollTrigger and the engine
-// through ctx (this module imports no CDN library). Without the engine the labels keep their static layer grid
-// (css/main.css).
+// through ctx (this module imports no CDN library). Without the engine — or once its context is lost for good — the
+// labels keep their static layer grid (css/main.css, spec §8.3).
 import { veil } from '../ui/veil.js';
 import { frameDistance } from '../engine/framing.js';
 import { mulberry32 } from '../engine/formations/common.js';
@@ -173,14 +173,26 @@ function createPulse({ gsap, scroll }, section, setPulse) {
   });
 }
 
+/** The labels back in their static layer grid (no engine, or a context lost for good: spec §8.3). */
+function goStatic({ section, container, labels }) {
+  section.classList.remove('net-live');
+  container.style.removeProperty('opacity');
+  for (const el of labels) {
+    el.style.removeProperty('transform');
+    el.removeAttribute('data-blocked');
+  }
+}
+
 /**
  * Registers the network (it builds after the veil, in an idle task), frames it below the text, keeps particles off
  * the text and pins the labels to the projected nodes on every rendered frame. Re-measured on resize, late fonts and
- * ScrollTrigger refreshes; an aspect-class change rebuilds the formation (spec §4.8).
+ * ScrollTrigger refreshes; an aspect-class change rebuilds the formation (spec §4.8). If the engine's context is
+ * lost for good (`contextfail`), the labels go back to the static grid.
  */
 function goLive({ ctx, engine, section, stage, head, container, labels, nodeOf }) {
   section.classList.add('net-live');
   container.style.opacity = '0';
+  engine.on('contextfail', () => goStatic({ section, container, labels }));
   const rect = { x: 0, y: 0, w: 0, h: 0 };
   const pose = { lookAt: [0, 0, 0], roll: 0, rect: () => rect, box: null };
   let layout = null;
@@ -311,8 +323,7 @@ export async function init(ctx) {
       goLive({ ctx, engine, section, stage, head, container, labels, nodeOf });
     } catch (err) {
       // A failed setup (its first measure) leaves the labels hidden in their live style: the static grid comes back.
-      section.classList.remove('net-live');
-      container.style.removeProperty('opacity');
+      goStatic({ section, container, labels });
       throw err;
     }
   }).catch((err) => console.error('Encoder network setup failed.', err));

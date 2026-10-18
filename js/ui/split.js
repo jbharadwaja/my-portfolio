@@ -2,7 +2,7 @@
 // condensed to wide, with each word's width locked so lines never re-wrap mid-reveal; count-ups for numbers;
 // and the hero name's measured fit. The metric maths is pure and Node-testable. This module imports no CDN
 // library: initReveals/countUp receive gsap from main.js, and every DOM touch happens inside a function.
-import { veil } from './veil.js';
+import { veil, fontFacesDeclared } from './veil.js';
 
 // ---------------------------------------------------------------- metrics (pure)
 
@@ -165,7 +165,9 @@ export function lockWidths(el) {
 // ---------------------------------------------------------------- hero name fit
 
 const fontsReady = () => (document.fonts
-  ? Promise.all([document.fonts.load('800 1em Archivo', 'BHARADWAJA'), document.fonts.ready]).then(() => {}, () => {})
+  ? fontFacesDeclared()
+    .then(() => Promise.all([document.fonts.load('800 1em Archivo', 'BHARADWAJA'), document.fonts.ready]))
+    .then(() => {}, () => {})
   : Promise.resolve());
 
 /**

@@ -61,6 +61,30 @@ a { color: inherit; text-decoration: none; }
   html.no-js { scroll-behavior: smooth; }
 }
 
+/* lenis 1.3.26 dist/lenis.css, inlined (Ruling R26: no third-party stylesheet can hold up first paint) */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+.lenis [data-lenis-prevent],
+.lenis [data-lenis-prevent-wheel],
+.lenis [data-lenis-prevent-touch],
+.lenis [data-lenis-prevent-vertical],
+.lenis [data-lenis-prevent-horizontal] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+.lenis.lenis-autoToggle {
+  transition-property: overflow;
+  transition-duration: 1ms;
+  transition-behavior: allow-discrete;
+}
+
 /* boot: no transitions while the page settles. The inline boot script sets .preload on <html> and
    clears it one frame after window load; the veil keeps its own 600 ms fade (critical CSS in index.html). */
 .preload *:not(.veil),
@@ -358,8 +382,9 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
 .socials { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; font-size: var(--fs-label); }
 /* bottom layout (hero.js; Ruling R47 supersedes spec §2.2's bottom half): the portrait is framed into an empty slot
    right after the lead, and the meta rows, panels and actions follow below it. Hidden in the strip layout and
-   without the engine. The copy above the slot keeps its paper ground, which ends at the slot's top (--slot-top,
-   measured by hero.js), so it never covers the face. */
+   without JS; hero.js decides the layout at boot, with or without the engine, so a late engine never moves the page
+   (Ruling R53). The copy above the slot keeps its paper ground, which ends at the slot's top (--slot-top, measured
+   by hero.js), so it never covers the face. */
 .hero-portrait-slot { display: none; }
 .portrait-bottom .hero-portrait-slot {
   display: block; align-self: stretch;
@@ -385,6 +410,14 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
   white-space: pre; color: var(--fg-muted);
   transform: translateX(-50%);
 }
+
+/* no WebGL (spec §8.3: ?nowebgl, no webgl2, three failing, a context lost for good, or the engine still loading
+   when the veil lifts; main.js sets .no-webgl). The canvas hides; the hero shows the cut-out as a static halftone
+   (hero.js places .hero-halftone over the strip or the slot), the encoder keeps its label grid, and the Route its
+   own night ground with the map drawn on a 2D canvas (route.js .route-map). */
+.no-webgl #scene { visibility: hidden; }
+.hero-halftone { position: absolute; pointer-events: none; }
+.hero-halftone > img, .hero-halftone > canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 /* encoder — static layer columns (positioned over the network by encoder.js) */
 .net-labels {
@@ -453,6 +486,9 @@ main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.j
 .no-js #route { background: var(--bg-dark); color: var(--fg-on-dark); border-top-color: var(--c-night-2); }
 .no-js main > section#route::before { color: var(--fg-on-dark-muted); }
 .no-js #route + section { border-top: 0; }   /* the ground change is the divider */
+/* no WebGL: a night ground of its own, the 2D map behind the panels (isolated, so it paints above that ground) */
+.no-webgl #route { isolation: isolate; background: var(--bg-dark); color: var(--fg-on-dark); }
+.route-map { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
 .route-head, .route-card { background: var(--c-night-2); color: var(--fg-on-dark); }
 .route-head { display: grid; gap: 14px; width: fit-content; max-width: 100%; padding: clamp(20px, 2.4vw, 32px); }
 .route-head .section-sub { color: var(--fg-on-dark-muted); }

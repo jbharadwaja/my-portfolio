@@ -230,3 +230,14 @@ test('the cursor watches a stage only while its reticle is on, not every stage w
   assert.equal(watchesReticle(readoutIn('stage reticle-on')), true);
   assert.equal(watchesReticle(null), false);
 });
+
+// Ruling R65: the console is wired before the CDN settles, so the veil can still be up; ~ does nothing under it.
+test('~ does not open the console while the loading veil is up (html.js without .veil-done)', () => {
+  const { doc, root, press } = consolePage();
+  doc.documentElement.classList.add('js');
+  assert.equal(press('~'), false, 'not prevented: nothing handled it');
+  assert.equal(root.hidden, true);
+  doc.documentElement.classList.add('veil-done');
+  press('~');
+  assert.equal(root.hidden, false, 'opens once the veil has lifted');
+});

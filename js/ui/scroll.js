@@ -56,24 +56,46 @@ export function placeToRestore({ visit, entry, tab, hashId, ids }) {
  * Scrolling starts native: main.js creates this before the CDN imports settle, so nav works even when a slow CDN
  * lets the 8 s cap lift the veil first, and calls attach() once they resolve. That upgrades the same object in
  * place, so the handlers holding it and any lock already taken carry over. Passing the libraries here attaches at
- * once. Lenis is created only without reduced motion (gsap's ticker drives it); without Lenis every scrollTo is instant.
+ * once. Lenis exists only without reduced motion (gsap's ticker drives it); setReduced() follows a change of the
+ * preference at runtime, destroying or creating it (Rulings R27/R45). Without Lenis every scrollTo is instant.
  */
 export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, reduced = false } = {}) {
   const root = document.documentElement;
   const sections = [...document.querySelectorAll('main > section')];
   let lenis = null;
+  let libraries = null;          // { Lenis, gsap, ScrollTrigger }, once attached
   let trigger = null;            // ScrollTrigger, once attached
   let locks = 0;                 // counted, so two overlays (burger sheet, console) can hold the lock at once
+  const raf = (t) => lenis?.raf(t * 1000);
+
+  function startLenis() {
+    if (lenis || reduced || !libraries?.Lenis) return;
+    lenis = new libraries.Lenis({ autoRaf: false, anchors: false });
+    lenis.on('scroll', trigger.update);
+    libraries.gsap.ticker.add(raf, false, true);
+    libraries.gsap.ticker.lagSmoothing(0);
+    if (locks > 0) lenis.stop();
+  }
+
+  function stopLenis() {
+    if (!lenis) return;
+    libraries.gsap.ticker.remove(raf);
+    lenis.destroy();
+    lenis = null;
+  }
 
   function attach(libs) {
     if (trigger || !libs.ScrollTrigger) return;
+    libraries = libs;
     trigger = libs.ScrollTrigger;
-    if (!libs.Lenis || reduced) return;
-    lenis = new libs.Lenis({ autoRaf: false, anchors: false });
-    lenis.on('scroll', trigger.update);
-    libs.gsap.ticker.add((t) => lenis.raf(t * 1000), false, true);
-    libs.gsap.ticker.lagSmoothing(0);
-    if (locks > 0) lenis.stop();
+    startLenis();
+  }
+
+  /** prefers-reduced-motion changed: native scroll and quicker cuts under reduce, Lenis again without it. */
+  function setReduced(on) {
+    reduced = on;
+    if (on) stopLenis();
+    else startLenis();
   }
 
   // Sections are never sticky themselves (their stages are), so a rect gives each one's trigger-equivalent top.
@@ -94,8 +116,9 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
 
   // Fade <main> and the canvas to the current ground, jump, let one frame render there, fade back in.
   // The ground colour is pinned on <body> for the whole cut, so passing in or out of Route never flashes.
-  // `landed` runs once the page is at y, while both layers are still faded out.
-  async function cut(y, landed) {
+  // The target is measured once faded out (`targetY()`): the layout can change meanwhile (the libraries arriving
+  // lengthen the stages, Ruling R29). `landed` runs once the page is there, while both layers are still faded out.
+  async function cut(targetY, landed) {
     const ms = reduced ? CUT_MS_REDUCED : CUT_MS;
     const layers = [document.querySelector('main'), document.getElementById('scene')].filter(Boolean);
     let out = [];
@@ -105,7 +128,7 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
       out = layers.map((el) => el.animate([{ opacity: 0 }], { duration: ms.out, easing: 'ease-in', fill: 'forwards' }));
       await Promise.all(out.map((a) => a.finished));
       // Both run every ScrollTrigger callback synchronously (Lenis through its scroll emit), so a section module can throw here.
-      scrollTo(y, { immediate: true });
+      scrollTo(targetY(), { immediate: true });
       trigger?.update();
       landed();
       await new Promise(requestAnimationFrame);
@@ -138,11 +161,12 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     const run = () => {
       const el = typeof target === 'string' ? document.getElementById(target) : null;
       if (typeof target === 'string' && !el) return;
-      const y = el ? pageTop(el) : target;
+      const targetY = () => (el ? pageTop(el) : target);
+      const y = targetY();
       const all = tops();
       const targetIndex = currentSection(all, y);
       const mode = jumpMode(currentSection(all, centreY()), targetIndex);
-      if (mode === 'cut') return cut(y, () => emitJump({ mode, targetIndex }));
+      if (mode === 'cut') return cut(targetY, () => emitJump({ mode, targetIndex }));
       emitJump({ mode, targetIndex });
       return glide(y);
     };
@@ -167,6 +191,7 @@ export function createScroll({ Lenis = null, gsap = null, ScrollTrigger = null, 
     /** The Lenis instance, or null on native scroll (before attach, under reduced motion, or without the libraries). */
     get lenis() { return lenis; },
     attach,
+    setReduced,
     scrollTo,
     jumpTo,
     /** on('jump', fn): fn({ mode: 'cut' | 'animate', targetIndex }) on each jump (emitJump); returns its off switch. */

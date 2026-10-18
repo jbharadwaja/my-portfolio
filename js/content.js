@@ -1,9 +1,42 @@
 // Off-page strings: what scripts print that the static page does not carry (the page's own copy lives only in
-// index.html). The ~ console's text (spec §6.4), the cursor's rail label (spec §6.3) and the CV publish state
-// (spec §6.2). Pure data, Node-testable.
+// index.html). The ~ console's text (spec §6.4), the cursor's rail label (spec §6.3) and the CV link in both of its
+// states (spec §6.2; index.html ships the fallback). Pure, Node-testable: applyCvState only touches the document
+// it is given.
 
 /** Whether the CV PDF is published (spec §6.2): false keeps the LinkedIn fallback. */
 export const CV_PUBLISHED = false;
+
+const CV_FILE = 'Julian_Bharadwaja_Resume.pdf';
+const CV = {
+  fallback: { href: 'https://www.linkedin.com/in/julian-bharadwaja/', target: '_blank', rel: 'noopener', download: null },
+  publish: { href: `assets/cv/${CV_FILE}`, target: null, rel: null, download: CV_FILE },
+};
+/** The link text per state: the header's bracketed label, and the hero's and sign-off's inline one. */
+const CV_TEXT = {
+  fallback: { header: '[ CV ↗ ]', inline: 'CV on LinkedIn ↗' },
+  publish: { header: '[ CV ↓ ]', inline: 'Download CV' },
+};
+
+/**
+ * The CV link for `slot` ('header' | 'hero' | 'signoff'), published or in the LinkedIn fallback (spec §6.2):
+ * { href, target, rel, download, text }, null for an attribute the link must not carry.
+ */
+export function cvLinkAttrs(published, slot) {
+  const state = published ? 'publish' : 'fallback';
+  return { ...CV[state], text: CV_TEXT[state][slot === 'header' ? 'header' : 'inline'] };
+}
+
+/** Writes the CV state into every a[data-cv] in `doc` (its data-cv names the slot); index.html ships the fallback. */
+export function applyCvState(doc, published) {
+  for (const link of doc.querySelectorAll('a[data-cv]')) {
+    const attrs = cvLinkAttrs(published, link.getAttribute('data-cv'));
+    for (const name of ['href', 'target', 'rel', 'download']) {
+      if (attrs[name] === null) link.removeAttribute(name);
+      else if (link.getAttribute(name) !== attrs[name]) link.setAttribute(name, attrs[name]);
+    }
+    if (link.textContent !== attrs.text) link.textContent = attrs.text;
+  }
+}
 
 export const WHOAMI = 'julian bharadwaja — data scientist · ml engineer · data analyst — tustin, ca';
 

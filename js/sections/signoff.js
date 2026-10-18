@@ -3,6 +3,7 @@
 // receives the engine through ctx (this module imports no CDN library).
 import { mulberry32 } from '../engine/formations/common.js';
 import { buildName } from '../engine/formations/name.js';
+import { fontFacesDeclared } from '../ui/veil.js';
 
 const WORD = 'JULIAN';
 const FONT = '900 200px Archivo';
@@ -53,6 +54,8 @@ const sameRect = (a, b) => a === b || (Boolean(a && b) && a.x === b.x && a.y ===
  */
 export async function drawName() {
   // FontFaceSet.load rejects (NetworkError) when a declared face's file cannot be fetched; that is not fatal here.
+  // The faces exist only once the non-blocking font stylesheets apply (veil.js fontFacesDeclared).
+  await fontFacesDeclared();
   await document.fonts.load(FONT, WORD).catch(() => {});
   const canvas = document.createElement('canvas');
   const g = canvas.getContext('2d', { willReadFrequently: true });

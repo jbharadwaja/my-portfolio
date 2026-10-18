@@ -1,7 +1,7 @@
 // Camera framing (spec §4.4). Pure and Node-testable. Rects are CSS px in the viewport (y down); world units
 // are the formation's. The camera looks straight down −z, so framing a box is a distance plus a lateral shift.
 
-const FRAME_SLACK = 1.08;          // breathing room around the box
+export const FRAME_SLACK = 1.08;   // breathing room around the box
 
 const halfTan = (vfovDeg) => Math.tan((vfovDeg * Math.PI) / 360);
 

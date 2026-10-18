@@ -39,6 +39,8 @@ const ENGINE_UNIFORMS = new Set(['uMix', 'uFrom', 'uTo', 'uTime', 'uAlpha', 'uBo
 
 // The dust tunnel: z ∈ [+10, −(7·D + 20)] around the camera path (spec §4.4).
 const DUST = { zNear: 10, zFar: -(7 * D + 20), radius: 9, size: 0.03, alpha: 0.5 };
+/** Under reduced motion the dust is static at 50% of its alpha (spec §3.3). */
+const dustAlphaFor = (reduced) => (reduced ? DUST.alpha * 0.5 : DUST.alpha);
 
 /** Raw sRGB components of a #RRGGBB token (spec §4.5: colours are raw sRGB, no colour-space chunk). */
 const srgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
@@ -133,7 +135,8 @@ function createDebugPanel() {
 
 /**
  * Creates the renderer on `canvas` (throws without WebGL2). `tier` is pickTier()'s row; `reduced` is
- * prefers-reduced-motion at boot (camera cuts at the dip, roll 0, no parallax, static dust at 50%).
+ * prefers-reduced-motion (camera cuts at the dip, roll 0, no parallax, drift or repulsion, static dust at 50%), and
+ * follows the preference through setReduced().
  */
 export async function createEngine({ canvas, tier, reduced }) {
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: false, powerPreference: 'high-performance' });
@@ -150,7 +153,7 @@ export async function createEngine({ canvas, tier, reduced }) {
   const dustUniforms = {
     uTime: { value: 0 },
     uSize: { value: DUST.size },
-    uAlpha: { value: reduced ? DUST.alpha * 0.5 : DUST.alpha },
+    uAlpha: { value: dustAlphaFor(reduced) },
     uNight: { value: 0 },
     uDpr: { value: 1 },
     uBufferHeight: { value: 1 },
@@ -159,7 +162,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     uMist: { value: new THREE.Vector3(...MIST) },
   };
   const dust = createDust(tier.dust, dustUniforms);
-  const dustAlpha = dustUniforms.uAlpha.value;
+  let dustAlpha = dustUniforms.uAlpha.value;
   scene.add(dust);
   const debug = new URLSearchParams(location.search).has('debug');
   const dev = debug || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
@@ -710,6 +713,25 @@ export async function createEngine({ canvas, tier, reduced }) {
     ground,
     compile() {
       return renderer.compileAsync(scene, camera);
+    },
+    /**
+     * prefers-reduced-motion changed (spec §3.3; main.js, gsap.matchMedia): the morph dips instead of travelling, the
+     * camera cuts with roll 0, and parallax, repulsion, drift and the dust's motion stop (its alpha halves); off, all
+     * of it comes back.
+     */
+    setReduced(on) {
+      if (on === reduced) return;
+      reduced = on;
+      pu.uReduced.value = on ? 1 : 0;
+      dustAlpha = dustAlphaFor(on);
+      if (on) {
+        yaw = 0;
+        pitch = 0;
+        push.x = 0;
+        push.v = 0;
+        pu.uPush.value = 0;
+      }
+      refreshAlphas();                 // every pose's roll changed (0 under reduced motion)
     },
     pause() {
       paused = true;

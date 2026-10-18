@@ -1,11 +1,13 @@
 /* Sign-off section (#contact): styles for this section only. */
 
-/* The room JULIAN is framed into (signoff.js adds it, and only while WebGL is there; --name-aspect is the drawn
-   word's width / height). It is as wide as the word may be, the viewport less 8% on each side (spec §2.8), and sits
-   in the space under the links, which the inner fills so the room is centred in whatever the viewport leaves free.
-   The margins keep the text's 32 px keep-out feather off the letters (spec §4.5) and the footer's line clear. */
+/* The room JULIAN is framed into (signoff.js adds it, and only while WebGL is there: an engine that never comes or
+   the no-WebGL state takes it out, so it never leaves an empty gap; --name-aspect is the drawn word's width /
+   height). It is as wide as the word may be, the viewport less 8% on each side (spec §2.8), and sits in the space
+   under the links, which the inner fills so the room is centred in whatever the viewport leaves free. The margins
+   keep the text's 32 px keep-out feather off the letters (spec §4.5) and the footer's line clear. */
 .signoff-inner { min-height: inherit; grid-template-rows: auto auto auto 1fr; }
-.signoff-inner.has-name { padding-bottom: 0; }   /* the room's own margin keeps the word off the footer */
+:root:not(.no-webgl) .signoff-inner.has-name { padding-bottom: 0; }   /* the room's own margin keeps the word off the footer */
+.no-webgl .signoff-name { display: none; }
 .signoff-name {
   align-self: center; justify-self: center;
   width: calc((100cqi + 2 * var(--gutter)) * 0.84);

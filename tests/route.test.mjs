@@ -100,3 +100,36 @@ test('the reticle readout sits right of and below the pointer, flipped left near
   assert.deepEqual(place(1300, 870), { x: 1142, y: 828 });
   assert.deepEqual(place(400, 900 - 18 - 24), { x: 418, y: 900 - 24 });   // just fits below
 });
+
+// Spec §3.3: under reduced motion uNight is not scrubbed; a 300 ms time fade runs at the stage's edges.
+import { nightStep, mapFit } from '../js/sections/route.js';
+test('reduced motion: uNight fades to 1 over 300 ms once inside the stage, back to 0 at its edges', () => {
+  let n = 0;
+  for (let i = 0; i < 3; i++) n = nightStep(n, 0.01, true, 0.1);
+  near(n, 1);
+  near(nightStep(0, 0.5, true, 0.1), 1 / 3);
+  assert.equal(nightStep(0, 0, true, 0.1), 0, 'p = 0: the stage has not started');
+  near(nightStep(1, 1, true, 0.1), 2 / 3);
+  assert.equal(nightStep(1, 0.96, true, 0.1), 1, 'no scrubbed fade-out inside the stage');
+});
+test('full motion: uNight follows the timeline at no more than 2.5 units/s', () => {
+  near(nightStep(0, 0.04, false, 0.1), 0.25);
+  near(nightStep(0, 0.02, false, 1 / 60), 2.5 / 60);
+  near(nightStep(0, 0.02, false, 0.2), 0.25);
+  near(nightStep(1, 0.96, false, 0.01), 0.975);
+});
+
+// Spec §8.3: the 2D fallback map's lattice fitted (contain) into a region, centred, optionally on a focus box.
+test('the fallback map fits the whole lattice into the region, centred', () => {
+  assert.deepEqual(mapFit({ x: 0, y: 0, w: 1300, h: 480 }), { x: 0, y: 0, cell: 5 });
+  const phone = mapFit({ x: 0, y: 0, w: 390, h: 844 });
+  near(phone.cell, 1.5);
+  near(phone.x, 0);
+  near(phone.y, (844 - 96 * 1.5) / 2);
+});
+test('the fallback map can frame a focus box of the lattice into the region', () => {
+  const fit = mapFit({ x: 10, y: 100, w: 400, h: 200 }, { x: 90, y: 20, w: 40, h: 10 });
+  near(fit.cell, 10);                  // the focus's width binds: 400 / 40
+  near(fit.x + 90 * fit.cell, 10);     // the focus starts at the region's left
+  near(fit.y + 20 * fit.cell, 100 + (200 - 10 * 10) / 2);
+});

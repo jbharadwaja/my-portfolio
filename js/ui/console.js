@@ -173,12 +173,12 @@ const isEditable = (el) => Boolean(el?.closest?.('input, textarea, select')) || 
 
 /**
  * Wires the console dialog `root` (its .console-log and .console-input) and the footer's .console-open button:
- * ` or ~ opens it (not while typing in a field or with another dialog open), Esc, `exit` or a click on the dimmed
- * page closes it. While open, the page scroll is locked through `scroll`, the custom cursor hides (html.console-shown)
- * and keys stay in the input: Tab completes, ↑/↓ walk the history, PageUp/PageDown scroll the log. A key pressed
- * elsewhere (focus strayed to the page: a click on the log) goes to the input, except a Ctrl/Meta shortcut, a bare
- * modifier or any key while log text is selected, so the selection can be copied. On close, focus returns where it
- * was, or leaves the hidden input.
+ * ` or ~ opens it (not while typing in a field, with another dialog open or under the loading veil), Esc, `exit` or a
+ * click on the dimmed page closes it. While open, the page scroll is locked through `scroll`, the custom cursor hides
+ * (html.console-shown) and keys stay in the input: Tab completes, ↑/↓ walk the history, PageUp/PageDown scroll the
+ * log. A key pressed elsewhere (focus strayed to the page: a click on the log) goes to the input, except a Ctrl/Meta
+ * shortcut, a bare modifier or any key while log text is selected, so the selection can be copied. On close, focus
+ * returns where it was, or leaves the hidden input.
  */
 export function createConsole({ root, scroll, ctx }) {
   const doc = root.ownerDocument;
@@ -200,6 +200,9 @@ export function createConsole({ root, scroll, ctx }) {
   prompt.textContent = CONSOLE.prompt;
   input.before(prompt);
   const isOpen = () => !root.hidden;
+  // main.js wires the console before the CDN settles (Ruling R65): under the loading veil (html.js without
+  // .veil-done, the veil's own CSS condition) ~ does nothing.
+  const veilUp = () => html.classList.contains('js') && !html.classList.contains('veil-done');
   const otherDialogOpen = () => [...doc.querySelectorAll('[role="dialog"][aria-modal="true"]')]
     .some((dialog) => dialog !== root && !dialog.hidden);
   const toEnd = () => { log.scrollTop = log.scrollHeight; };
@@ -365,7 +368,7 @@ export function createConsole({ root, scroll, ctx }) {
   doc.addEventListener('keydown', (e) => {
     if (!isOpen()) {
       if ((e.key !== '`' && e.key !== '~') || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
-      if (isEditable(e.target) || otherDialogOpen()) return;
+      if (isEditable(e.target) || otherDialogOpen() || veilUp()) return;
       e.preventDefault();              // the key opens the console; it is not typed into it
       open();
       return;

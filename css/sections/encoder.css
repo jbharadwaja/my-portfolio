@@ -1,5 +1,8 @@
 /* Encoder section (#encoder): the network labels, pinned to the projected nodes by js/sections/encoder.js. */
 /* .net-live is set once the engine runs; without it the labels keep the static layer grid (css/main.css). */
+/* The grid can be taller than a short screen (a phone, on its side too): the stage then grows to hold it, so it pins
+   for the rest of the section's length and its foot scrolls into view at the end (spec §8.3: everything readable). */
+.js-scroll #encoder:not(.net-live) .stage { height: auto; min-height: 100svh; }
 .net-live .net-labels {
   position: fixed; top: 0; left: 0; width: 0; height: 0;   /* labels are placed in viewport px */
   display: block; margin: 0;

@@ -116,3 +116,22 @@ test('about: languages, skills and certifications', () => {
 test('no retired project copy', () => {
   assert.doesNotMatch(html, /SHINYOROI|PyTrends|SHIPPED/);
 });
+
+// Ruling R19: markup the scripts and the layout rely on
+test('the About plate image carries its intrinsic size (no layout shift as it loads)', () => {
+  assert.match(html, /<img class="plate-img" src="assets\/img\/portrait-full\.webp" width="788" height="985" /);
+});
+test('#sheet and #console are hidden modal dialogs', () => {
+  for (const id of ['sheet', 'console']) {
+    const tag = html.match(new RegExp(`<div [^>]*id="${id}"[^>]*>`))?.[0] ?? '';
+    assert.ok(tag, `#${id} exists`);
+    assert.match(tag, /\srole="dialog"/, `#${id} role`);
+    assert.match(tag, /\saria-modal="true"/, `#${id} aria-modal`);
+    assert.match(tag, /\shidden[\s>]/, `#${id} hidden`);
+    assert.match(tag, /\saria-label="[^"]+"/, `#${id} is named`);
+  }
+});
+test('the CV links read [ CV ↗ ] in the header and CV on LinkedIn ↗ in the hero and the sign-off', () => {
+  const cv = [...html.matchAll(/<a class="js-cv[^"]*"[^>]*data-cv="([a-z]+)"[^>]*>([^<]*)<\/a>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(cv, [['header', '[ CV ↗ ]'], ['hero', 'CV on LinkedIn ↗'], ['signoff', 'CV on LinkedIn ↗']]);
+});
