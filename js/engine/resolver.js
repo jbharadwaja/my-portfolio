@@ -3,8 +3,7 @@
 
 const LAST = 6;
 const LAST_SNAP = 0.995;               // the last boundary snaps to 1 so JULIAN always finishes forming
-const DIP_LO = 0.02;
-const DIP_HI = 0.98;
+const HANDOFF_EPS = 0.08;              // how close to its shared end a pair must be for a seamless hand-off
 
 /**
  * The pair on screen, from scratch: the last boundary with progress > 0 wins; none → the noise cloud.
@@ -32,9 +31,17 @@ export function applyEntrance(b, entrance) {
   return b;
 }
 
-/** A pair change while the previous mix was mid-morph (fast flick, scrollbar drag) dips instead of teleporting. */
+/**
+ * A pair change dips instead of teleporting (fast flick, scrollbar drag, End/Home) unless it is a continuous
+ * hand-off: forward, the old pair had (nearly) finished on the formation the new one starts from; backward, the
+ * old pair had (nearly) not left the formation the new one ends on. Ruling R40 widens spec §4.3's literal
+ * "previous uMix between 0.02 and 0.98" to this, its stated intent: a jump from rest to a far pair dips too.
+ */
 export function needsDip(prev, next) {
-  return (prev.from !== next.from || prev.to !== next.to) && prev.mix > DIP_LO && prev.mix < DIP_HI;
+  if (prev.from === next.from && prev.to === next.to) return false;
+  const forward = next.from === prev.to && prev.mix >= 1 - HANDOFF_EPS;
+  const backward = next.to === prev.from && prev.mix <= HANDOFF_EPS;
+  return !(forward || backward);
 }
 
 /** Moves `current` toward `target` by at most maxPerSec · dt. */

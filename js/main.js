@@ -17,6 +17,7 @@ export const boundaries = new Float32Array(7);
 boundaries[0] = 1;            // the entrance counts as done until the hero (Task 9) runs it
 
 const tickers = [];
+let settleEngine;
 
 /** Shared with every section module's init(ctx); filled during boot. */
 export const ctx = {
@@ -26,6 +27,9 @@ export const ctx = {
   tier: pickTier(readEnv(window)),   // once at load (spec §4.1)
   reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
   engine: null,
+  /** Resolves to the engine once created (formations registered), or to null without WebGL or if it failed;
+   *  never rejects. Section inits await this instead of reading ctx.engine, which is null until then. */
+  engineReady: new Promise((resolve) => { settleEngine = resolve; }),
   /** fn(time, deltaTime) runs every GSAP tick, after Lenis and before the render. */
   onTick: (fn) => { tickers.push(fn); },
 };
@@ -93,7 +97,7 @@ async function loadEngine() {
 function registerFormations(engine) {
   const { N } = ctx.tier;
   engine.registerFormation(0, () => buildNoise(N, { rng: mulberry32(0x4a42) }));
-  engine.ensure(0);
+  engine.ensure(0).catch(() => {});   // a failed build is logged by the engine; the page carries on without it
   // Temporary: the galaxy also stands in at 1–5 and 7 so every morph can be seen; Tasks 9–15 register the real ones.
   for (const k of [1, 2, 3, 4, 5, 6, 7]) engine.registerFormation(k, () => buildGalaxy(N, { rng: mulberry32(600 + k) }));
 }
@@ -113,7 +117,10 @@ initNav(ctx);
 initHeroFit();                // the hero name's fit needs no library
 
 // The engine loads alongside the scroll libraries and never holds them up; the ticker renders once it exists.
-const engineReady = loadEngine().then((engine) => (ctx.engine = engine));
+loadEngine().then((engine) => {
+  ctx.engine = engine;
+  settleEngine(engine);
+});
 
 if (simulate === 'cdnfail') {
   const url = 'https://cdn.jsdelivr.net/npm/three@0.0.0-nope/x.js';
@@ -150,4 +157,4 @@ if (libs) {
 await document.fonts.ready;
 if (simulate === 'hang') await new Promise(() => {});
 await veil.liftWhenReady();
-engineReady.then((engine) => engine?.buildDeferred());
+ctx.engineReady.then((engine) => engine?.buildDeferred());

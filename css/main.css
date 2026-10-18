@@ -117,7 +117,8 @@ a:not(.cta-primary) {
 :root[data-ground="night"] { --chrome-fg: var(--fg-on-dark); --chrome-muted: var(--fg-on-dark-muted); }
 
 /* layers */
-#scene { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
+/* 100lvh, not the dynamic viewport: the iOS URL bar showing or hiding neither stretches the canvas nor resizes it */
+#scene { position: fixed; top: 0; left: 0; z-index: 0; width: 100%; height: 100lvh; pointer-events: none; }
 .no-js #scene { display: none; }
 main, .site-footer { position: relative; z-index: 1; }
 

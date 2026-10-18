@@ -23,10 +23,29 @@ test('a finished entrance leaves the hero formed and the scroll free', () => {
   assert.deepEqual([b[0], b[1]], [1, Math.fround(0.4)]);
   assert.deepEqual(resolve(b), { from: 1, to: 2, mix: Math.fround(0.4) });
 });
-test('dip window is 0.02–0.98 (exclusive)', () => {
-  assert.equal(needsDip({ from: 1, to: 2, mix: 0.02 }, { from: 3, to: 4, mix: 0 }), false);
-  assert.equal(needsDip({ from: 1, to: 2, mix: 0.98 }, { from: 3, to: 4, mix: 0 }), false);
+// Ruling R40: any pair change dips unless it is a continuous hand-off at the shared formation (ε = 0.08).
+test('a far jump dips even when the old pair was nearly at rest', () => {
+  assert.equal(needsDip({ from: 1, to: 2, mix: 0.02 }, { from: 3, to: 4, mix: 0 }), true);
+  assert.equal(needsDip({ from: 1, to: 2, mix: 0.98 }, { from: 3, to: 4, mix: 0 }), true);
   assert.equal(needsDip({ from: 1, to: 2, mix: 0.03 }, { from: 1, to: 3, mix: 0 }), true);
+});
+test('a jump from a resting pair to a far pair dips (scrollbar yank, End, Home)', () => {
+  assert.equal(needsDip({ from: 0, to: 1, mix: 1 }, { from: 3, to: 4, mix: 0.5 }), true);   // rest → far, forward
+  assert.equal(needsDip({ from: 0, to: 1, mix: 0 }, { from: 2, to: 3, mix: 0.4 }), true);   // before the entrance
+  assert.equal(needsDip({ from: 1, to: 2, mix: 1 }, { from: 3, to: 4, mix: 0 }), true);     // skips formation 3's rest
+  assert.equal(needsDip({ from: 5, to: 6, mix: 1 }, { from: 0, to: 1, mix: 1 }), true);     // rest → Home
+  assert.equal(needsDip({ from: 4, to: 5, mix: 0.5 }, { from: 1, to: 2, mix: 0.5 }), true); // mid-morph, backward
+});
+test('a backward hand-off at the shared formation does not blink', () => {
+  assert.equal(needsDip({ from: 5, to: 6, mix: 0.03 }, { from: 4, to: 5, mix: 1 }), false);
+  assert.equal(needsDip({ from: 5, to: 6, mix: 0 }, { from: 4, to: 5, mix: 0.97 }), false);
+  assert.equal(needsDip({ from: 2, to: 3, mix: Math.fround(0.08) }, { from: 1, to: 2, mix: 1 }), false);
+  assert.equal(needsDip({ from: 2, to: 3, mix: 0.1 }, { from: 1, to: 2, mix: 1 }), true);
+});
+test('a forward hand-off within ε of the end does not blink (adjacent windows, fast scroll)', () => {
+  assert.equal(needsDip({ from: 2, to: 3, mix: 0.95 }, { from: 3, to: 4, mix: 0.04 }), false);
+  assert.equal(needsDip({ from: 2, to: 3, mix: Math.fround(0.92) }, { from: 3, to: 4, mix: 0 }), false);
+  assert.equal(needsDip({ from: 2, to: 3, mix: 0.9 }, { from: 3, to: 4, mix: 0.05 }), true);
 });
 test('rate limit works downwards and never overshoots', () => {
   assert.equal(limitRate(1, 0, 2.5, 0.1), 0.75);

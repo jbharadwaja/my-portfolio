@@ -7,7 +7,10 @@
 const MAP_COLS = 260;
 const MAP_ROWS = 96;
 
-/** Resting point-size factor of a particle of formation k — mirrors shape() below, for the density estimate. */
+/**
+ * Resting point-size factor of a particle of formation k — mirrors shape() below, for the density estimate (the
+ * shader's per-particle 0.75–1.25× variation of non-dust particles averages out and is left out here).
+ */
 export function sizeFactor(k, meta) {
   if (meta < -0.5) return 0.6;
   if (k === 1) return 0.7 + 0.6 * meta;
@@ -114,6 +117,8 @@ Shape shape(float k, vec4 a) {
       s.square = on;
     }
   }
+  // Per-particle size variation (0.75–1.25×) for formation particles only: dust stays at 0.6× (spec §4.2: ≤ 0.6×).
+  if (meta >= -0.5) s.size *= 0.75 + 0.5 * fract(aSeed.y * 61.7);
   s.pos.z -= k * SPACING;
   return s;
 }
@@ -209,8 +214,7 @@ void main() {
     }
   }
 
-  float variation = 0.75 + 0.5 * fract(aSeed.y * 61.7);
-  float px = uSize * mix(a.size, b.size, t) * variation * uSizeScale
+  float px = uSize * mix(a.size, b.size, t) * uSizeScale
     * projectionMatrix[1][1] * uBufferHeight * 0.5 / max(depth, 0.001);
   vSize = clamp(px, 1.0, min(32.0 * uDpr, uMaxPoint));
   gl_PointSize = vSize;

@@ -3,9 +3,10 @@
 // main.js reaches this module only through await import(); its tick() runs at the end of the one GSAP ticker
 // callback.
 import * as THREE from 'three';
-import { computeDpr, shouldIgnoreResize } from './tier.js';
+import { computeDpr, shouldIgnoreResize, overFrameBudget } from './tier.js';
 import { frameDistance, rectShift, lerpPose } from './framing.js';
-import { resolve, applyEntrance, needsDip, limitRate } from './resolver.js';
+import { resolve, applyEntrance, limitRate } from './resolver.js';
+import { createMorphState, stepMorph } from './morph.js';
 import { alphaForPoints } from './density.js';
 import { createParticles } from './particles.js';
 import { sizeFactor } from './shaders.js';
@@ -21,12 +22,9 @@ const POINTER_SPEED_DECAY = 8;         // 1/s, once the pointer stops sending mo
 const RESIZE_DEBOUNCE_MS = 150;
 const RESTORE_WAIT_MS = 3000;
 const ADAPT_FRAMES = 120;
-const ADAPT_BUDGET_MS = 20;            // p75 frame time above this steps quality down
 const ADAPT_DPR_STEP = 0.25;
 const HITCH_MS = 250;                  // longer gaps are stalls (tab switch, GC), not frame cost
 const DEBUG_EVERY_MS = 250;
-const DIP_OUT_S = 0.12;                // pair change mid-morph: opacity → 0, rebind, → 1 (spec §4.3)
-const DIP_IN_S = 0.24;
 const DENSITY_GRID = 64;               // spec §4.5 screen histogram
 
 // Cursor repulsion (spec §4.6): a CPU spring (damping ratio 0.6) kicked by pointer speed; the shader pushes
@@ -169,10 +167,19 @@ export async function createEngine({ canvas, tier, reduced }) {
   const measure = () => ({ w: canvas.clientWidth || innerWidth, h: canvas.clientHeight || innerHeight });
   let size = measure();
   let dpr = 1;
+  let appliedRatio = 0;                // the devicePixelRatio the drawing buffer was last sized for
   let dprLimit = Infinity;             // adaptive DPR only ever lowers this
   let night = 0;
 
-  const fullRect = () => ({ x: 0, y: 0, w: size.w, h: size.h });
+  const viewRect = { x: 0, y: 0, w: 0, h: 0 };
+  /** The whole viewport (a reused scratch rect: solvePose runs twice a tick). */
+  const fullRect = () => {
+    viewRect.x = 0;
+    viewRect.y = 0;
+    viewRect.w = size.w;
+    viewRect.h = size.h;
+    return viewRect;
+  };
   const DEFAULT_POSE = { lookAt: [0, 0, 0], roll: 0, rect: fullRect, box: null };
   const poses = [];
   /** Per formation k: { builder, formation, ready, pending, failed, version } (spec §4.2). */
@@ -208,11 +215,12 @@ export async function createEngine({ canvas, tier, reduced }) {
   }
 
   // Camera: each pose solved to { x, y, z, roll } — formation k's box framed into its rect — then blended.
-  function solvePose(k, out) {
+  // `formation` defaults to the installed one; install() passes the one it is about to install.
+  function solvePose(k, out, formation = formations[k]?.formation) {
     const pose = poses[k] ?? DEFAULT_POSE;
     let rect = pose.rect();
     if (!(rect.w > 0 && rect.h > 0)) rect = fullRect();
-    const box = pose.box ?? formations[k]?.formation?.box ?? DEFAULT_BOX;
+    const box = pose.box ?? formation?.box ?? DEFAULT_BOX;
     const distance = frameDistance(box, rect, size.w, size.h, VFOV);
     rectShift(rect, size.w, size.h, distance, VFOV, shift);
     out.roll = reduced ? 0 : clamp(pose.roll, -MAX_ROLL_DEG, MAX_ROLL_DEG);
@@ -241,7 +249,8 @@ export async function createEngine({ canvas, tier, reduced }) {
   }
 
   function applySize() {
-    dpr = computeDpr(Math.min(tier.dprCap, dprLimit, devicePixelRatio || 1), size.w, size.h);
+    appliedRatio = devicePixelRatio || 1;
+    dpr = computeDpr(Math.min(tier.dprCap, dprLimit, appliedRatio), size.w, size.h);
     renderer.setPixelRatio(dpr);
     renderer.setSize(size.w, size.h, false);
     camera.aspect = size.w / size.h;
@@ -251,11 +260,14 @@ export async function createEngine({ canvas, tier, reduced }) {
     pu.uDpr.value = dpr;
     pu.uBufferHeight.value = bufferSize.y;
     pu.uViewport.value.set(size.w, size.h);
+    refreshAlphas();                   // the density histogram depends on the viewport (spec §4.8)
   }
 
   function ground(n) {
     night = clamp(n, 0, 1);
-    const [r, g, b] = PAPER.map((c, i) => c + (NIGHT[i] - c) * night);
+    const r = PAPER[0] + (NIGHT[0] - PAPER[0]) * night;
+    const g = PAPER[1] + (NIGHT[1] - PAPER[1]) * night;
+    const b = PAPER[2] + (NIGHT[2] - PAPER[2]) * night;
     renderer.setClearColor(clearColor.setRGB(r, g, b, THREE.SRGBColorSpace), 1);
     dustUniforms.uNight.value = night;
     dust.material.blending = night >= 0.5 ? THREE.AdditiveBlending : THREE.MultiplyBlending;
@@ -268,9 +280,12 @@ export async function createEngine({ canvas, tier, reduced }) {
   const probe = new THREE.PerspectiveCamera(VFOV, 1, 0.1, 400);
   const probePose = { x: 0, y: 0, z: 0, roll: 0 };
 
+  let ndcScratch = new Float32Array(0);
+
   /** Alpha for formation k from its overlap at its section pose. Dust (meta −1) keeps its own faint alpha. */
-  function densityAlpha(k, { data }) {
-    solvePose(k, probePose);
+  function densityAlpha(k, formation) {
+    const { data } = formation;
+    solvePose(k, probePose, formation);
     probe.aspect = size.w / size.h;
     probe.updateProjectionMatrix();
     probe.position.set(probePose.x, probePose.y, probePose.z);
@@ -281,7 +296,8 @@ export async function createEngine({ canvas, tier, reduced }) {
     const p11 = probe.projectionMatrix.elements[5];
     const pxAtUnitDepth = pu.uSize.value * pu.uSizeScale.value * p11 * bufferSize.y * 0.5;
     const maxPx = Math.min(32 * dpr, pu.uMaxPoint.value);
-    const ndc = new Float32Array((data.length / 4) * 2);
+    if (ndcScratch.length < (data.length / 4) * 2) ndcScratch = new Float32Array((data.length / 4) * 2);
+    const ndc = ndcScratch;
     let n = 0;
     let area = 0;
     for (let i = 0; i < data.length; i += 4) {
@@ -302,16 +318,25 @@ export async function createEngine({ canvas, tier, reduced }) {
     return alphaForPoints(ndc.subarray(0, n * 2), DENSITY_GRID, footprint);
   }
 
+  /** Installs a built formation; the slot is marked ready only once setFormation has accepted it. */
   function install(k, formation) {
     if (formation.minN > tier.N) {
       const message = `Formation ${k} needs ${formation.minN} particles; the ${tier.name} tier has ${tier.N}.`;
       if (dev) throw new Error(message);
       console.warn(message);
     }
+    particles.setFormation(k, formation, densityAlpha(k, formation));   // throws on a wrong particle count
     const slot = formations[k];
     slot.formation = formation;
     slot.ready = true;
-    particles.setFormation(k, formation, densityAlpha(k, formation));
+  }
+
+  /** Every installed formation's alpha, at its pose in the current viewport. */
+  function refreshAlphas() {
+    for (let k = 0; k < formations.length; k++) {
+      const slot = formations[k];
+      if (slot?.formation) pu.uAlpha.value[k] = densityAlpha(k, slot.formation);
+    }
   }
 
   /** Builds formation k now if it needs building; returns the pending promise of an async builder, else null. */
@@ -344,6 +369,7 @@ export async function createEngine({ canvas, tier, reduced }) {
   }
 
   const BUILT = Promise.resolve();
+  /** Rejects when formation k is unregistered or its builder fails (logged here once): callers must catch. */
   function ensure(k) {
     const pending = build(k);
     if (pending) return pending;
@@ -380,26 +406,13 @@ export async function createEngine({ canvas, tier, reduced }) {
     });
   }
 
-  // Morph (spec §4.3): the pair is resolved from scratch every tick. A pair change mid-morph (or the end of a
-  // stand-in while a formation was still building) dips the particles out, rebinds, and fades them back in.
+  // Morph (spec §4.3): the pair is resolved from scratch every tick; stepMorph (morph.js) stands in for formations
+  // still building and dips the particles out, rebinds and fades them back in on a discontinuous pair change.
   const working = new Float32Array(7);
   const next = { from: 0, to: 1, mix: 0 };
   const pair = state.pair;
-  let pairHeld = false;                // the bound pair stands in for one whose formation is not built yet
-  let dip = 'none';                    // 'out' → rebind → 'in' → 'none'
-  let opacity = 1;
+  const morph = createMorphState(pair);
   let warnedOverlap = false;
-
-  /** Swaps an unbuilt side of `p` for the built one (mix 0); true when the pair is a stand-in. */
-  function standIn(p) {
-    const hasFrom = particles.has(p.from);
-    const hasTo = particles.has(p.to);
-    if (hasFrom && hasTo) return false;
-    if (hasFrom) p.to = p.from;
-    else if (hasTo) p.from = p.to;
-    p.mix = 0;
-    return true;
-  }
 
   function warnOverlap() {
     for (let j = 0; j < next.from; j++) {
@@ -418,21 +431,8 @@ export async function createEngine({ canvas, tier, reduced }) {
     if (dev && !warnedOverlap) warnOverlap();
     build(next.from);
     build(next.to);
-    const held = standIn(next);
-    const changed = next.from !== pair.from || next.to !== pair.to;
-    if (dip !== 'out' && changed && (pairHeld || needsDip(pair, next))) dip = 'out';
-    if (dip === 'out') {
-      opacity = Math.max(0, opacity - dt / DIP_OUT_S);
-      if (opacity > 0) return;         // the old pair (and the camera on it) holds until the screen is empty
-      dip = 'in';                      // rebinds below on an empty frame; the fade-in starts on the next one
-    } else if (dip === 'in') {
-      opacity = Math.min(1, opacity + dt / DIP_IN_S);
-      if (opacity === 1) dip = 'none';
-    }
-    pair.from = next.from;
-    pair.to = next.to;
-    pair.mix = next.mix;
-    pairHeld = held;
+    // During a dip-out the old pair (and the camera on it) holds until the screen is empty; rebinding is idempotent.
+    stepMorph(morph, next, dt, particles.has);
     const visible = particles.has(pair.from) && particles.has(pair.to);
     particles.points.visible = visible;
     if (visible) particles.bindPair(pair.from, pair.to);
@@ -490,8 +490,8 @@ export async function createEngine({ canvas, tier, reduced }) {
     rectToNdc(safeRects[pair.from], pu.uSafe.value[0]);
     rectToNdc(safeRects[pair.to], pu.uSafe.value[1]);
     pu.uTime.value = elapsed;
-    pu.uOpacity.value = opacity;
-    dustUniforms.uAlpha.value = dustAlpha * opacity;
+    pu.uOpacity.value = morph.opacity;
+    dustUniforms.uAlpha.value = dustAlpha * morph.opacity;
   }
 
   // Loop state. The ticker always runs; the cap only skips renderer.render() and the onFrame callbacks.
@@ -506,20 +506,31 @@ export async function createEngine({ canvas, tier, reduced }) {
   let failed = false;
   let restoreTimer = 0;
 
-  // Adaptive quality (spec §4.1): from the veil lift, frames are judged in windows of 120; each window whose p75
-  // is over budget lowers DPR by 0.25 down to 1.0, then hides the dust. It never steps back up.
+  // Adaptive quality (spec §4.1): from the veil lift, frame intervals are judged in windows of 120; each window
+  // over budget (overFrameBudget: p75 > max(20 ms, 1.25 × median), so a steady 30 Hz rAF is not a struggling GPU)
+  // lowers DPR by 0.25 down to 1.0, then hides the dust. It never steps back up. The first window after the lift
+  // is not judged: it carries the idle-task formation builds (buildDeferred).
   const frameMs = new Float32Array(ADAPT_FRAMES);
   let sampled = 0;
   let adapting = false;
-  veil.onLift(() => { adapting = true; sampled = 0; });
+  let skipWindow = true;
+  veil.onLift(() => {
+    adapting = true;
+    sampled = 0;
+    skipWindow = true;
+  });
 
   function adapt(ms) {
     if (!adapting || ms > HITCH_MS) return;
     frameMs[sampled++] = ms;
     if (sampled < ADAPT_FRAMES) return;
     sampled = 0;
+    if (skipWindow) {
+      skipWindow = false;
+      return;
+    }
     frameMs.sort();
-    if (frameMs[Math.ceil(ADAPT_FRAMES * 0.75) - 1] <= ADAPT_BUDGET_MS) return;
+    if (!overFrameBudget(frameMs)) return;
     if (dpr > 1) {
       dprLimit = Math.max(1, dpr - ADAPT_DPR_STEP);
       applySize();
@@ -538,8 +549,8 @@ export async function createEngine({ canvas, tier, reduced }) {
     const fps = debugSince > -Infinity ? Math.round((debugFrames * 1000) / (timeMs - debugSince)) : 0;
     const { from, to, mix } = state.pair;
     debugEl.textContent = `${tier.name}  N ${tier.N}  dust ${dust.visible ? tier.dust : 'off'}\n`
-      + `DPR ${dpr.toFixed(2)}  ${fps} fps\nfrom ${from} → ${to}  mix ${mix.toFixed(3)}${pairHeld ? '  (stand-in)' : ''}\n`
-      + `entrance ${working[0].toFixed(2)}  dip ${dip} ${opacity.toFixed(2)}\n`
+      + `DPR ${dpr.toFixed(2)}  ${fps} fps\nfrom ${from} → ${to}  mix ${mix.toFixed(3)}${morph.held ? '  (stand-in)' : ''}\n`
+      + `entrance ${working[0].toFixed(2)}  dip ${morph.dip} ${morph.opacity.toFixed(2)}\n`
       + `alpha ${pu.uAlpha.value[from].toFixed(3)} → ${pu.uAlpha.value[to].toFixed(3)}  push ${pu.uPush.value.toFixed(3)}`;
     debugFrames = 0;
     debugSince = timeMs;
@@ -560,7 +571,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     if (timeMs - lastRender < renderGapMs) return;
     lastRender = timeMs;
     dustUniforms.uTime.value = elapsed;
-    for (const cb of frameCallbacks) cb(timeMs, dt);
+    for (let i = 0; i < frameCallbacks.length; i++) frameCallbacks[i](timeMs, dt);
     syncUniforms();
     renderer.render(scene, camera);
     if (debugEl) updateDebug(timeMs);
@@ -587,16 +598,27 @@ export async function createEngine({ canvas, tier, reduced }) {
     if (!hidden) resync = true;
   });
 
+  // A pixel-ratio change (a window moved to another screen, page zoom) applies even when the CSS size, or a
+  // coarse-pointer URL-bar resize, would not.
   let resizeTimer = 0;
-  addEventListener('resize', () => {
+  function onResize() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       const next = measure();
-      if ((next.w === size.w && next.h === size.h) || shouldIgnoreResize(size, next, coarse)) return;
-      size = next;
+      const resized = !(next.w === size.w && next.h === size.h) && !shouldIgnoreResize(size, next, coarse);
+      if (!resized && (devicePixelRatio || 1) === appliedRatio) return;
+      if (resized) size = next;
       applySize();
     }, RESIZE_DEBOUNCE_MS);
-  });
+  }
+  addEventListener('resize', onResize);
+  // Not every browser fires resize for a pixel-ratio change alone, so the current ratio is watched as well.
+  (function watchRatio() {
+    matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`).addEventListener('change', () => {
+      onResize();
+      watchRatio();
+    }, { once: true });
+  })();
 
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
@@ -636,7 +658,7 @@ export async function createEngine({ canvas, tier, reduced }) {
     setPose(k, pose) {
       poses[k] = { ...DEFAULT_POSE, ...pose };
       const slot = formations[k];
-      if (slot?.ready) pu.uAlpha.value[k] = densityAlpha(k, slot.formation);
+      if (slot?.formation) pu.uAlpha.value[k] = densityAlpha(k, slot.formation);
     },
     /** builder: () => formation | Promise<formation>. Re-registering k replaces its builder and, once rebuilt, its positions. */
     registerFormation,
