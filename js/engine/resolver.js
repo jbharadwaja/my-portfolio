@@ -44,6 +44,14 @@ export function needsDip(prev, next) {
   return !(forward || backward);
 }
 
+/**
+ * Whether `pair` shows formation k (nearly) alone: k is its from side and it has (nearly) not left it, or k is its
+ * to side and it has (nearly) arrived. A stand-in (k, k at mix 0) that ends on such a pair is a hand-off (morph.js).
+ */
+export function showsFormation(pair, k) {
+  return (pair.from === k && pair.mix <= HANDOFF_EPS) || (pair.to === k && pair.mix >= 1 - HANDOFF_EPS);
+}
+
 /** Moves `current` toward `target` by at most maxPerSec · dt. */
 export function limitRate(current, target, maxPerSec, dt) {
   const step = maxPerSec * dt;

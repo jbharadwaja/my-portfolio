@@ -1,7 +1,7 @@
 // The on-screen pair controller (spec §4.3): turns the pair resolved each frame into the pair the particles
 // show, with the stand-in for formations still building and the alpha dip for discontinuous pair changes.
 // Pure and Node-testable; scene.js binds `state.pair` to the particles after every step.
-import { needsDip } from './resolver.js';
+import { needsDip, showsFormation } from './resolver.js';
 
 export const DIP_OUT_S = 0.12;         // opacity → 0 …
 export const DIP_IN_S = 0.24;          // … rebind on the empty frame, → 1
@@ -19,10 +19,22 @@ export function createMorphState(pair = { from: 0, to: 0, mix: 0 }) {
 const target = { from: 0, to: 0, mix: 0 };   // scratch: the pair to show this frame (no per-frame allocation)
 
 /**
+ * Whether showing `target` instead of the bound pair is continuous: the same pair, a hand-off (needsDip), or a
+ * stand-in (k, k) ending on a real pair that still shows k (nearly) alone (showsFormation).
+ */
+function continuous(state, target) {
+  const { pair } = state;
+  if (target.from === pair.from && target.to === pair.to) return true;
+  return state.held ? showsFormation(target, pair.from) : !needsDip(pair, target);
+}
+
+/**
  * One frame. `next` is the resolved pair (read only); `has(k)` says whether formation k is built; dt in seconds.
- * An unbuilt side is stood in for by the built side at mix 0. A pair change that is not a continuous hand-off
- * (needsDip), or the end of a stand-in, dips: the old pair holds while the opacity falls to 0 over DIP_OUT_S, the
- * pair rebinds on that empty frame, and the opacity rises to 1 over DIP_IN_S from the next frame on.
+ * An unbuilt side is stood in for by the built side at mix 0. A pair change that is not continuous (a jump, or a
+ * stand-in ending on a pair that has moved on from its formation) dips: the old pair holds while the opacity falls
+ * to 0 over DIP_OUT_S, the pair rebinds on that empty frame, and the opacity rises to 1 over DIP_IN_S from the next
+ * frame on. If the resolved pair comes back to one continuous with the held pair before the screen is empty (a
+ * flick reversed), the dip turns round: no rebind, the opacity rises again from where it was.
  * Writes into `state`; returns false while the dip-out holds the old pair, true when state.pair was updated.
  */
 export function stepMorph(state, next, dt, has) {
@@ -38,8 +50,9 @@ export function stepMorph(state, next, dt, has) {
     target.mix = 0;
   }
   const { pair } = state;
-  const changed = target.from !== pair.from || target.to !== pair.to;
-  if (state.bound && state.dip !== 'out' && changed && (state.held || needsDip(pair, target))) state.dip = 'out';
+  const smooth = continuous(state, target);
+  if (state.bound && state.dip !== 'out' && !smooth) state.dip = 'out';
+  else if (state.dip === 'out' && smooth) state.dip = 'in';   // back before the screen emptied: fade in from here
   if (state.dip === 'out') {
     state.opacity = Math.max(0, state.opacity - dt / DIP_OUT_S);
     if (state.opacity > 0) return false;

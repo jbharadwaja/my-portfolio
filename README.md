@@ -68,7 +68,7 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `head` | `<head>`: import map, fonts, preloads, the inline boot script, the veil markup and its critical CSS |
 | `landscape` | the training run: the loss landscape, the resampled descent, HUD values, the no-JS curve and HUD line, stage layout |
 | `meta` | SEO meta and JSON-LD, module preloads, `404.html`, `og.png`, `.gitignore` and this README (this table too) |
-| `morph` | formation pair changes: hand-offs, and the dip on far jumps |
+| `morph` | formation pair changes: hand-offs (a stand-in's too), the dip on far jumps, and a dip that turns round |
 | `name` | the sign-off name formation and its layout rects |
 | `nav` | the section HUD's resting state |
 | `network` | the encoder's network formation and its active layer |

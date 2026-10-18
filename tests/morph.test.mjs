@@ -136,3 +136,58 @@ test('a zero-length frame (resync) holds the dip where it is', () => {
   assert.equal(stepMorph(s, P(3, 4, 0.5), 0, all), false);
   assert.equal(s.opacity, o);
 });
+
+// Task 8 deferred minor (Task 19 triage): a stand-in that ends on a real pair still showing its formation (nearly)
+// alone is a hand-off, not a jump — the particles no longer fade out and back in for nothing.
+test('an ended stand-in hands off without a dip when the real pair shows the same formation', () => {
+  const built = new Set([0, 1, 2, 3]);
+  const has = builtOnly(built);
+  const s = at(P(2, 3, 1), has);
+  stepMorph(s, P(3, 4, 0.02), DT, has);
+  assert.deepEqual([s.pair, s.held], [P(3, 3, 0), true]);
+  built.add(4);
+  assert.equal(stepMorph(s, P(3, 4, 0.05), DT, has), true);
+  assert.deepEqual([s.pair, s.held, s.dip, s.opacity], [P(3, 4, 0.05), false, 'none', 1]);
+  // Backward: the from side was the one building; the real pair is still (nearly) at its end.
+  const back = new Set([5, 6]);
+  const hasBack = builtOnly(back);
+  const b = at(P(5, 6, 0.03), hasBack);
+  stepMorph(b, P(4, 5, 0.97), DT, hasBack);
+  assert.deepEqual([b.pair, b.held, b.dip], [P(5, 5, 0), true, 'none']);
+  back.add(4);
+  assert.equal(stepMorph(b, P(4, 5, 0.94), DT, hasBack), true);
+  assert.deepEqual([b.pair, b.held, b.dip, b.opacity], [P(4, 5, 0.94), false, 'none', 1]);
+});
+
+test('an ended stand-in on another formation, or held in the middle of its pair, still dips', () => {
+  const built = new Set([0, 1, 2, 3]);
+  const has = builtOnly(built);
+  const s = at(P(2, 3, 1), has);
+  stepMorph(s, P(3, 4, 0.2), DT, has);
+  built.add(4);
+  assert.equal(stepMorph(s, P(3, 4, 0.2), DT, has), false, 'mix 0.2: formation 4 is already half way in');
+  assert.equal(s.dip, 'out');
+  const t = createMorphState();
+  stepMorph(t, P(3, 4, 0.5), DT, builtOnly(new Set([3])));
+  assert.deepEqual([t.pair, t.held], [P(3, 3, 0), true]);
+  assert.equal(stepMorph(t, P(5, 5, 0), DT, builtOnly(new Set([3, 5]))), false, 'another stand-in');
+});
+
+// Task 8 deferred minor: the pair coming back before the screen has emptied (a flick reversed within 120 ms) no
+// longer finishes the dip-out and fades in from 0: the dip turns round where it is, on the pair still bound.
+test('a dip-out turns round when the pair comes back: no rebind, fading in from where it was', () => {
+  const s = at(P(3, 4, 0.5));
+  for (let i = 0; i < 3; i++) assert.equal(stepMorph(s, P(0, 1, 1), DT, all), false);
+  const mid = s.opacity;
+  assert.ok(mid > 0 && mid < 1);
+  assert.equal(stepMorph(s, P(3, 4, 0.52), DT, all), true);
+  assert.deepEqual([s.pair, s.dip], [P(3, 4, 0.52), 'in']);
+  assert.ok(Math.abs(s.opacity - (mid + DT / DIP_IN_S)) < 1e-12);
+  assert.equal(fadeIn(s, P(3, 4, 0.52)) < Math.ceil(DIP_IN_S / DT), true, 'shorter than a full fade-in');
+  // A continuous hand-off from the bound pair turns it round too.
+  const h = at(P(2, 3, 0.96));
+  stepMorph(h, P(5, 6, 0.5), DT, all);
+  assert.equal(h.dip, 'out');
+  assert.equal(stepMorph(h, P(3, 4, 0.02), DT, all), true);
+  assert.deepEqual([h.pair, h.dip], [P(3, 4, 0.02), 'in']);
+});
