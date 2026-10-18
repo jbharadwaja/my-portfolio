@@ -1,6 +1,6 @@
 // Fixed chrome behaviour (spec §2.1): in-page links jump through ctx.scroll, the burger sheet below 1024 px,
 // the section HUD (resting while the hero is current), and the header's ground once the page leaves the top.
-// The HUD's hiding while the veil is up and below 768 px is CSS (css/main.css).
+// The HUD's hiding while the veil is up, below 768 px wide and under 560 px tall is CSS (css/main.css).
 // main.js calls this before the CDN libraries settle. ctx.scroll is one object for the page's lifetime (native
 // scroll at first, upgraded in place by scroll.attach), so nothing here needs gsap, ScrollTrigger or Lenis.
 
