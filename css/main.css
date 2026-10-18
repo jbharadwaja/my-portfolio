@@ -294,7 +294,7 @@ main, .site-footer { position: relative; z-index: 1; }
 
 /* sections */
 main > section { position: relative; }
-[tabindex="-1"]:focus { outline: none; }   /* jump targets (nav.js): focus moves the keyboard's starting point, no ring */
+main:focus, main > section:focus { outline: none; }   /* nav jump targets (nav.js): focus moves the keyboard's starting point, no ring */
 
 /* scroll foundation (spec §5.1–5.2): sticky stages, only once gsap and Lenis have loaded (main.js sets .js-scroll).
    #work gets its length from the rail (experiments.js). */
