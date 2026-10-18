@@ -232,3 +232,38 @@ test('404.html offers the same icons, with absolute /my-portfolio/ paths', () =>
   assert.ok(nf.includes('<link rel="icon" href="/my-portfolio/assets/img/favicon-32.png" type="image/png" sizes="32x32">'));
   assert.ok(nf.includes('<link rel="apple-touch-icon" href="/my-portfolio/assets/img/apple-touch-icon.png">'));
 });
+
+// README, written for a public reader
+test('README is written for a public reader: what, how, run, structure, deploy, credits', () => {
+  const md = read('../README.md');
+  const at = ['## How it is built', '## Layout', '## Local development', '## Tests', '## Debug flags', '## Deploy', '## Credits'].map((h) => md.indexOf(h));
+  assert.ok(at.every((i) => i > 0), 'every section is there');
+  assert.deepEqual([...at].sort((a, b) => a - b), at, 'in that order');
+});
+test('README has no build-process references, internal paths or private remarks', () => {
+  const md = read('../README.md');
+  assert.doesNotMatch(md, /\bR\d{2,3}\b|\bRulings?\b|\bTask \d+|spec §|\.\.\/tools|phone number|portrait-cutout\.jpg|\bJulian's call\b|project folder/i);
+});
+test('README Deploy fast-forwards main to the working branch, so every commit is kept', () => {
+  const md = read('../README.md');
+  const deploy = md.slice(md.indexOf('## Deploy'), md.indexOf('## Credits'));
+  assert.match(deploy, /fast-forward/i);
+  assert.ok(deploy.includes('git merge --ff-only latent-space'));
+  assert.match(deploy, /every commit/i);
+  assert.doesNotMatch(deploy, /one commit|single commit|squash/i);
+});
+test('README layout lists every top-level file and folder the repository ships, including the boot script copy', () => {
+  const md = read('../README.md');
+  const layout = md.slice(md.indexOf('## Layout'), md.indexOf('## Local development'));
+  for (const name of ['index.html', '404.html', 'css/main.css', 'js/main.js', 'js/boot-inline.js', 'js/engine/', 'js/sections/', 'js/ui/', 'js/data/', 'assets/img/', 'tests/', '.nojekyll'])
+    assert.ok(layout.includes(name), name);
+  assert.match(layout, /js\/boot-inline\.js[^\n]*(inline|copy)/i, 'says what boot-inline.js is for');
+});
+test('README credits the libraries, fonts and map data the site uses, and says how the generated assets were made', () => {
+  const md = read('../README.md');
+  const credits = md.slice(md.indexOf('## Credits'));
+  for (const name of ['three.js', 'GSAP', 'ScrollTrigger', 'Lenis', 'Archivo', 'Geist Mono', 'world-atlas']) assert.ok(credits.includes(name), name);
+  const assets = md.slice(md.indexOf('## Generated assets'), md.indexOf('## Deploy'));
+  assert.match(assets, /not\s+part of this repository/, 'says plainly that the scripts are not published here');
+  for (const name of ['cutout.swift', 'bake-worldmap.mjs', 'apple-touch-icon.png', 'og.png']) assert.ok(assets.includes(name), name);
+});

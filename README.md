@@ -1,5 +1,7 @@
 # Julian Bharadwaja — Latent Space
 
+![The hero: the name and role on the left, Julian's portrait formed from particles on the right](assets/img/og.png)
+
 The portfolio of Julian Bharadwaja, data scientist and ML engineer in Tustin, CA.
 Live at <https://jbharadwaja.github.io/my-portfolio/>.
 
@@ -8,10 +10,34 @@ a portrait in the hero, a neural network, a training run, a rail of six ML proje
 route across four countries on a night ground, and a signed-off name. Every project states its result against
 a target or baseline, with an honest verdict.
 
+## How it is built
+
 The site is plain HTML, CSS and ES modules. There is **no build step** and nothing to install: the files in this
-repository are the files that GitHub Pages serves. three.js, GSAP + ScrollTrigger and Lenis load from jsDelivr
-through an import map at exact pinned versions (three 0.186.1, GSAP 3.15.0, Lenis 1.3.26); fonts (Archivo,
-Geist Mono) load from Google Fonts. Without JavaScript the page reads top to bottom as a one-page resume.
+repository are the files that GitHub Pages serves.
+
+- **One field, many shapes.** A single `THREE.Points` object carries 10,000 to 48,000 particles, depending on the
+  device. Each shape (portrait, network, loss landscape, project clusters, world map, name) is a point set computed
+  once on the CPU. The scroll position picks a pair of shapes and how far to mix between them; the vertex shader
+  does the blend, so changing section only swaps which two sets are bound.
+- **Scroll.** Lenis smooths the scroll, and GSAP + ScrollTrigger pin the stages and scrub them: the training run
+  rolls a ball down the loss landscape, the project rail slides sideways, the route's night falls and lifts. All
+  scrolling goes through one module, `js/ui/scroll.js`, so a nav jump, the keyboard and the rail agree about where
+  the page is. Touch scrolling stays native.
+- **Libraries.** three.js, GSAP + ScrollTrigger and Lenis load from jsDelivr through an import map at exact pinned
+  versions (three 0.186.1, GSAP 3.15.0, Lenis 1.3.26). Fonts (Archivo, Geist Mono) load from Google Fonts. Every CDN
+  module is reached through `await import()` inside `try/catch`, so a failing CDN cannot take the page down.
+- **Copy lives in the HTML.** The page's copy is in `index.html`. `js/content.js` holds only what scripts print that
+  the static page does not carry: the ~ console's text, the cursor's rail label and the CV link states. The console
+  reads its projects, skills and contacts from the page's own DOM, so it cannot disagree with it.
+- **It degrades instead of breaking.**
+  - Without JavaScript the page reads top to bottom as a one-page resume.
+  - Without WebGL the hero portrait is a static halftone and the route map is drawn on a 2D canvas; the encoder
+    keeps its label grid.
+  - If the CDN fails or is slow, scrolling is native, a banner names what has not loaded, and the page stays readable.
+  - `prefers-reduced-motion` is followed live.
+  - The loading veil never hangs: it lifts by 8.6 s whatever fails.
+- **Device tiers.** The particle count, the pixel-ratio cap and whether the pointer repels particles follow the
+  device (data saver, memory, width, pointer type), and adaptive quality steps down when frames run long.
 
 ## Layout
 
@@ -20,12 +46,15 @@ index.html        all page copy (the single source), head meta, JSON-LD, import 
 404.html          self-contained error page (inline CSS, no JS; the one file that uses absolute paths)
 css/main.css      tokens, type, layout, components; css/sections/*.css one stylesheet per section
 js/main.js        boot: tier, dynamic imports, scroll, sections
+js/boot-inline.js readable copy of the inline script at the top of index.html (the veil's 8.6 s cap and the
+                  failure banner); a test keeps the two identical, and the page itself never loads this file
 js/content.js     off-page strings: the ~ console's text, the cursor's rail label, the CV publish state
 js/engine/        WebGL particle engine: scene, particles, shaders, morph, resolver, formations/
 js/sections/      scroll wiring and DOM for the hero and each section
 js/ui/            veil, scroll (the only door to scrolling), nav, split text, cursor, the ~ console, halftone reveal
 js/data/          baked world-map dot lattice
-assets/img/       portraits, favicon, og.png (the social preview, 1200 × 630)
+assets/img/       portraits, icons (favicon.svg, favicon-32.png, apple-touch-icon.png), og.png (the social
+                  preview, 1200 × 630)
 tests/            node:test suites
 .nojekyll         tells GitHub Pages to serve the files as they are
 ```
@@ -41,9 +70,8 @@ python3 -m http.server 5173
 Then open <http://localhost:5173/>. The page needs a network connection for the CDN libraries and fonts.
 Use a plain static server: `file://` does not work, because ES modules and the import map need HTTP.
 
-`http.server` lets the browser cache modules and stylesheets. While editing, a server that sends
-`Cache-Control: no-store` avoids stale files; the project folder around this repository keeps one:
-`python3 ../tools/serve.py --dir . --port 5173`.
+`http.server` lets the browser cache modules and stylesheets, so while editing, hard-reload (or tick "Disable
+cache" in the browser's developer tools) to be sure you are looking at the file on disk.
 
 ## Tests
 
@@ -67,7 +95,7 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `halftone` | the halftone reveal (the About photo, and the no-WebGL hero portrait): dots, healing, the touch sweep |
 | `head` | `<head>`: import map, fonts, preloads, the inline boot script, the veil markup and its critical CSS |
 | `landscape` | the training run: the loss landscape, the resampled descent, HUD values, the no-JS curve and HUD line, stage layout |
-| `meta` | SEO meta and JSON-LD, module preloads, `404.html`, `og.png`, `.gitignore` and this README (this table too) |
+| `meta` | SEO meta and JSON-LD, module preloads, the icon set and image assets, `404.html`, `og.png`, `.gitignore` and this README (this table too) |
 | `morph` | formation pair changes: hand-offs (a stand-in's too), the dip on far jumps, and a dip that turns round |
 | `name` | the sign-off name formation and its layout rects |
 | `nav` | the section HUD's resting state: hidden at once in the hero, fading back in after it |
@@ -94,38 +122,55 @@ Query flags, harmless in production:
 | `?simulate=cdnfail` | A CDN import fails: the banner names the URL, the veil still lifts, scrolling is native. |
 | `?simulate=hang` | Boot never signals ready: the 8 s cap lifts the veil. |
 
-The loading veil never hangs: it lifts by 8.6 s whatever fails (CDN down, JavaScript off, WebGL missing).
+## Generated assets
 
-## Asset tools
+A few assets are generated once and committed, not built at deploy time. The small scripts that made them are not
+part of this repository.
 
-Kept beside this repository in the project folder (`tools/`), outside it and not deployed. The generated
-files they write are committed here.
-
-- `tools/cutout.swift` — offline subject cut-out with Apple Vision (macOS 14+). Build once with
-  `swiftc -O tools/cutout.swift -o tools/cutout`, then
-  `tools/cutout photo.jpg outdir [--crop x,y,w,h] [--keep-bg] [--flatten F6F6F3]`. The cut-out PNG is encoded to
-  `assets/img/portrait-cutout.webp` with `cwebp -q 80 -alpha_q 100 -m 6 -sharp_yuv`; `--keep-bg` makes the uncut
-  About photo.
-- `tools/bake-worldmap.mjs` — zero-dependency Node script that turns the `world-atlas` land TopoJSON into the dot
-  lattice in `js/data/worldmap-dots.js`:
-  `node tools/bake-worldmap.mjs --cols 260 --lon0 150 --latN 75 --latS -58 --module my-portfolio/js/data/worldmap-dots.js`.
-- `tools/serve.py` — the no-store dev server described above.
-
-`assets/img/og.png` is a 1200 × 630 screenshot of the hero after the entrance (portrait formed, veil gone).
-Regenerate it whenever the hero changes.
+- `portrait-cutout.webp` is the hero portrait. `cutout.swift`, a macOS tool built on Apple Vision's foreground mask,
+  cuts the subject out of the photograph offline; the cut-out PNG is encoded with
+  `cwebp -q 80 -alpha_q 100 -m 6 -sharp_yuv`. `portrait-full.webp` is the uncut photograph at the About crop.
+- `js/data/worldmap-dots.js` is the world-map dot lattice. `bake-worldmap.mjs`, a zero-dependency Node script, turns
+  the `world-atlas` land TopoJSON (`land-110m`) into a 260-column grid of land dots, packed as runs.
+- `favicon-32.png` and `apple-touch-icon.png` are rendered from `favicon.svg` in headless Chrome. The touch icon is
+  opaque and fills its square, because iOS paints transparency black and rounds the corners itself.
+- `og.png` is a 1200 × 630 screenshot of the hero after the entrance (portrait formed, veil gone). Regenerate it
+  whenever the hero changes.
 
 ## Deploy
 
-GitHub Pages serves the `main` branch of `jbharadwaja/my-portfolio` as it is: no workflow, no build.
+GitHub Pages serves the `main` branch of `jbharadwaja/my-portfolio` as it is: no workflow, no build. Work happens
+on the `latent-space` branch, and a release fast-forwards `main` to it, so every commit is kept and the earlier
+version of the site stays in the history:
 
-1. Replace the repository contents with this site in one commit (the old site stays in git history).
-2. Push to `main`. Pages is already enabled for the repository.
-3. Check <https://jbharadwaja.github.io/my-portfolio/> serves the new site.
+```sh
+git switch main
+git merge --ff-only latent-space
+git push origin main
+```
+
+Pages is already enabled for the repository. Afterwards, check that <https://jbharadwaja.github.io/my-portfolio/>
+serves the new site.
 
 Notes:
 
 - Asset paths are relative so the `/my-portfolio/` sub-path works. `404.html` is the one file with absolute
   paths (`/my-portfolio/...`), because GitHub Pages serves it at any missing URL, however deep.
 - `.nojekyll` keeps Pages from running Jekyll over the files.
-- The CV links ship in their LinkedIn fallback state, and `assets/cv/` does not exist. Publishing the PDF
-  (`assets/cv/Julian_Bharadwaja_Resume.pdf`) is Julian's call, because the resume contains his phone number.
+- The CV links currently go to LinkedIn, and `assets/cv/` does not exist. To publish a PDF, add it as
+  `assets/cv/Julian_Bharadwaja_Resume.pdf` and set `CV_PUBLISHED` to `true` in `js/content.js`: every CV link
+  then downloads the file.
+
+## Credits
+
+Design, code and copy: Julian Bharadwaja.
+
+- [three.js](https://threejs.org/) (MIT) draws the particle field.
+- [GSAP](https://gsap.com/) and ScrollTrigger by GreenSock drive the pinned, scrubbed stages.
+- [Lenis](https://lenis.darkroom.engineering/) (MIT, Darkroom Engineering) smooths the scroll.
+- Fonts: [Archivo](https://fonts.google.com/specimen/Archivo) and
+  [Geist Mono](https://fonts.google.com/specimen/Geist+Mono), both under the SIL Open Font License, served by
+  Google Fonts.
+- Map data: [world-atlas](https://github.com/topojson/world-atlas) (ISC), built from Natural Earth.
+
+The libraries and fonts keep their own licences. This repository carries no licence file of its own.
