@@ -152,3 +152,25 @@ test('the header ground is fully opaque once the page has scrolled', () => {
   assert.match(scrolled, /opacity:\s*1;/);
   assert.match(cssRule(mainCss, '.site-header::before'), /opacity:\s*0;/, 'no ground at the top of the page (Ruling R50)');
 });
+
+// Final review (experience I3): at 1024 × 768 the strip came out at 33.86%, a hair under spec §2.2's 34%, so an iPad on
+// its side got the bottom layout with the right 40% of the screen empty. The rule stays; in a landscape window the copy
+// column (which the name is fit to, split.js --h1-fit) gives way below ~1143 px so the strip keeps its 34% at every
+// width from 1024 up. A portrait window keeps the 55vw column (1024 × 1366 stays in the bottom layout).
+test('from 1024 px up, in a landscape window, the copy column leaves the portrait a strip of at least 34%', () => {
+  const at = mainCss.indexOf('@media (min-width: 1024px) and (min-aspect-ratio: 1/1)');
+  assert.ok(at >= 0, 'a landscape block from 1024 px up');
+  const m = mainCss.slice(at, mainCss.indexOf('}', mainCss.indexOf('{', at) + 1) + 1)
+    .match(/\.hero-copy\s*\{\s*width:\s*min\(([\d.]+)vw,\s*([\d.]+)vw\s*-\s*([\d.]+)px\);/);
+  assert.ok(m, 'its .hero-copy width is min(Avw, Bvw - Cpx)');
+  assert.match(mainCss.slice(mainCss.indexOf('@media (min-width: 1024px) {')), /^@media \(min-width: 1024px\) \{\s*\.hero-copy \{ width: 55vw; \}/,
+    'any other window from 1024 px up keeps the 55vw column');
+  const [a, b, c] = m.slice(1).map(Number);
+  const column = (vw) => Math.min((a * vw) / 100, (b * vw) / 100 - c);
+  const gutter = (vw) => Math.min(48, Math.max(16, (3.3333 * vw) / 100));
+  for (let vw = 1024; vw <= 1920; vw += 4) {
+    const h1Right = gutter(vw) + column(vw) + 2;   // the fitted name's right edge, with 2 px to spare for rounding
+    assert.equal(portraitLayout({ vw, vh: 768, h1Right }).mode, 'strip', `vw ${vw}`);
+  }
+  assert.ok(Math.abs(column(1440) - 792) < 1e-9, 'from ~1143 px up the column is 55vw, as before (792 px at 1440)');
+});

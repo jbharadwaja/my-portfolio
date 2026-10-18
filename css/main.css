@@ -578,3 +578,10 @@ a.signoff-email {
 @media (min-width: 1280px) {
   .rail, .route-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+/* The name is fit to the copy column (split.js --h1-fit), and the portrait takes the strip right of the name when that
+   is ≥ 34% of the width (spec §2.2: [h1Right + 32, vw − 48]). 55vw left it 33.9% at 1024 × 768, an iPad on its side,
+   so in a landscape window the column gives way below ~1143 px (62vw − 80px) and every width from 1024 up keeps its
+   strip, with ~1% to spare. A portrait window keeps 55vw: at 1024 × 1366 the bottom layout frames a larger face. */
+@media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
+  .hero-copy { width: min(55vw, 62vw - 80px); }
+}
