@@ -91,6 +91,33 @@
 .veil-text .veil-head, .veil-text .veil-label { visibility: visible; }
 </style>
 <title>Julian Bharadwaja — Data Scientist &amp; ML Engineer</title>
+<meta name="description" content="Julian Bharadwaja — data scientist, ML engineer and data analyst in Tustin, CA. Six ML projects with real metrics and honest verdicts.">
+<link rel="canonical" href="https://jbharadwaja.github.io/my-portfolio/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jbharadwaja.github.io/my-portfolio/">
+<meta property="og:title" content="Julian Bharadwaja — Data Scientist &amp; ML Engineer">
+<meta property="og:description" content="Julian Bharadwaja — data scientist, ML engineer and data analyst in Tustin, CA. Six ML projects with real metrics and honest verdicts.">
+<meta property="og:image" content="https://jbharadwaja.github.io/my-portfolio/assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="JULIAN BHARADWAJA set in large type beside a portrait made of particles">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Julian Bharadwaja",
+  "jobTitle": "Data Scientist",
+  "url": "https://jbharadwaja.github.io/my-portfolio/",
+  "email": "mailto:bharadwajajulian@gmail.com",
+  "address": { "@type": "PostalAddress", "addressLocality": "Tustin", "addressRegion": "CA", "addressCountry": "US" },
+  "sameAs": ["https://www.linkedin.com/in/julian-bharadwaja/", "https://github.com/jbharadwaja"],
+  "alumniOf": [
+    { "@type": "CollegeOrUniversity", "name": "Asian Institute of Technology" },
+    { "@type": "CollegeOrUniversity", "name": "Orange Coast College" }
+  ]
+}
+</script>
 <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -114,7 +141,43 @@
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/gsap@3.15.0/gsap-core.js">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/gsap@3.15.0/CSSPlugin.js">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/gsap@3.15.0/ScrollTrigger.js">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/gsap@3.15.0/Observer.js">
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.mjs">
+<link rel="modulepreload" href="js/ui/veil.js">
+<link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/ui/cursor.js">
+<link rel="modulepreload" href="js/ui/halftone-reveal.js">
+<link rel="modulepreload" href="js/ui/nav.js">
+<link rel="modulepreload" href="js/ui/scroll.js">
+<link rel="modulepreload" href="js/ui/split.js">
+<link rel="modulepreload" href="js/sections/about.js">
+<link rel="modulepreload" href="js/sections/encoder.js">
+<link rel="modulepreload" href="js/sections/experiments.js">
+<link rel="modulepreload" href="js/sections/hero.js">
+<link rel="modulepreload" href="js/sections/index.js">
+<link rel="modulepreload" href="js/sections/route.js">
+<link rel="modulepreload" href="js/sections/signoff.js">
+<link rel="modulepreload" href="js/sections/training.js">
+<link rel="modulepreload" href="js/engine/formations/clusters.js">
+<link rel="modulepreload" href="js/engine/formations/common.js">
+<link rel="modulepreload" href="js/engine/formations/galaxy.js">
+<link rel="modulepreload" href="js/engine/formations/image-weights.js">
+<link rel="modulepreload" href="js/engine/formations/landscape.js">
+<link rel="modulepreload" href="js/engine/formations/name.js">
+<link rel="modulepreload" href="js/engine/formations/network.js">
+<link rel="modulepreload" href="js/engine/formations/noise.js">
+<link rel="modulepreload" href="js/engine/formations/portrait.js">
+<link rel="modulepreload" href="js/engine/formations/worldmap.js">
+<link rel="modulepreload" href="js/engine/density.js">
+<link rel="modulepreload" href="js/engine/framing.js">
+<link rel="modulepreload" href="js/engine/geo.js">
+<link rel="modulepreload" href="js/engine/morph.js">
+<link rel="modulepreload" href="js/engine/particles.js">
+<link rel="modulepreload" href="js/engine/resolver.js">
+<link rel="modulepreload" href="js/engine/scene.js">
+<link rel="modulepreload" href="js/engine/shaders.js">
+<link rel="modulepreload" href="js/engine/tier.js">
+<link rel="modulepreload" href="js/data/worldmap-dots.js">
 <link rel="stylesheet" href="css/main.css">
 <link rel="stylesheet" href="css/sections/encoder.css">
 <link rel="stylesheet" href="css/sections/training.css">
@@ -214,10 +277,10 @@
     <p class="scroll-cue mono" aria-hidden="true">scroll ↓  to start training</p>
   </section>
 
-  <section class="pin" id="encoder" data-hud="02 / 07  ENCODER">
+  <section class="pin" id="encoder" data-hud="02 / 07  ENCODER" aria-labelledby="encoder-title">
     <div class="stage">
       <div class="section-head">
-        <h2>An encoder for a career.</h2>
+        <h2 id="encoder-title">An encoder for a career.</h2>
         <p class="section-body">Software engineer turned data scientist. DevOps at Fujitsu in Tokyo, full-stack for a South Korean company, now building ML models in Python and reporting results as they come out — including the times the simple model won.</p>
       </div>
       <div class="net-labels">
@@ -244,10 +307,10 @@
     </div>
   </section>
 
-  <section class="pin" id="training" data-hud="03 / 07  TRAINING">
+  <section class="pin" id="training" data-hud="03 / 07  TRAINING" aria-labelledby="training-title">
     <div class="stage">
       <div class="section-head">
-        <h2>How I train.</h2>
+        <h2 id="training-title">How I train.</h2>
       </div>
       <div class="train-hud" aria-hidden="true">
         <p class="train-readout mono">epoch 042 / 100 · train 0.512 · val 0.538 · lr 3e-3</p>
@@ -281,10 +344,10 @@
     </div>
   </section>
 
-  <section class="pin" id="work" data-hud="04 / 07  EXPERIMENTS">
+  <section class="pin" id="work" data-hud="04 / 07  EXPERIMENTS" aria-labelledby="work-title">
     <div class="stage">
       <div class="section-head">
-        <h2>Experiments.</h2>
+        <h2 id="work-title">Experiments.</h2>
         <p class="section-sub">Six models and two field analyses. Real metrics — including the ones that barely won.</p>
       </div>
       <div class="rail-viewport">
@@ -389,10 +452,10 @@
     </div>
   </section>
 
-  <section class="pin" id="route" data-hud="05 / 07  ROUTE">
+  <section class="pin" id="route" data-hud="05 / 07  ROUTE" aria-labelledby="route-title">
     <div class="stage">
       <div class="route-head">
-        <h2>Route.</h2>
+        <h2 id="route-title">Route.</h2>
         <p class="section-sub">Four countries, one direction.</p>
       </div>
       <div class="route-cards">
@@ -417,7 +480,7 @@
     </div>
   </section>
 
-  <section id="about" data-hud="06 / 07  ABOUT">
+  <section id="about" data-hud="06 / 07  ABOUT" aria-labelledby="about-title">
     <div class="about-inner">
       <figure class="plate-figure">
         <div class="plate">
@@ -427,7 +490,7 @@
         <figcaption class="plate-caption mono">Grand Canyon, AZ<span class="plate-hint plate-hint-fine"> · move to reveal</span><span class="plate-hint plate-hint-touch"> · tap to reveal</span></figcaption>
       </figure>
       <div class="about-text">
-        <h2>Hello.</h2>
+        <h2 id="about-title">Hello.</h2>
         <p class="about-bio">I came to data the long way round: a mechatronics degree in Thailand, DevOps in Tokyo, full-stack products for a Korean company, and running a store's numbers in California. Now I build models in Python and write up what they actually did. I speak English, Japanese and Burmese. Longer term, I'm interested in empirical AI safety research.</p>
         <div class="skills">
           <div class="skill-group">
@@ -451,9 +514,9 @@
     </div>
   </section>
 
-  <section id="contact" data-hud="07 / 07  CONTACT">
+  <section id="contact" data-hud="07 / 07  CONTACT" aria-labelledby="contact-title">
     <div class="signoff-inner">
-      <h2>Let's build something measurable.</h2>
+      <h2 id="contact-title">Let's build something measurable.</h2>
       <a class="signoff-email" href="mailto:bharadwajajulian@gmail.com">bharadwajajulian@gmail.com</a>
       <ul class="signoff-links mono">
         <li><a href="https://www.linkedin.com/in/julian-bharadwaja/" target="_blank" rel="noopener">linkedin.com/in/julian-bharadwaja</a></li>
