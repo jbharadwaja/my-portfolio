@@ -20,9 +20,10 @@ index.html        all page copy (the single source), head meta, JSON-LD, import 
 404.html          self-contained error page (inline CSS, no JS; the one file that uses absolute paths)
 css/main.css      tokens, type, layout, components; css/sections/*.css one stylesheet per section
 js/main.js        boot: tier, dynamic imports, scroll, sections
+js/content.js     off-page strings: the ~ console's text, the cursor's rail label, the CV publish state
 js/engine/        WebGL particle engine: scene, particles, shaders, morph, resolver, formations/
 js/sections/      scroll wiring and DOM for the hero and each section
-js/ui/            veil, scroll (the only door to scrolling), nav, split text, cursor, halftone reveal
+js/ui/            veil, scroll (the only door to scrolling), nav, split text, cursor, the ~ console, halftone reveal
 js/data/          baked world-map dot lattice
 assets/img/       portraits, favicon, og.png (the social preview, 1200 × 630)
 tests/            node:test suites

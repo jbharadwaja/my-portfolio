@@ -132,3 +132,9 @@ test('README documents local dev, tests, debug flags, asset tools and deploy', (
   for (const needle of ['python3 -m http.server', 'npm test', '?debug', '?nowebgl', '?simulate=cdnfail', '?simulate=hang',
     'cutout.swift', 'bake-worldmap.mjs', 'GitHub Pages', '404.html', '.nojekyll']) assert.ok(md.includes(needle), needle);
 });
+test('README layout names the off-page strings module and the ~ console', () => {
+  const md = read('../README.md');
+  const layout = md.slice(md.indexOf('## Layout'), md.indexOf('## Local development'));
+  assert.match(layout, /^js\/content\.js\s/m);
+  assert.match(layout, /^js\/ui\/.*~ console/m);
+});
