@@ -1,1 +1,50 @@
-/* Route section (#route): styles for this section only; filled in by its own task. */
+/* Route section (#route): the live night stage — head and city-card panels over the map, and the reticle readout. */
+/* route.js sets --route-ink, 0 → 1 over uNight 0.9–1.0: every block on the stage shows only while uNight ≥ 0.9. */
+.route-live .stage > * { opacity: var(--route-ink, 0); }
+@media (prefers-reduced-motion: no-preference) {
+  .route-live.route-ink-rising .stage > * { transition: opacity 240ms ease-out; }
+}
+
+/* The four city cards share one place and only the current one shows; route.js swaps them at each third of the route. */
+.route-live .route-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; }
+.route-live .route-card {
+  grid-area: 1 / 1;
+  opacity: 0; transform: translateY(10px); pointer-events: none;
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+.route-live .route-card.is-current { opacity: 1; transform: none; pointer-events: auto; }
+
+/* While the reticle is on, the readout follows the pointer (route.js places it): orange on a night-2 chip. */
+.route-live .reticle-readout {
+  position: absolute; top: 0; left: 0; z-index: 2;
+  padding: 6px 8px 5px;
+  background: var(--c-night-2);
+  white-space: nowrap; pointer-events: none;
+}
+.route-live .stage.reticle-on { cursor: crosshair; }
+
+/* Without the engine there is no canvas ground: the stage carries its own night (route.js sets --route-night). */
+.route-dom .stage::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--bg-dark); opacity: var(--route-night, 0);
+}
+
+/* ≥ 768 px: the head top left and the card panel bottom left, clear of the HUD (Ruling R54); the map fills the stage. */
+@media (min-width: 768px) {
+  .route-live .stage { padding-top: calc(var(--header-h) + clamp(16px, 3svh, 40px)); }
+  /* Each card hugs its own text, bottom-aligned, so a short card is not padded out to the tallest one. */
+  .route-live .route-cards { position: absolute; left: var(--gutter); bottom: 88px; width: clamp(300px, 30vw, 400px); align-items: end; }
+}
+
+/* < 768 px: the cards are a bottom sheet (at most 40svh); the map frames the route between the head and the sheet. */
+@media (max-width: 767.98px) {
+  .route-live .route-cards {
+    position: absolute; inset: auto 0 0;
+    max-height: 40svh; overflow-y: auto; overscroll-behavior: contain;
+  }
+  .route-live .route-card { padding-inline: var(--gutter); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-live .route-card { transform: none; transition: none; }
+}

@@ -211,6 +211,16 @@ const TARGETS = [
 ];
 const STAGGER = { words: 0.04, letters: 0.022 };
 const WDTH = { from: 62, to: 112 };
+const gates = new WeakMap();           // element -> gate(play): when its reveal may play
+
+/**
+ * Holds el's reveal for a section that shows its text later than it scrolls in (the Route, Ruling R33): once the
+ * reveal's trigger has entered and the veil is up, `gate(play)` is called instead of playing, and calls play()
+ * when the text can be seen. Call before initReveals.
+ */
+export function holdReveal(el, gate) {
+  gates.set(el, gate);
+}
 
 /**
  * Arms and plays the reveals (spec §3.3). Everything lives inside gsap.matchMedia, so under reduced motion
@@ -240,7 +250,11 @@ export function initReveals(ctx) {
           ScrollTrigger.create({
             trigger: el,
             start: 'top 88%',
-            onEnter: (self) => { self.kill(); veil.onLift(() => tl.play()); },
+            onEnter: (self) => {
+              self.kill();
+              const play = () => tl.play();
+              veil.onLift(() => (gates.get(el) ?? ((go) => go()))(play));
+            },
           });
           split.push({ el, width });
         } catch (err) {
