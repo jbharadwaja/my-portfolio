@@ -65,3 +65,13 @@ test('a card counts up only while it is on screen: entered from the right, not y
   assert.equal(shouldCount({ left: -900, right: -440 }, 1440), false);
   assert.equal(shouldCount({ left: 1224, right: 1684 }, 1440), false);   // not yet past 85% of the width
 });
+// Wave-2 deferred minor (Task 19 triage): a number written with an exponent is one value, and its decimals are the
+// mantissa's less the exponent ("1.5e3" is 1500, no decimals; "2.5e-1" is 0.25, two), never "1.5" plus a stray "3".
+test('series values written with an exponent keep the decimals they stand for', () => {
+  const big = chartSpec({ series: '[["a",1.5e3],["b",2.25e3,"chosen"]]' });
+  assert.deepEqual(big.rows.map((r) => r.text), ['1,500', '2,250']);
+  const small = chartSpec({ series: '[["a",2.5e-1],["b",1E-2,"chosen"],["c",0.5]]' });
+  assert.deepEqual(small.rows.map((r) => r.text), ['0.25', '0.01', '0.50']);
+  const plus = chartSpec({ series: '[["a",1.25E+1],["b",3]]' });
+  assert.deepEqual(plus.rows.map((r) => r.text), ['12.5', '3.0']);
+});

@@ -84,14 +84,16 @@ export function railPositionFor(card) {
 
 // ---------------------------------------------------------------- charts (pure)
 
+/** The decimals a written number stands for: its mantissa's, less its exponent ('2.5e-1' → 2, '1.5e3' → 0). */
 const decimalsOf = (text) => {
-  const dot = text.indexOf('.');
-  return dot < 0 ? 0 : text.length - dot - 1;
+  const [mantissa, exponent = '0'] = text.toLowerCase().split('e');
+  const dot = mantissa.indexOf('.');
+  return Math.max(0, (dot < 0 ? 0 : mantissa.length - dot - 1) - Number(exponent));
 };
 
-// A data-series string's tokens: its strings (labels, flags) or its numbers, as written (plain decimals: an exponent
-// would read as decimals). Each entry holds one number.
-const SERIES_TOKEN = /"(?:[^"\\]|\\.)*"|(-?\d+(?:\.\d+)?)/g;
+// A data-series string's tokens: its strings (labels, flags) or its numbers, as written (JSON numbers, an exponent
+// included). Each entry holds one number.
+const SERIES_TOKEN = /"(?:[^"\\]|\\.)*"|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
 const writtenNumbers = (json) => [...json.matchAll(SERIES_TOKEN)].map((m) => m[1]).filter(Boolean);
 
 /**
