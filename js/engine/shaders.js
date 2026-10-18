@@ -44,7 +44,7 @@ uniform float uReduced;
 uniform float uPush;
 uniform vec2 uMouse;
 uniform vec2 uViewport;
-uniform vec4 uSafe[2];
+uniform vec4 uSafe[4];   // two keep-out rects per side of the pair: from a, from b, to a, to b
 uniform float uPulse;
 uniform float uHoverCluster;
 uniform float uClusterX[8];
@@ -199,7 +199,7 @@ void main() {
   gl_Position = projectionMatrix * mv;
 
   vec2 ndc = gl_Position.xy / gl_Position.w;
-  float keep = mix(keepOut(uSafe[0], ndc), keepOut(uSafe[1], ndc), t);
+  float keep = mix(min(keepOut(uSafe[0], ndc), keepOut(uSafe[1], ndc)), min(keepOut(uSafe[2], ndc), keepOut(uSafe[3], ndc)), t);
 
   // Cursor repulsion, stateless in screen space: pushed away from the lagged mouse (aspect-corrected). The push
   // grows from 0 at the cursor and falls off by smoothstep, so the particles thin out like displaced liquid

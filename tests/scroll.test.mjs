@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { jumpMode, railScrollFor, currentSection, anchorAt } from '../js/ui/scroll.js';
+import { jumpMode, railScrollFor, currentSection, anchorAt, placeToRestore } from '../js/ui/scroll.js';
 test('adjacent jumps animate, far jumps cut', () => {
   assert.equal(jumpMode(0, 1), 'animate'); assert.equal(jumpMode(4, 3), 'animate');
   assert.equal(jumpMode(0, 2), 'cut'); assert.equal(jumpMode(6, 0), 'cut');
@@ -175,4 +175,29 @@ test('anchor() and toAnchor() put the page back in the same section at the same 
   assert.equal(page.win.scrollY, 4 * 2 * 900);
   assert.equal(scroll.toAnchor({ id: 'gone', fraction: 0.5 }), false);
   assert.equal(page.win.scrollY, 4 * 2 * 900);
+});
+test('a reload restores the tab\'s saved place (its own pagehide wrote it last), then its entry\'s, then the #hash section', () => {
+  // Chrome keeps history.state across a reload but drops a replaceState made in the reload's pagehide, so after a
+  // back/forward visit the entry can still hold an older place: the tab's copy is the fresh one.
+  const ids = ['top', 'encoder', 'training', 'route'];
+  const entry = { id: 'training', fraction: 0.4 };
+  const tab = { id: 'encoder', fraction: 0.2 };
+  assert.deepEqual(placeToRestore({ visit: 'reload', entry, tab, hashId: 'route', ids }), tab);
+  assert.deepEqual(placeToRestore({ visit: 'reload', entry, tab: null, hashId: 'route', ids }), entry);
+  assert.deepEqual(placeToRestore({ visit: 'reload', entry: { id: 'gone', fraction: 0.5 }, tab: 'garbage', hashId: 'route', ids }), { id: 'route', fraction: 0 });
+  assert.deepEqual(placeToRestore({ visit: 'reload', entry: { id: 'training', fraction: NaN }, tab: null, hashId: '', ids }), null);
+});
+test('a back/forward visit restores only its own entry\'s place, never the tab\'s newest one', () => {
+  const ids = ['top', 'encoder', 'training', 'route'];
+  const tab = { id: 'encoder', fraction: 0.2 };
+  assert.deepEqual(placeToRestore({ visit: 'back_forward', entry: { id: 'route', fraction: 0.1 }, tab, hashId: '', ids }), { id: 'route', fraction: 0.1 });
+  assert.equal(placeToRestore({ visit: 'back_forward', entry: null, tab, hashId: '', ids }), null);
+  assert.deepEqual(placeToRestore({ visit: 'back_forward', entry: null, tab, hashId: 'route', ids }), { id: 'route', fraction: 0 });
+});
+test('a fresh visit ignores saved places and lands at the #hash section\'s start', () => {
+  const ids = ['top', 'route'];
+  const saved = { id: 'route', fraction: 0.7 };
+  assert.deepEqual(placeToRestore({ visit: 'navigate', entry: saved, tab: saved, hashId: 'route', ids }), { id: 'route', fraction: 0 });
+  assert.equal(placeToRestore({ visit: 'navigate', entry: saved, tab: saved, hashId: '', ids }), null);
+  assert.equal(placeToRestore({ visit: undefined, entry: null, tab: null, hashId: 'nowhere', ids }), null);
 });

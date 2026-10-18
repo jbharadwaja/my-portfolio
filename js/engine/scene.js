@@ -464,8 +464,9 @@ export async function createEngine({ canvas, tier, reduced }) {
     pu.uMouse.value.set(mouse.x, mouse.y);
   }
 
-  // Text keep-out (spec §4.5): per formation k, the CSS rect of its section's main text block as laid out while
-  // k is held. The current and next section's rects go to uSafe[0] and uSafe[1].
+  // Text keep-out (spec §4.5): per formation k, the CSS rects (up to two) of its section's main text as laid out
+  // while k is held. The current section's go to uSafe[0..1], the next one's to uSafe[2..3]. Two, because the
+  // hero's bottom layout keeps particles off the copy above and below the portrait slot (Ruling R47).
   const safeRects = [];
   function rectToNdc(rect, out) {
     if (!rect || !(rect.w > 0 && rect.h > 0)) return out.set(OFF_NDC, OFF_NDC, OFF_NDC, OFF_NDC);
@@ -487,8 +488,12 @@ export async function createEngine({ canvas, tier, reduced }) {
       else if (value && typeof u.value?.fromArray === 'function') u.value.fromArray(value);
       else if (value && u.value?.length !== undefined) for (let i = 0; i < u.value.length && i < value.length; i++) u.value[i] = value[i];
     }
-    rectToNdc(safeRects[pair.from], pu.uSafe.value[0]);
-    rectToNdc(safeRects[pair.to], pu.uSafe.value[1]);
+    const from = safeRects[pair.from];
+    const to = safeRects[pair.to];
+    rectToNdc(from?.[0], pu.uSafe.value[0]);
+    rectToNdc(from?.[1], pu.uSafe.value[1]);
+    rectToNdc(to?.[0], pu.uSafe.value[2]);
+    rectToNdc(to?.[1], pu.uSafe.value[3]);
     pu.uTime.value = elapsed;
     pu.uOpacity.value = morph.opacity;
     dustUniforms.uAlpha.value = dustAlpha * morph.opacity;
@@ -669,9 +674,13 @@ export async function createEngine({ canvas, tier, reduced }) {
       deferring = true;
       scheduleDeferred();
     },
-    /** { [k]: { x, y, w, h } | null } — CSS px of formation k's section text block while k is held (merged). */
+    /** { [k]: rect | [rect, rect] | null }, rect = { x, y, w, h } in CSS px of formation k's section text while k
+     *  is held (merged; up to two rects per formation, null entries allowed). */
     setSafeRects(rects) {
-      for (const k in rects) safeRects[k] = rects[k] ?? null;
+      for (const k in rects) {
+        const r = rects[k];
+        safeRects[k] = r ? (Array.isArray(r) ? [r[0] ?? null, r[1] ?? null] : [r, null]) : null;
+      }
     },
     tick,
     /** cb(timeMs, dt) on every rendered frame, after the camera update and before the render. */

@@ -6,7 +6,7 @@
 // Debug flags: ?simulate=hang (never signals ready; the 8 s cap lifts the veil),
 //              ?simulate=cdnfail (a CDN import fails: banner naming the URL, the veil still lifts).
 import { veil } from './ui/veil.js';
-import { createScroll } from './ui/scroll.js';
+import { createScroll, placeToRestore } from './ui/scroll.js';
 import { initNav } from './ui/nav.js';
 import { initHeroFit, initReveals } from './ui/split.js';
 import { pickTier, readEnv } from './engine/tier.js';
@@ -108,32 +108,49 @@ function registerFormations(engine) {
 }
 
 // Scroll restoration (Review Focus #2): the browser's own would restore into the no-JS layout and be wrong once
-// .js-scroll lengthens the stages. So the place is saved as { section id, fraction through it } on pagehide and
-// put back right after .js-scroll applies, on a reload or a back/forward visit; a #hash lands at its section's
-// start. The hero's entrance then sees where the page really is (hero.js entranceMode).
+// .js-scroll lengthens the stages. So the place is saved as { section id, fraction through it } on pagehide, into
+// this history entry's state (for back/forward) and the tab's sessionStorage (for a reload; which one wins is
+// scroll.js placeToRestore). It is put back right after .js-scroll applies, and again once fonts, locked word
+// widths and the hero's layout have settled (just before the veil lifts); a #hash lands at its section's start.
+// The hero's entrance then sees where the page really is (hero.js entranceMode).
 const PLACE_KEY = 'latent-space:place';
+const PLACE_STATE = 'latentSpacePlace';
 try {
   history.scrollRestoration = 'manual';
 } catch { /* not supported: the browser restores on its own */ }
 addEventListener('pagehide', () => {
+  const here = ctx.scroll.anchor();
   try {
-    sessionStorage.setItem(PLACE_KEY, JSON.stringify(ctx.scroll.anchor()));
+    const state = history.state && typeof history.state === 'object' ? history.state : null;
+    history.replaceState({ ...state, [PLACE_STATE]: here }, '');
+  } catch { /* history state unavailable: back/forward then starts at the top (or the #hash) */ }
+  try {
+    sessionStorage.setItem(PLACE_KEY, JSON.stringify(here));
   } catch { /* storage blocked: a reload starts at the top */ }
 });
 
-function restorePlace() {
+/** Read once at boot, before anything scrolls: where restorePlace() puts the page (null: leave it at the top). */
+const place = (() => {
   const visit = performance.getEntriesByType?.('navigation')[0]?.type;
-  let saved = null;
+  let entry = null;
+  let tab = null;
+  let hashId = '';
   try {
-    if (visit === 'reload' || visit === 'back_forward') saved = JSON.parse(sessionStorage.getItem(PLACE_KEY));
+    entry = history.state?.[PLACE_STATE] ?? null;
+  } catch { /* history state unreadable */ }
+  try {
+    tab = JSON.parse(sessionStorage.getItem(PLACE_KEY));
   } catch { /* storage blocked or garbled */ }
-  if (saved && ctx.scroll.toAnchor(saved)) return;
-  let section = null;
   try {
     const id = decodeURIComponent(location.hash.slice(1));
-    section = id ? document.getElementById(id)?.closest('main > section') : null;
+    hashId = (id && document.getElementById(id)?.closest('main > section')?.id) || '';
   } catch { /* a malformed #hash */ }
-  if (section) ctx.scroll.toAnchor({ id: section.id, fraction: 0 });
+  const ids = [...document.querySelectorAll('main > section')].map((s) => s.id);
+  return placeToRestore({ visit, entry, tab, hashId, ids });
+})();
+
+function restorePlace() {
+  if (place) ctx.scroll.toAnchor(place);
 }
 
 function createBoundaryTriggers(ScrollTrigger) {
@@ -166,6 +183,7 @@ if (simulate === 'cdnfail') {
   }
 }
 
+let laidOut = document.fonts.ready;   // with the libraries: settles once the word widths are locked (initReveals)
 const libs = await loadScrollLibs();
 if (libs) {
   const { gsap, ScrollTrigger, Lenis } = libs;
@@ -181,7 +199,6 @@ if (libs) {
   });
   createBoundaryTriggers(ScrollTrigger);
   for (const section of SECTIONS) await section.init(ctx);
-  let laidOut = document.fonts.ready;
   try {
     laidOut = initReveals(ctx);   // settles after the word widths are locked
   } catch (err) {
@@ -196,5 +213,9 @@ if (libs) {
 veil.onLift(() => ctx.engineReady.then((engine) => engine?.buildDeferred()));
 await document.fonts.ready;
 await heroReady;
+await laidOut;
+// Late font swaps, the locked word widths and the hero's portrait slot can all have moved the sections since the
+// first restore: put the page back at the same place while the veil still hides it.
+if (!window.__veil?.lifted) restorePlace();
 if (simulate === 'hang') await new Promise(() => {});
 await veil.liftWhenReady();

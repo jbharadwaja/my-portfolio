@@ -36,6 +36,22 @@ export function anchorAt(tops, heights, y) {
   return { index, fraction: height > 0 ? clamp01((y - tops[index]) / height) : 0 };
 }
 
+const isPlace = (p, ids) => Boolean(p) && typeof p.id === 'string' && ids.includes(p.id) && Number.isFinite(p.fraction);
+
+/**
+ * The place to put the page at boot (Review Focus #2). Both saved places are written on pagehide: `entry` into
+ * the history entry's state, `tab` into the tab's sessionStorage. A back/forward visit restores only its own
+ * entry's place, so it never lands where a newer entry was. A reload restores the tab's place first — the
+ * reloaded page's own pagehide wrote it last, while Chrome drops a replaceState made in a reload's pagehide and
+ * keeps the entry's older state — then the entry's. Any other visit, or no usable saved place, lands at the start
+ * of the #hash's section (`hashId`), or nowhere (null). `ids` are the section ids.
+ */
+export function placeToRestore({ visit, entry, tab, hashId, ids }) {
+  if (visit === 'reload' && isPlace(tab, ids)) return tab;
+  if ((visit === 'reload' || visit === 'back_forward') && isPlace(entry, ids)) return entry;
+  return hashId && ids.includes(hashId) ? { id: hashId, fraction: 0 } : null;
+}
+
 /**
  * Scrolling starts native: main.js creates this before the CDN imports settle, so nav works even when a slow CDN
  * lets the 8 s cap lift the veil first, and calls attach() once they resolve. That upgrades the same object in

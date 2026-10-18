@@ -44,7 +44,8 @@ export function createParticles({ THREE, tier, N = tier.N, reduced, spacing = 30
     uOpacity: { value: 1 },
     uPush: { value: 0 },
     uMouse: { value: new THREE.Vector2(9, 9) },
-    uSafe: { value: [new THREE.Vector4(9, 9, 9, 9), new THREE.Vector4(9, 9, 9, 9)] },
+    // Two keep-out rects for each side of the pair: [from a, from b, to a, to b] (scene.js syncUniforms)
+    uSafe: { value: Array.from({ length: 4 }, () => new THREE.Vector4(9, 9, 9, 9)) },
     uPulse: { value: 0 },
     uEpoch: { value: 0 },              // Training (Task 11) drives it; the shader does not read it yet
     uHoverCluster: { value: -1 },

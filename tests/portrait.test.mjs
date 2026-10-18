@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { imageWeights } from '../js/engine/formations/image-weights.js';
 import { buildPortrait } from '../js/engine/formations/portrait.js';
 import { mulberry32 } from '../js/engine/formations/common.js';
-import { portraitLayout, entranceMode } from '../js/sections/hero.js';
+import { portraitLayout, entranceMode, rushInput } from '../js/sections/hero.js';
 const img = (w, h, f) => { const d = new Uint8ClampedArray(w * h * 4); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const [l, a] = f(x, y); d.set([l, l, l, a], (y * w + x) * 4); } return { width: w, height: h, data: d }; };
 const half = img(40, 40, (x) => [x < 20 ? 0 : 255, 255]);
 test('dark side outweighs light side', () => {
@@ -45,4 +45,55 @@ test('bottom layout: hero text that can pass over the portrait carries its own p
   const items = rule[1].split(',').map((s) => s.trim());
   for (const s of ['.hero-meta li > span', '.cv-inline', '.socials a', '.scroll-cue']) assert.ok(items.includes(s), s);
   assert.match(rule[2], /background:\s*var\(--bg\);/);
+});
+test('strip layout at exactly vw = 1024, bottom just below it', () => {
+  assert.deepEqual(portraitLayout({ vw: 1024, vh: 768, h1Right: 500 }), { mode: 'strip', rect: { x: 532, y: 77, w: 444, h: 660 } });
+  assert.equal(portraitLayout({ vw: 1023, vh: 768, h1Right: 500 }).mode, 'bottom');
+});
+test('strip layout with the strip at exactly 34% of vw, bottom one pixel narrower', () => {
+  // 0.34 · 1250 is 425.00000000000006 in floating point: the share must still count as 34%
+  for (const vw of [1100, 1250]) {
+    const w = (vw * 34) / 100;
+    const h1Right = vw - 48 - w - 32;
+    const at = portraitLayout({ vw, vh: 900, h1Right });
+    assert.equal(at.mode, 'strip', `vw ${vw}`);
+    assert.equal(at.rect.w, w);
+    assert.equal(portraitLayout({ vw, vh: 900, h1Right: h1Right + 1 }).mode, 'bottom', `vw ${vw} − 1 px`);
+  }
+});
+test('bottom layout frames the portrait into the measured slot, rounded', () => {
+  const slotRect = { x: 16, y: 352.4, w: 358.2, h: 438.88 };
+  assert.deepEqual(portraitLayout({ vw: 390, vh: 844, h1Right: 374, slotRect }), { mode: 'bottom', rect: { x: 16, y: 352, w: 358, h: 439 } });
+  assert.deepEqual(portraitLayout({ vw: 1024, vh: 768, h1Right: 597, slotRect: { x: 34.13, y: 371.5, w: 563.2, h: 399.36 } }),
+    { mode: 'bottom', rect: { x: 34, y: 372, w: 563, h: 399 } });
+});
+test('the slot is ignored when the strip fits', () => {
+  assert.deepEqual(portraitLayout({ vw: 1440, vh: 900, h1Right: 800, slotRect: { x: 48, y: 400, w: 744, h: 468 } }),
+    { mode: 'strip', rect: { x: 832, y: 90, w: 560, h: 774 } });
+});
+test('default feathers: the last column (right, unfeathered) carries weight, the last row (bottom) is zero', () => {
+  const grey = img(40, 40, () => [128, 255]);
+  const { weights, gw, gh } = imageWeights(grey, { gw: 40 });
+  let lastCol = 0, firstCol = 0;
+  for (let y = 0; y < gh; y++) { lastCol += weights[y * gw + gw - 1]; firstCol += weights[y * gw]; }
+  assert.ok(lastCol > 0, 'last column');
+  assert.ok(weights[(gh >> 1) * gw + gw - 1] > 0, 'last column, mid row');
+  assert.equal(weights.slice((gh - 1) * gw).reduce((a, b) => a + b, 0), 0, 'last row');
+  assert.equal(firstCol, 0, 'first column (left feather)');
+});
+test('the entrance rushes on any scroll input except a lone modifier key', () => {
+  for (const type of ['wheel', 'touchmove', 'scroll']) assert.equal(rushInput({ type }), true, type);
+  for (const key of ['ArrowDown', 'PageDown', ' ', 'End', 'Tab', 'j']) assert.equal(rushInput({ type: 'keydown', key }), true, key);
+  for (const key of ['Shift', 'Control', 'Alt', 'Meta']) assert.equal(rushInput({ type: 'keydown', key }), false, key);
+});
+test('bottom layout: the portrait slot follows the lead, is hidden outside the bottom layout and has the ruled height', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /<p class="hero-lead">[^<]*<\/p>\s*<div class="hero-portrait-slot" aria-hidden="true"><\/div>\s*<ul class="hero-meta/);
+  const css = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');
+  assert.match(css, /(^|\n)\.hero-portrait-slot\s*\{[^}]*display:\s*none;/);
+  const shown = css.match(/\.portrait-bottom \.hero-portrait-slot\s*\{([^}]*)\}/);
+  assert.ok(shown, 'a .portrait-bottom .hero-portrait-slot rule');
+  assert.match(shown[1], /display:\s*block;/);
+  assert.match(shown[1], /height:\s*clamp\(320px,\s*52svh,\s*560px\);/);
+  assert.doesNotMatch(css, /var\(--bg\) 0 45%/, 'the 45% copy gradient is gone');
 });

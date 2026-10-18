@@ -119,7 +119,7 @@ a:not(.cta-primary) {
 
 /* layers */
 /* 100lvh, not the dynamic viewport: the iOS URL bar showing or hiding neither stretches the canvas nor resizes it */
-#scene { position: fixed; top: 0; left: 0; z-index: 0; width: 100%; height: 100lvh; pointer-events: none; }
+#scene { position: fixed; top: 0; left: 0; z-index: 0; width: 100%; height: 100vh; height: 100lvh; pointer-events: none; }
 .no-js #scene { display: none; }
 main, .site-footer { position: relative; z-index: 1; }
 
@@ -140,9 +140,21 @@ main, .site-footer { position: relative; z-index: 1; }
   padding-inline: var(--gutter);
   font: 500 var(--fs-label)/1 var(--font-mono);
   color: var(--chrome-fg);
-  transition: color 200ms;
+  border-bottom: 1px solid transparent;
+  transition: color 200ms, border-color 200ms;
 }
 .no-js .site-header { background: var(--bg); border-bottom: 1px solid var(--hairline); }
+/* Once the page leaves the top (nav.js sets .is-scrolled past 8 px) the header takes a ground, so its items never
+   sit on copy or particles: paper at 92% and a hairline (Ruling R50; no backdrop blur). */
+.site-header::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--bg); opacity: 0;
+  transition: opacity 200ms, background-color 200ms;
+}
+.site-header.is-scrolled { border-bottom-color: var(--hairline); }
+.site-header.is-scrolled::before { opacity: .92; }
+:root[data-ground="night"] .site-header::before { background: var(--bg-dark); }
+:root[data-ground="night"] .site-header.is-scrolled { border-bottom-color: var(--c-night-2); }
 .wordmark { justify-self: start; font-size: 1rem; font-weight: 600; letter-spacing: .02em; }
 .nav-links { display: flex; gap: clamp(14px, 2.6vw, 40px); }
 .nav-links a, .header-end .js-cv { white-space: nowrap; }
@@ -185,14 +197,18 @@ main, .site-footer { position: relative; z-index: 1; }
   letter-spacing: -0.02em; line-height: 1;
 }
 
-/* section HUD (driven by nav.js) */
+/* section HUD (driven by nav.js): an opaque chip, so its label never sits on copy or particles (Ruling R50).
+   The 10 px padding and 1 px border are taken back from the offsets, so the label keeps the gutter line. */
 .hud {
-  position: fixed; z-index: 40; left: var(--gutter); bottom: 24px;
+  position: fixed; z-index: 40; left: calc(var(--gutter) - 11px); bottom: 15px;
   display: grid; gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg); border: 1px solid var(--hairline);
   color: var(--chrome-fg);
-  transition: color 200ms, opacity 600ms;
+  transition: color 200ms, background-color 200ms, border-color 200ms, opacity 600ms;
   pointer-events: none;
 }
+:root[data-ground="night"] .hud { background: var(--c-night-2); border-color: var(--c-night-2); }
 .hud-label { white-space: pre; }
 .hud-track { position: relative; display: block; width: 144px; height: 1px; }
 .hud-track::before { content: ""; position: absolute; inset: 0; background: var(--chrome-muted); opacity: .4; }
@@ -336,12 +352,20 @@ main > section { position: relative; }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; margin-top: clamp(24px, 2vw, 28px); }
 .cv-inline { font-size: var(--fs-label); }
 .socials { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; font-size: var(--fs-label); }
-/* portrait across the bottom half of the stage (hero.js, spec §2.2): the copy keeps a paper ground behind its top */
-.portrait-bottom .hero-copy { background: linear-gradient(to bottom, var(--bg) 0 45%, transparent 75%); }
-/* Text that can sit over the portrait outside that solid top and the opaque panels (the meta rows in the gradient's
-   fade on landscape screens, the CV link, the socials, the scroll cue) carries its own paper ground, feathered like
-   the engine's keep-out. It travels with the text as the copy scrolls over the held portrait, so what is directly
-   behind the text is always paper (spec §3.1: text ≥ 4.5:1). */
+/* bottom layout (hero.js; Ruling R47 supersedes spec §2.2's bottom half): the portrait is framed into an empty slot
+   right after the lead, and the meta rows, panels and actions follow below it. Hidden in the strip layout and
+   without the engine. The copy above the slot keeps its paper ground, which ends at the slot's top (--slot-top,
+   measured by hero.js), so it never covers the face. */
+.hero-portrait-slot { display: none; }
+.portrait-bottom .hero-portrait-slot {
+  display: block; align-self: stretch;
+  height: clamp(320px, 52svh, 560px);
+  margin-top: clamp(20px, 1.8vw, 24px);
+}
+.portrait-bottom .hero-copy { background: linear-gradient(to bottom, var(--bg) 0 calc(var(--slot-top, 0px) - 20px), transparent var(--slot-top, 0px)); }
+/* Text below the slot that scrolls over the held portrait outside the opaque panels (the meta rows, the CV link,
+   the socials, the scroll cue) carries its own paper ground, feathered like the engine's keep-out. It travels with
+   the text, so what is directly behind the text is always paper (spec §3.1: text ≥ 4.5:1). */
 .portrait-bottom :is(.hero-meta li > span, .cv-inline, .socials a, .scroll-cue) {
   background: var(--bg);
   box-shadow: 0 0 4px 4px var(--bg);

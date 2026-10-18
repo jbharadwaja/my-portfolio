@@ -1,5 +1,5 @@
 // The hero (spec §2.2, §4.3, §6.1): the portrait formation and where it sits (the strip right of the name, or the
-// bottom half of the stage), its preparation before the veil lifts (decode, build, compile) and the denoise
+// slot after the lead — Ruling R47), its preparation before the veil lifts (decode, build, compile) and the denoise
 // entrance after it. portraitLayout and entranceMode are pure and Node-testable; init(ctx) touches the DOM and
 // receives gsap, the scroll and the engine through ctx (this module imports no CDN library).
 import { veil } from '../ui/veil.js';
@@ -13,29 +13,39 @@ const STEPS = 50;
 const ENTRANCE_S = 2.4;
 const ENTRANCE_REDUCED_S = 0.6;        // reduced motion: a cross-fade (spec §3.3)
 const RUSH = 6;                        // timeScale after the first scroll input: done within 0.4 s
-const SCROLL_INPUTS = ['wheel', 'touchmove', 'keydown'];
+// Any scroll counts (a scrollbar drag, autoscroll, a nav jump, Lenis), as do the inputs that start one
+const RUSH_INPUTS = ['wheel', 'touchmove', 'keydown', 'scroll'];
+const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta']);
 const RESIZE_DEBOUNCE_MS = 150;
 const STRIP = { gap: 32, margin: 48, minShare: 0.34, minWidth: 1024, top: 0.1, bottom: 0.96 };
 
+const roundRect = ({ x, y, w, h }) => ({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
+
 /**
  * Where the portrait is framed (spec §2.2), in CSS px of a vw × vh stage: the strip [h1Right + 32, vw − 48],
- * 10%–96% of the stage height, when the viewport is ≥ 1024 px wide and the strip is ≥ 34% of it; otherwise the
- * bottom half of the stage. Every rect field is rounded to a whole pixel.
+ * 10%–96% of the stage height, when the viewport is ≥ 1024 px wide and the strip is ≥ 34% of it. Otherwise the
+ * bottom layout: the portrait slot's rect as laid out at scroll 0 (Ruling R47: the slot after the lead), or, when
+ * no slot is measured, the bottom half of the stage. Every rect field is rounded to a whole pixel.
  */
-export function portraitLayout({ vw, vh, h1Right }) {
+export function portraitLayout({ vw, vh, h1Right, slotRect = null }) {
   const x = h1Right + STRIP.gap;
   const w = vw - STRIP.margin - x;
-  if (vw >= STRIP.minWidth && w >= STRIP.minShare * vw) {
-    const y = STRIP.top * vh;
-    const h = (STRIP.bottom - STRIP.top) * vh;
-    return { mode: 'strip', rect: { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) } };
+  // The share as a quotient: 0.34 · 1250 is 425.00000000000006, but 425 / 1250 rounds to exactly 0.34.
+  if (vw >= STRIP.minWidth && w / vw >= STRIP.minShare) {
+    return { mode: 'strip', rect: roundRect({ x, y: STRIP.top * vh, w, h: (STRIP.bottom - STRIP.top) * vh }) };
   }
-  return { mode: 'bottom', rect: { x: 0, y: Math.round(vh / 2), w: Math.round(vw), h: Math.round(vh / 2) } };
+  if (slotRect) return { mode: 'bottom', rect: roundRect(slotRect) };
+  return { mode: 'bottom', rect: roundRect({ x: 0, y: vh / 2, w: vw, h: vh / 2 }) };
 }
 
 /** The entrance plays only if the page is in the hero when the veil lifts (not at a restored position or a #hash). */
 export function entranceMode({ inHero }) {
   return inHero ? 'play' : 'skip';
+}
+
+/** Whether an event rushes the entrance: every scroll input except a lone modifier key (Shift, Control, Alt, Meta). */
+export function rushInput({ type, key }) {
+  return !(type === 'keydown' && MODIFIER_KEYS.has(key));
 }
 
 /** The cut-out as ImageData, decoded straight to `width` px wide. */
@@ -58,11 +68,11 @@ async function loadPortrait(url, width) {
 const sameRect = (a, b) => a === b || (Boolean(a && b) && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
 
 /**
- * The portrait's rect and the hero copy's keep-out rect, measured from the DOM. The pose reads `rect` every
+ * The portrait's rect and the hero copy's keep-out rects, measured from the DOM. The pose reads `rect` every
  * frame, so it is cached here and re-measured only on resize, late fonts and the veil lift. The stage height is
  * 100svh (the sticky stages' height), which mobile toolbars showing or hiding do not change.
  */
-function createLayout({ section, h1, copy }) {
+function createLayout({ section, h1, copy, slot }) {
   const probe = document.createElement('div');
   probe.setAttribute('aria-hidden', 'true');
   probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:100svh;visibility:hidden;pointer-events:none';
@@ -71,26 +81,50 @@ function createLayout({ section, h1, copy }) {
   let mode = '';
   let safe = null;
 
-  /** Returns true when anything changed. */
+  /** Returns { changed } (anything the engine reads) and { moved } (the slot came or went: the page height changed). */
   function measure() {
     const vw = document.documentElement.clientWidth;
     const vh = probe.getBoundingClientRect().height || innerHeight;
-    const next = portraitLayout({ vw, vh, h1Right: h1.getBoundingClientRect().right });
-    // The copy where it sits while the hero is held (the hero starts the page, so its offset in the section is
-    // its viewport position at the top). Under the bottom layout the portrait owns the bottom half: only copy
-    // above it keeps particles out (the whole copy block would leave the portrait at 12% alpha). Copy over the
-    // portrait, at any scroll, sits on the gradient, the opaque panels or its own paper ground (css/main.css,
-    // .portrait-bottom), which move with the text where this static rect cannot.
-    const c = copy.getBoundingClientRect();
-    const top = c.top - section.getBoundingClientRect().top;
-    const height = next.mode === 'strip' ? c.height : Math.min(c.height, next.rect.y - top);
-    const nextSafe = height > 0 ? { x: c.left, y: top, w: c.width, h: height } : null;
-    const changed = next.mode !== mode || !sameRect(next.rect, rect) || !sameRect(nextSafe, safe);
+    const h1Right = h1.getBoundingClientRect().right;
+    let next = portraitLayout({ vw, vh, h1Right });
+    // The class shows the slot (css/main.css), so it is set before the slot is measured. The name sits above the
+    // slot, so showing or hiding it never moves h1Right.
+    const bottom = next.mode === 'bottom';
+    const moved = bottom !== section.classList.contains('portrait-bottom');
+    section.classList.toggle('portrait-bottom', bottom);
+    // Everything as laid out at scroll 0, where the hero is held: the hero starts the page, so an offset in the
+    // section is a viewport position at the top.
+    const top0 = section.getBoundingClientRect().top;
+    const at0 = (r) => ({ x: r.left, y: r.top - top0, w: r.width, h: r.height });
+    const c = at0(copy.getBoundingClientRect());
+    let nextSafe = [c.h > 0 ? c : null, null];
+    const s = bottom && slot ? at0(slot.getBoundingClientRect()) : null;
+    if (s && s.w > 0 && s.h > 0) {
+      next = portraitLayout({ vw, vh, h1Right, slotRect: s });
+      // Keep-out: the copy above the slot (down to the lead) and the copy below it (from the meta rows: the
+      // panels, actions and socials), never the slot itself. Copy that scrolls over the held portrait later sits
+      // on the opaque panels or its own paper ground (css/main.css, .portrait-bottom), which move with the text.
+      const aboveEnd = slot.previousElementSibling ? at0(slot.previousElementSibling.getBoundingClientRect()) : null;
+      const belowStart = slot.nextElementSibling ? at0(slot.nextElementSibling.getBoundingClientRect()) : null;
+      const upperH = (aboveEnd ? aboveEnd.y + aboveEnd.h : s.y) - c.y;
+      const lowerY = belowStart ? belowStart.y : s.y + s.h;
+      const lowerH = c.y + c.h - lowerY;
+      nextSafe = [
+        upperH > 0 ? { x: c.x, y: c.y, w: c.w, h: upperH } : null,
+        lowerH > 0 ? { x: c.x, y: lowerY, w: c.w, h: lowerH } : null,
+      ];
+      // The copy's paper ground stops at the slot's top (it never covers the face).
+      copy.style.setProperty('--slot-top', `${Math.round(s.y - c.y)}px`);
+    } else if (bottom) {
+      // No slot to frame into: the bottom half of the stage, and only the copy above it keeps particles out.
+      const height = Math.min(c.h, next.rect.y - c.y);
+      nextSafe = [height > 0 ? { ...c, h: height } : null, null];
+    }
+    const changed = next.mode !== mode || !sameRect(next.rect, rect) || !nextSafe.every((r, i) => sameRect(r, safe?.[i] ?? null));
     Object.assign(rect, next.rect);
     mode = next.mode;
     safe = nextSafe;
-    section.classList.toggle('portrait-bottom', mode === 'bottom');
-    return changed;
+    return { changed, moved };
   }
 
   return { rect, measure, get safe() { return safe; } };
@@ -106,6 +140,7 @@ export function init(ctx) {
   const section = document.getElementById('top');
   const h1 = section?.querySelector('.hero-name');
   const copy = section?.querySelector('.hero-copy');
+  const slot = section?.querySelector('.hero-portrait-slot');
   const step = section?.querySelector('.hero-step');
   if (!section || !h1 || !copy) return Promise.resolve();
 
@@ -134,11 +169,13 @@ export function init(ctx) {
       veil.dropKey('compile');
       return;
     }
-    const layout = createLayout({ section, h1, copy });
+    const layout = createLayout({ section, h1, copy, slot });
     // Formation 0 (the noise the portrait denoises from) is framed into the same rect, so the face resolves in place.
     const pose = { roll: 0, rect: () => layout.rect };
     relayout = () => {
-      if (!layout.measure()) return;
+      const { changed, moved } = layout.measure();
+      if (moved) ctx.ScrollTrigger?.refresh();   // the slot came or went: every later section moved
+      if (!changed) return;
       engine.setSafeRects({ 0: layout.safe, 1: layout.safe });
       engine.setPose(0, pose);   // re-runs each built formation's density estimate at the new framing
       engine.setPose(1, pose);
@@ -149,7 +186,9 @@ export function init(ctx) {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(relayout, RESIZE_DEBOUNCE_MS);
     });
-    document.fonts?.addEventListener('loadingdone', relayout);   // the name's width (and the strip) follow the fonts
+    // The name's width (the strip) and the copy's height (the slot's place) follow the fonts.
+    document.fonts?.addEventListener('loadingdone', relayout);
+    document.fonts?.ready.then(() => relayout());
 
     engine.registerFormation(1, async () => buildPortrait(ctx.tier.N, { image: await image, rng: mulberry32(SEED) }));
     try {
@@ -181,17 +220,19 @@ function skipEntrance({ boundaries }, showStep) {
 
 /**
  * Boundary 0 (noise → portrait) runs 0 → 1 over 2.4 s from the frame the veil starts fading (0.6 s cross-fade
- * under reduced motion); the HUD counts the denoise steps 01 → 50 with the time. The first scroll input
- * speeds the rest up ×6; until it reports 1 the engine holds the Hero → Encoder mix at 0 (resolver.applyEntrance).
+ * under reduced motion); the HUD counts the denoise steps 01 → 50 with the time. The first scroll input (rushInput)
+ * or scroll speeds the rest up ×6; until it reports 1 the engine holds the Hero → Encoder mix at 0
+ * (resolver.applyEntrance).
  */
 function playEntrance({ gsap, boundaries, reduced }, showStep) {
   const proxy = { mix: 0 };
   boundaries[0] = 0;
-  const rush = () => {
+  const rush = (e) => {
+    if (!rushInput(e)) return;
     tween.timeScale(RUSH);
     stopListening();
   };
-  const stopListening = () => SCROLL_INPUTS.forEach((type) => removeEventListener(type, rush));
+  const stopListening = () => RUSH_INPUTS.forEach((type) => removeEventListener(type, rush));
   const tween = gsap.to(proxy, {
     mix: 1,
     duration: reduced ? ENTRANCE_REDUCED_S : ENTRANCE_S,
@@ -205,5 +246,5 @@ function playEntrance({ gsap, boundaries, reduced }, showStep) {
       skipEntrance({ boundaries }, showStep);
     },
   });
-  SCROLL_INPUTS.forEach((type) => addEventListener(type, rush, { passive: true }));
+  RUSH_INPUTS.forEach((type) => addEventListener(type, rush, { passive: true }));
 }

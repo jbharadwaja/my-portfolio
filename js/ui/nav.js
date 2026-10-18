@@ -1,14 +1,27 @@
 // Fixed chrome behaviour (spec §2.1): in-page links jump through ctx.scroll, the burger sheet below 1024 px,
-// and the section HUD. The HUD's hiding while the veil is up and below 768 px is CSS (css/main.css).
+// the section HUD, and the header's ground once the page leaves the top. The HUD's hiding while the veil is up
+// and below 768 px is CSS (css/main.css).
 // main.js calls this before the CDN libraries settle. ctx.scroll is one object for the page's lifetime (native
 // scroll at first, upgraded in place by scroll.attach), so nothing here needs gsap, ScrollTrigger or Lenis.
 
 const WIDE = '(min-width: 1024px)';
+const SCROLLED_PX = 8;                 // the header takes its ground once the page is this far from the top
 
 export function initNav({ scroll }) {
   const closeSheet = initSheet(scroll);
   initLinks(scroll, closeSheet);
   initHud(scroll);
+  initHeaderGround();
+}
+
+// Past the top the header gets its paper (or night) ground, so its items never sit on copy or particles
+// (Ruling R50; the ground itself is CSS, .site-header.is-scrolled).
+function initHeaderGround() {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  const update = () => header.classList.toggle('is-scrolled', window.scrollY > SCROLLED_PX);
+  window.addEventListener('scroll', update, { passive: true });
+  update();
 }
 
 // Every in-page link (header, wordmark, hero CTA, sheet, skip link) jumps instead of following the hash.
