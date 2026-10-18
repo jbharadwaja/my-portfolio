@@ -14,7 +14,7 @@ import { mulberry32 } from './engine/formations/common.js';
 import { buildNoise } from './engine/formations/noise.js';
 import { buildGalaxy } from './engine/formations/galaxy.js';
 import * as hero from './sections/hero.js';
-import { SECTIONS } from './sections/index.js';   // the six sections after the hero; the hero inits at boot (it gates the veil)
+import { SECTIONS, loadSections } from './sections/index.js';   // the six sections after the hero (it inits at boot)
 
 /** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries (spec §4.3). */
 export const boundaries = new Float32Array(7);
@@ -196,15 +196,9 @@ if (libs) {
     ctx.engine?.tick(time * 1000);   // render last (spec §4.7: lenis.raf → section state → render)
   });
   createBoundaryTriggers(ScrollTrigger);
-  // The sections after the hero, in page order; one that fails is logged and the rest still initialise.
-  for (const name of SECTIONS) {
-    try {
-      const mod = await import(`./sections/${name}.js`);
-      await mod.init(ctx);
-    } catch (err) {
-      console.error(`Section "${name}" failed to initialise.`, err);
-    }
-  }
+  // The sections after the hero: all six modules load at once, then init in page order; one that fails is logged
+  // and the rest still initialise.
+  await loadSections(SECTIONS, (name) => import(`./sections/${name}.js`), ctx, console.error);
   try {
     laidOut = initReveals(ctx);   // settles after the word widths are locked
   } catch (err) {

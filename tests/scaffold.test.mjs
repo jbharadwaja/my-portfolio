@@ -38,16 +38,20 @@ test('the hero and every section module export init(ctx)', async () => {
   }
 });
 
-test('main.js takes SECTIONS from sections/index.js and loads each in its own try/catch', () => {
-  assert.match(main, /import \{ SECTIONS \} from '\.\/sections\/index\.js';/);
+test('main.js hands SECTIONS to loadSections with its own importer, after the boundaries, before the reveals', () => {
+  // loadSections' own behaviour (imports up front, inits in order, one try/catch each) is tested in sections.test.mjs.
+  assert.match(main, /import \{ SECTIONS, loadSections \} from '\.\/sections\/index\.js';/);
   assert.doesNotMatch(main, /const SECTIONS\b/, 'the list is not redeclared in main.js');
-  const loop = main.indexOf('for (const name of SECTIONS)');
-  assert.ok(loop >= 0, 'loops over SECTIONS in order');
-  const steps = ['try {', 'await import(`./sections/${name}.js`)', 'await mod.init(ctx)', 'catch (err)', 'console.error('];
-  let from = loop;
+  const steps = [
+    'if (libs) {',
+    'createBoundaryTriggers(ScrollTrigger);',
+    'await loadSections(SECTIONS, (name) => import(`./sections/${name}.js`), ctx, console.error);',
+    'initReveals(ctx)',
+  ];
+  let from = 0;
   for (const step of steps) {
     const at = main.indexOf(step, from);
-    assert.ok(at >= 0, `"${step}" follows in the loop`);
+    assert.ok(at >= 0, `"${step}" follows`);
     from = at;
   }
 });
