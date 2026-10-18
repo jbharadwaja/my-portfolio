@@ -14,6 +14,7 @@ import { mulberry32 } from './engine/formations/common.js';
 import { buildNoise } from './engine/formations/noise.js';
 import { buildGalaxy } from './engine/formations/galaxy.js';
 import * as hero from './sections/hero.js';
+import { SECTIONS } from './sections/index.js';   // the six sections after the hero; the hero inits at boot (it gates the veil)
 
 /** Morph boundaries 0..1: B0 the entrance (0 at boot; hero.js runs or skips it), B1–B6 the section boundaries (spec §4.3). */
 export const boundaries = new Float32Array(7);
@@ -36,9 +37,6 @@ export const ctx = {
   /** fn(time, deltaTime) runs every GSAP tick, after Lenis and before the render. */
   onTick: (fn) => { tickers.push(fn); },
 };
-
-/** Section modules after the hero, in page order; each exports init(ctx). The hero inits at boot (it gates the veil). */
-const SECTIONS = [];
 
 // One measuring trigger per boundary, in page order; the trigger is the incoming section (spec §4.3, §5.3).
 const BOUNDARIES = [
@@ -198,7 +196,15 @@ if (libs) {
     ctx.engine?.tick(time * 1000);   // render last (spec §4.7: lenis.raf → section state → render)
   });
   createBoundaryTriggers(ScrollTrigger);
-  for (const section of SECTIONS) await section.init(ctx);
+  // The sections after the hero, in page order; one that fails is logged and the rest still initialise.
+  for (const name of SECTIONS) {
+    try {
+      const mod = await import(`./sections/${name}.js`);
+      await mod.init(ctx);
+    } catch (err) {
+      console.error(`Section "${name}" failed to initialise.`, err);
+    }
+  }
   try {
     laidOut = initReveals(ctx);   // settles after the word widths are locked
   } catch (err) {
