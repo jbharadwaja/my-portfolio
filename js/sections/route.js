@@ -1,11 +1,12 @@
 // The Route (spec §2.6, §4.4, §4.5): the night stage. Its sticky stage's progress p drives the timeline — the
-// ground goes to night, the route traces AIT → Tokyo → Seoul → Tustin, the city cards swap in at each third, a
-// hold for the reticle, then back to paper. uNight follows the timeline at no more than 2.5 units/s, so racing
-// through only dims the page partially (a cut jump snaps it under its fade instead); under reduced motion it is a
-// 300 ms fade at the stage's edges instead (spec §3.3). The night chrome flips with hysteresis, and the Route DOM
-// shows only while uNight ≥ 0.9. Until the engine is there (and without it, or once its context is lost for good)
-// the stage runs on a DOM night ground; without WebGL the map is drawn on a 2D canvas (js/ui/fallback-map.js, §8.3).
-// routeTimeline, groundState, readoutAt and nightStep are pure and Node-testable; init(ctx) touches the DOM
+// route traces AIT → Tokyo → Seoul → Tustin, the city cards swap in at each third, a hold for the reticle. The night
+// itself is time-driven at thresholds (Ruling R75): past p 0.02 uNight fades to 1 over 450 ms, past p 0.94 back to 0,
+// with hysteresis on the way back, so no pause is ever half grey (300 ms fades under reduced motion; a cut jump
+// snaps it under its fade). The night chrome flips with hysteresis, and the Route DOM shows only while uNight ≥ 0.9.
+// A jump to the Route (nav, console, #route) lands at p 0.10: on night, the heading and the first card showing.
+// Until the engine is there (and without it, or once its context is lost for good) the stage runs on a DOM night
+// ground; without WebGL the map is drawn on a 2D canvas (js/ui/fallback-map.js, spec §8.3).
+// routeTimeline, nightOn, nightStep, groundState and readoutAt are pure and Node-testable; init(ctx) touches the DOM
 // and gets ScrollTrigger, the scroll and the engine through ctx (this module imports no CDN library).
 import { WORLDMAP, CITIES } from '../data/worldmap-dots.js';
 import { cellToLonLat, formatLatLon } from '../engine/geo.js';
@@ -18,12 +19,17 @@ import { veil } from '../ui/veil.js';
 
 const K = 5;                           // the world map's formation index
 const SEED = 0x5e01;
-const NIGHT_IN = 0.08;                 // p 0–0.08: uNight 0 → 1
-const ROUTE_END = 0.8;                 // p 0.08–0.80: uRoute 0 → 1
-const HOLD_END = 0.92;                 // p 0.80–0.92: the reticle; p 0.92–1: uNight 1 → 0
+const ROUTE_START = 0.08;              // p 0.08–0.80: uRoute 0 → 1
+const ROUTE_END = 0.8;
+const HOLD_END = 0.92;                 // p 0.80–0.92: the reticle
+const NIGHT_ON = 0.02;                 // the night fades in once p ≥ 0.02 …
+const NIGHT_OFF = 0.94;                // … and out again once p ≥ 0.94 (Ruling R75)
+const NIGHT_BAND = 0.01;               // hysteresis: on the way back it returns below 0.93 and goes below 0.01
+const NIGHT_FADE_S = 0.45;             // each fade, in seconds …
+const REDUCED_NIGHT_S = 0.3;           // … and under reduced motion (spec §3.3)
+/** Where a jump to the Route lands (nav, console, #route): night, the heading and the first card showing (R75). */
+export const LANDING_P = 0.1;
 const LEGS = 3;                        // AIT → Tokyo → Seoul → Tustin: card k shows from uRoute = k/3
-const NIGHT_RATE = 2.5;                // uNight units/s at most (spec §4.5)
-const REDUCED_NIGHT_S = 0.3;           // reduced motion: uNight is a 300 ms fade at the stage's edges (spec §3.3)
 const DT_MAX = 1 / 30;                 // every integrator's clamped dt (spec §4.7)
 const SHOW_FROM = 0.9;                 // the Route DOM fades in over uNight 0.9 → 1 and out again before 0.9
 const GROUND = { on: 0.7, off: 0.3 };  // <html data-ground="night"> from uNight ≥ 0.7 until ≤ 0.3 (Ruling R59)
@@ -35,15 +41,28 @@ const RESIZE_DEBOUNCE_MS = 150;
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
 /**
- * The Route's state at stage progress p (spec §2.6): night (the uNight target), route (uRoute), card (0–3, card k
- * from uRoute = k/3), reticle (the hold). Writes into `out` when given (no per-frame allocation).
+ * The Route's state at stage progress p (spec §2.6): route (uRoute), card (0–3, card k from uRoute = k/3), reticle
+ * (the hold). Writes into `out` when given (no per-frame allocation). The night is not scrubbed: nightOn.
  */
 export function routeTimeline(p, out = {}) {
-  out.night = p < NIGHT_IN ? clamp01(p / NIGHT_IN) : p > HOLD_END ? clamp01(1 - (p - HOLD_END) / (1 - HOLD_END)) : 1;
-  out.route = clamp01((p - NIGHT_IN) / (ROUTE_END - NIGHT_IN));
+  out.route = clamp01((p - ROUTE_START) / (ROUTE_END - ROUTE_START));
   out.card = Math.min(LEGS, Math.floor(out.route * LEGS));
   out.reticle = p >= ROUTE_END && p <= HOLD_END;
   return out;
+}
+
+/**
+ * Whether the night is on at stage progress p, given `prev` (Ruling R75): on from p 0.02 until p 0.94. On the way
+ * back the same thresholds apply a band further back — on again below 0.93, off below 0.01 — so a scroll resting on
+ * a threshold never flickers between the two.
+ */
+export function nightOn(prev, p) {
+  return prev ? p >= NIGHT_ON - NIGHT_BAND && p < NIGHT_OFF : p >= NIGHT_ON && p < NIGHT_OFF - NIGHT_BAND;
+}
+
+/** uNight after `dt` seconds from `night`, fading toward 1 while `on` (else 0): 450 ms a fade, 300 ms reduced. */
+export function nightStep(night, on, reduced, dt) {
+  return limitRate(night, on ? 1 : 0, 1 / (reduced ? REDUCED_NIGHT_S : NIGHT_FADE_S), dt);
 }
 
 /**
@@ -67,23 +86,6 @@ export function readoutAt(px, py, w, h, vw, vh, out = { x: 0, y: 0 }) {
   out.x = right + w > vw ? px - READOUT_OFFSET - w : right;
   out.y = below + h > vh ? py - READOUT_OFFSET - h : below;
   return out;
-}
-
-const timelineScratch = {};
-
-/**
- * uNight after `dt` seconds at stage progress p, from `night`. With motion it follows the timeline at no more than
- * 2.5 units/s; under reduced motion (spec §3.3) it is not scrubbed: a 300 ms fade to 1 once the stage has started
- * (p > 0) and back to 0 at its edges (p = 0, p = 1).
- */
-export function nightStep(night, p, reduced, dt) {
-  return limitRate(night, nightTarget(p, reduced), reduced ? 1 / REDUCED_NIGHT_S : NIGHT_RATE, dt);
-}
-
-/** The uNight nightStep moves toward (and the one a cut jump or the boot snaps to). */
-export function nightTarget(p, reduced) {
-  if (reduced) return p > 0 && p < 1 ? 1 : 0;
-  return routeTimeline(p, timelineScratch).night;
 }
 
 /** The readout for lattice cell (col, row): a city's exact coordinates on its dot, otherwise the cell centre. */
@@ -119,10 +121,11 @@ export async function init(ctx) {
     deck.toggleAttribute('data-lenis-prevent', !wide.matches && deck.scrollHeight > deck.clientHeight);
   }).observe(deck);
 
-  // The stage scrub: measures only (spec §5.1).
+  // The stage scrub: measures only (spec §5.1). A jump to the Route lands at LANDING_P of it (Ruling R75).
   let progress = 0;
   const write = (self) => { progress = self.progress; };
-  ctx.ScrollTrigger.create({ trigger: section, start: 'top top', end: 'bottom bottom', onUpdate: write, onRefresh: write });
+  const st = ctx.ScrollTrigger.create({ trigger: section, start: 'top top', end: 'bottom bottom', onUpdate: write, onRefresh: write });
+  ctx.scroll.setLanding(section.id, () => (st.end > st.start ? st.start + LANDING_P * (st.end - st.start) : NaN));
 
   // The h2 and subtitle reveals would play unseen as the stage scrolls in (the Route DOM is hidden until
   // uNight ≥ 0.9), so they wait for the DOM to show (Ruling R33).
@@ -141,6 +144,7 @@ export async function init(ctx) {
   const tl = routeTimeline(0);
   let engine = null;
   let night = 0;
+  let on = false;                      // the night's target (nightOn, with its hysteresis)
   let applied = NaN;                   // the uNight last applied to the ground, the chrome and the DOM
   let nightChrome = false;             // <html data-ground="night"> (groundState)
   let ink = -1;
@@ -181,8 +185,9 @@ export async function init(ctx) {
 
   ctx.onTick((time, deltaMs) => {
     routeTimeline(progress, tl);
+    on = nightOn(on, progress);
     const dt = Math.min(deltaMs / 1000, DT_MAX);
-    setNight(lifted ? nightStep(night, progress, ctx.reduced, dt) : nightTarget(progress, ctx.reduced));
+    setNight(lifted ? nightStep(night, on, ctx.reduced, dt) : on ? 1 : 0);
     showCard(tl.card);
     reticleOn = Boolean(engine) && tl.reticle && fine.matches;
     if (!engine) return;
@@ -200,7 +205,8 @@ export async function init(ctx) {
   // there, so the page never fades back in on a night that then slowly clears.
   ctx.scroll.on('jump', ({ mode }) => {
     if (mode !== 'cut') return;
-    setNight(nightTarget(progress, ctx.reduced));
+    on = nightOn(on, progress);
+    setNight(on ? 1 : 0);
   });
 
   ctx.engineReady.then((ready) => {
