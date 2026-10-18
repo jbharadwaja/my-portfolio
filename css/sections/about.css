@@ -21,3 +21,10 @@
 @media (min-width: 768px) and (max-width: 1023.98px) {
   .plate-figure { min-height: calc(100lvh - var(--section-pad)); }
 }
+
+/* The copy scrolls through the held galaxy (about.js), whose arms reach under the muted skills and certifications
+   (ink-60: 5.12:1 on bare paper) even at the keep-out's 12%. So the copy block carries its own paper, as the hero's
+   panels do, and its text stays >= 4.5:1 against what is behind it (spec §3.1). A soft paper shadow lets the arms
+   fade out at its edges (with the keep-out's 32 px feather) instead of stopping at a hard line; it stays inside the
+   column gap, and paints under every text (backgrounds paint before inline content). */
+.about-text { background: var(--bg); box-shadow: 0 0 24px 8px var(--bg); }
