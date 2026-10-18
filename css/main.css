@@ -110,6 +110,9 @@ p { text-wrap: pretty; }
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
+/* A split element holds its text twice (the aria-hidden units and this copy): only the units are selectable, so a
+   select-all copies each heading and the bio once. */
+.is-split > .sr-only { -webkit-user-select: none; user-select: none; }
 .sw { display: inline-block; }
 [data-split="letters"] .sw { white-space: nowrap; }
 .sw--locked { vertical-align: top; contain: layout size style; }

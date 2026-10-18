@@ -16,3 +16,13 @@ test('text without a single number is not a metric', () => {
   assert.equal(parseMetric('Google Trends forecasts'), null);
   assert.equal(parseMetric('lr 3e-3'), null);
 });
+
+// Task 19: a split element holds its text twice (the aria-hidden units and the .sr-only copy), so select-all + copy
+// gave every heading and the bio twice. The screen-reader copy is left out of selections.
+import { readFileSync } from 'node:fs';
+test('the screen-reader copy of split text cannot be selected (copying gives the text once)', () => {
+  const css = readFileSync(new URL('../css/main.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.is-split > \.sr-only\s*\{([^}]*)\}/);
+  assert.ok(rule, 'an .is-split > .sr-only rule');
+  assert.match(rule[1], /user-select: none;/);
+});
