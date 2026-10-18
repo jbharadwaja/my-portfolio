@@ -20,6 +20,57 @@ test('projects line columns', () => {
   assert.equal(projectLine(1, card), '1  EXP_01  Movie review sentiment' + ' '.repeat(10) + ' F1 0.90' + ' '.repeat(9) + ' BEAT TARGET');
 });
 
+// The rail's eight cards as the console reads them (index, title, headline metric, verdict).
+const RAIL = [
+  ['EXP_01', 'Movie review sentiment', 'F1 0.90', 'BEAT TARGET'],
+  ['EXP_02', 'Used car price prediction', 'RMSE €1,583', 'LEAKAGE FIXED'],
+  ['EXP_03', 'Gold recovery prediction', 'sMAPE 9.41', 'NEAR-TIE'],
+  ['EXP_04', 'Taxi demand forecasting', 'RMSE 34.5', 'LINEAR WON'],
+  ['EXP_05', 'Oil well location under risk', '$6.64M avg profit', 'LOW RISK'],
+  ['EXP_06', 'Beta Bank customer churn', 'F1 0.609', 'JUST CLEARED'],
+  ['FIELD_01', 'UPS Store revenue analysis', '+25% monthly revenue', 'IN PRODUCTION'],
+  ['FIELD_02', 'Program insights, Orange Coast College', '+30% engagement', 'ADOPTED'],
+].map(([index, title, metric, verdict]) => ({ index, title, metric, verdict }));
+const fields = (card) => [card.index, card.title, card.metric, card.verdict];
+
+test('projects: each column starts at the same place on every row, widened to its longest entry', () => {
+  const lines = runCommand('projects', { ...ctx, cards: RAIL }).lines;
+  assert.equal(lines.length, 8);
+  const starts = lines.map((line, i) => fields(RAIL[i]).map((text) => line.indexOf(text)));
+  for (const [i, at] of starts.entries()) {
+    assert.ok(at.every((x) => x >= 0), `row ${i + 1} holds every field`);
+    assert.deepEqual(at, starts[0], `row ${i + 1} lines up with row 1`);
+  }
+  assert.ok(lines.every((line, i) => line.startsWith(`${i + 1}  `)));
+  // R6's widths are the floor: cards no longer than R6's still print its exact row
+  assert.equal(runCommand('projects', ctx).lines[0], projectLine(1, card));
+  // a console wide enough for the table prints the same table
+  assert.deepEqual(runCommand('projects', { ...ctx, cards: RAIL }, { columns: 120 }).lines, lines);
+});
+
+test('projects on a narrow console (a phone): each project wraps under its title column, within the width, nothing cut', () => {
+  const columns = 45;
+  const lines = runCommand('projects', { ...ctx, cards: RAIL }, { columns }).lines;
+  for (const line of lines) assert.ok(line.length <= columns, `${line.length}: ${line}`);
+  const title = lines[0].indexOf('Movie review sentiment');
+  const blocks = [];
+  for (const line of lines) {
+    if (/^\d/.test(line)) blocks.push([line]);
+    else {
+      assert.match(line, new RegExp(`^ {${title}}\\S`), `indented to the title column: ${line}`);
+      blocks.at(-1).push(line);
+    }
+  }
+  assert.equal(blocks.length, 8);
+  for (const [i, block] of blocks.entries()) {
+    assert.ok(block[0].startsWith(`${i + 1}  ${RAIL[i].index}`), block[0]);
+    assert.equal(block[0].indexOf(RAIL[i].title.split(' ')[0]), title, `row ${i + 1}: the title starts in its column`);
+    // the metric and the verdict share a line (joined by ·) where they fit, else take one each
+    const words = block.map((line) => line.slice(title)).join(' ').split(' ').filter((w) => w !== '·');
+    assert.deepEqual(words, `${RAIL[i].title} ${RAIL[i].metric} ${RAIL[i].verdict}`.split(' '), `row ${i + 1} keeps every word, in order`);
+  }
+});
+
 test('every other spec command answers', () => {
   const full = {
     ...ctx,

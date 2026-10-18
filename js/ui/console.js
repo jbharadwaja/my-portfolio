@@ -9,6 +9,9 @@ import { HELP, WHOAMI, CONSOLE } from '../content.js';
 const GUESS_MAX = 2;                   // "did you mean" only within this edit distance
 const HELP_W = 14;                     // help's name column: 'sudo hire-me' and two spaces
 const SKILL_W = 12;                    // skills' name column
+const PROJECT_W = { index: 6, title: 32, metric: 16 };   // projects' narrowest columns (Ruling R6's row)
+const MIN_ROOM = 16;                   // the narrow projects layout never wraps titles narrower than this
+const PROBE_CHARS = 20;                // characters measured for the log's character width
 const MAILTO_DELAY_MS = 800;
 const TRAIN_MS = 2000;                 // the loss curve draws over ~2 s
 const CURVE = { cols: 36, rows: 7 };
@@ -41,9 +44,46 @@ export function complete(prefix, names) {
   return matches.length === 1 ? matches[0] : matches;
 }
 
-/** One `projects` line: number, index, title, metric and verdict in columns. */
-export function projectLine(n, card) {
-  return `${n}  ${card.index}  ${card.title.padEnd(32)} ${card.metric.padEnd(16)} ${card.verdict}`;
+/**
+ * One `projects` line: number, index, title, metric and verdict in columns of the given widths (`nW` for the number,
+ * right-aligned). The default widths are Ruling R6's.
+ */
+export function projectLine(n, card, widths = PROJECT_W, nW = 1) {
+  const { index, title, metric } = widths;
+  return `${String(n).padStart(nW)}  ${card.index.padEnd(index)}  ${card.title.padEnd(title)} ${card.metric.padEnd(metric)} ${card.verdict}`;
+}
+
+/** `text` broken at spaces into lines of at most `width` characters (a longer word keeps a line of its own). */
+function wrapWords(text, width) {
+  const lines = [];
+  for (const word of text.split(' ')) {
+    const last = lines.length - 1;
+    if (last >= 0 && lines[last].length + 1 + word.length <= width) lines[last] += ` ${word}`;
+    else lines.push(word);
+  }
+  return lines;
+}
+
+/**
+ * The `projects` table for a log `columns` characters wide: one row per card, each column as wide as its longest
+ * entry (never narrower than R6's), so every row lines up. Where a row would not fit (a phone), each project takes
+ * two or more lines instead: number and index, then its title wrapped under the title column, then the metric and
+ * the verdict under it (joined by · where they fit). No text is cut.
+ */
+export function projectLines(cards, columns = Infinity) {
+  const longest = (key, min) => Math.max(min, ...cards.map((card) => card[key].length));
+  const widths = { index: longest('index', PROJECT_W.index), title: longest('title', PROJECT_W.title), metric: longest('metric', PROJECT_W.metric) };
+  const nW = String(cards.length).length;
+  const rows = cards.map((card, i) => projectLine(i + 1, card, widths, nW));
+  if (rows.every((row) => row.length <= columns)) return rows;
+  const indent = nW + 2 + widths.index + 2;
+  const room = Math.max(MIN_ROOM, columns - indent);
+  return cards.flatMap((card, i) => {
+    const result = `${card.metric} · ${card.verdict}`;
+    const lines = [...wrapWords(card.title, room), ...(result.length <= room ? [result] : [card.metric, card.verdict])];
+    const head = `${String(i + 1).padStart(nW)}  ${card.index.padEnd(widths.index)}  `;
+    return lines.map((text, j) => `${j === 0 ? head : ' '.repeat(indent)}${text}`);
+  });
 }
 
 /**
@@ -77,7 +117,7 @@ function resume(cv) {
 const COMMANDS = new Map([
   ['help', () => ({ lines: Object.entries(HELP).map(([name, about]) => `${name.padEnd(HELP_W)}${about}`) })],
   ['whoami', () => ({ lines: [WHOAMI] })],
-  ['projects', ({ cards }) => ({ lines: cards.map((card, i) => projectLine(i + 1, card)) })],
+  ['projects', ({ cards }, { columns }) => ({ lines: projectLines(cards, columns) })],
   ['skills', ({ skills }) => ({ lines: skills.map(({ name, list }) => `${name.padEnd(SKILL_W)} ${list}`) })],
   ['journey', ({ journey }) => ({ lines: journey.map(({ when, body }) => `${when} — ${body}`) })],
   ['contact', ({ contact }) => ({ lines: contact.map(({ text }) => text), links: contact.map(({ href }) => href) })],
@@ -110,15 +150,16 @@ function guess(line) {
 /**
  * Runs one console line against `ctx` (readConsoleContext's shape): the lines to print, for contact the href of each
  * line (`links`: those lines print as links), and for the commands that do something, the action the console takes.
- * Case and extra spaces do not matter.
+ * `view.columns` is how many characters fit on a log line (read only by `projects`). Case and extra spaces do not
+ * matter.
  */
-export function runCommand(input, ctx) {
+export function runCommand(input, ctx, view = {}) {
   const typed = input.trim().replace(/\s+/g, ' ');
   const line = typed.toLowerCase();
   if (!line) return { lines: [] };
   const open = /^open(?: (.+))?$/i.exec(typed);
   if (open) return openCommand(open[1], ctx.cards.length);
-  if (COMMANDS.has(line)) return COMMANDS.get(line)(ctx);
+  if (COMMANDS.has(line)) return COMMANDS.get(line)(ctx, view);
   const near = guess(line);
   return { lines: [near ? CONSOLE.notFound(typed, near) : CONSOLE.notFoundHelp(typed)] };
 }
@@ -243,6 +284,26 @@ export function createConsole({ root, scroll, ctx }) {
     toEnd();
   }
 
+  // How many characters of the log's face fit on one of its lines, measured when a command asks (`projects` lays its
+  // table out to it). Without a layout to measure, there is no limit.
+  function logColumns() {
+    try {
+      const probe = doc.createElement('span');
+      probe.setAttribute('aria-hidden', 'true');
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+      probe.textContent = '0'.repeat(PROBE_CHARS);
+      log.append(probe);
+      const charW = probe.getBoundingClientRect().width / PROBE_CHARS;
+      probe.remove();
+      const style = getComputedStyle(log);
+      const inner = log.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      return charW > 0 && inner > 0 ? Math.floor(inner / charW) : Infinity;
+    } catch {
+      return Infinity;
+    }
+  }
+  const view = { get columns() { return logColumns(); } };
+
   function echo(text) {
     line('console-echo').append(prompt.cloneNode(true), ` ${text}`);
   }
@@ -343,7 +404,7 @@ export function createConsole({ root, scroll, ctx }) {
     if (entry && entry !== history[history.length - 1]) history.push(entry);
     at = history.length;
     draft = '';
-    const { lines, links, action } = runCommand(value, ctx);
+    const { lines, links, action } = runCommand(value, ctx, view);
     print(lines, links);
     if (action) perform(action);
   }
