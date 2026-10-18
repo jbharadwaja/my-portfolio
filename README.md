@@ -51,7 +51,8 @@ js/boot-inline.js readable copy of the inline script at the top of index.html (t
 js/content.js     off-page strings: the ~ console's text, the cursor's rail label, the CV publish state
 js/engine/        WebGL particle engine: scene, particles, shaders, morph, resolver, formations/
 js/sections/      scroll wiring and DOM for the hero and each section
-js/ui/            veil, scroll (the only door to scrolling), nav, split text, cursor, the ~ console, halftone reveal
+js/ui/            veil, scroll (the only door to scrolling), nav, split text, cursor, the ~ console, halftone reveal,
+                  the Route's no-WebGL map (fallback-map.js, loaded only when it is needed)
 js/data/          baked world-map dot lattice
 assets/img/       portraits, icons (favicon.svg, favicon-32.png, apple-touch-icon.png), og.png (the social
                   preview, 1200 × 630)
@@ -96,7 +97,7 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `head` | `<head>`: import map, fonts, preloads, the inline boot script, the veil markup and its critical CSS |
 | `landscape` | the training run: the loss landscape, the resampled descent, HUD values, the no-JS curve and HUD line, stage layout |
 | `meta` | SEO meta and JSON-LD, module preloads, the icon set and image assets, `404.html`, `og.png`, `.gitignore` and this README (this table too) |
-| `morph` | formation pair changes: hand-offs (a stand-in's too), the dip on far jumps, and a dip that turns round |
+| `morph` | formation pair changes: hand-offs (a stand-in's too), the dip on far jumps, a dip that turns round, and a cut jump's snap |
 | `name` | the sign-off name formation and its layout rects |
 | `nav` | the section HUD's resting state: hidden at once in the hero, fading back in after it |
 | `network` | the encoder's network formation and its active layer |
@@ -105,7 +106,7 @@ This runs `node --test "tests/**/*.test.mjs"` (Node 22 or newer). There are no d
 | `resolver` | which formation pair the scroll shows, the entrance, dips and the night ramp |
 | `route` | the world map and route formation, the Route timeline, the night ground, the reticle readout, the no-WebGL map |
 | `scaffold` | the section list, the section stylesheets and `init` exports, and how `main.js` loads them |
-| `scroll` | scroll maths (jumps, rail centring, current section, restoring a place) and the scroll module itself (Lenis on and off, jumps while locked) |
+| `scroll` | scroll maths (jumps, landing points, rail centring, current section, restoring a place, keeping it across a resize) and the scroll module itself (Lenis on and off, jumps while locked, the lock's scrollbar gutter) |
 | `sections` | the section loader: every import at once, inits one after another in page order, failures logged |
 | `split` | metric parsing and formatting for the count-ups, split words' plain-text advances, split text copied once |
 | `tier` | device tier choice, the DPR budget, resize filtering and adaptive quality |
